@@ -1,0 +1,232 @@
+{
+    "section1": {
+        "files": [
+            {
+                "url": "assets/FufuSuperDino.png",
+                "type": "image",
+                "key": "FufuSuperDino"
+            },
+            {
+                "url": "assets/background_sea_2.png",
+                "type": "image",
+                "key": "sea-bg"
+            },
+            {
+                "url": "assets/briefcase.png",
+                "type": "image",
+                "key": "fuel-briefcase"
+            },
+            {
+                "url": "assets/obstacle.png",
+                "type": "image",
+                "key": "obstacle-img"
+            },
+            {
+                "url": "assets/money_down.png",
+                "type": "image",
+                "key": "money-down"
+            },
+            {
+                "url": "assets/bar_1.png",
+                "type": "image",
+                "key": "bar-1"
+            },
+            {
+                "url": "assets/bar_2.png",
+                "type": "image",
+                "key": "bar-2"
+            },
+            {
+                "url": "assets/bar_3.png",
+                "type": "image",
+                "key": "bar-3"
+            },
+            {
+                "url": "assets/bar_4.png",
+                "type": "image",
+                "key": "bar-4"
+            },
+            {
+                "url": "assets/bar_5.png",
+                "type": "image",
+                "key": "bar-5"
+            },
+            {
+                "url": "assets/briefcase_icon.png",
+                "type": "image",
+                "key": "briefcase-icon"
+            },
+            {
+                "url": "assets/money_up.png",
+                "type": "image",
+                "key": "money-up"
+            },
+            {
+                "url": "assets/money_change_up.png",
+                "type": "image",
+                "key": "money-change-up"
+            },
+            {
+                "url": "assets/money_change_no.png",
+                "type": "image",
+                "key": "money-change-no"
+            },
+            {
+                "url": "assets/money_change_down.png",
+                "type": "image",
+                "key": "money-change-down"
+            },
+            {
+                "url": "assets/bar_up.png",
+                "type": "image",
+                "key": "bar-up"
+            },
+            {
+                "url": "assets/bar_down.png",
+                "type": "image",
+                "key": "bar-down"
+            },
+            {
+                "url": "assets/speed_icon.png",
+                "type": "image",
+                "key": "icon-speed"
+            },
+            {
+                "url": "assets/flag_icon.png",
+                "type": "image",
+                "key": "icon-flag"
+            },
+            {
+                "url": "assets/progress_0.png",
+                "type": "image",
+                "key": "progress-0"
+            },
+            {
+                "url": "assets/progress_1.png",
+                "type": "image",
+                "key": "progress-1"
+            },
+            {
+                "url": "assets/progress_2.png",
+                "type": "image",
+                "key": "progress-2"
+            },
+            {
+                "url": "assets/progress_3.png",
+                "type": "image",
+                "key": "progress-3"
+            },
+            {
+                "url": "assets/progress_bar_new_0.png",
+                "type": "image",
+                "key": "progress-bar-new-0"
+            },
+            {
+                "url": "assets/progress_bar_new_1.png",
+                "type": "image",
+                "key": "progress-bar-new-1"
+            },
+            {
+                "url": "assets/progress_bar_new_2.png",
+                "type": "image",
+                "key": "progress-bar-new-2"
+            },
+            {
+                "url": "assets/progress_bar_new_3.png",
+                "type": "image",
+                "key": "progress-bar-new-3"
+            },
+            {
+                "url": "assets/progress_bar_new_4.png",
+                "type": "image",
+                "key": "progress-bar-new-4"
+            },
+            {
+                "url": "assets/progress_bar_new_5.png",
+                "type": "image",
+                "key": "progress-bar-new-5"
+            },
+            {
+                "url": "assets/progress_bar_new_6.png",
+                "type": "image",
+                "key": "progress-bar-new-6"
+            },
+            {
+                "url": "assets/time_bar.png",
+                "type": "image",
+                "key": "time-bar"
+            },
+            {
+                "url": "assets/time_bonus.png",
+                "type": "image",
+                "key": "time-bonus"
+            },
+            {
+                "url": "assets/speed_bonus.png",
+                "type": "image",
+                "key": "speed-bonus"
+            },
+            {
+                "url": "assets/time_bonus_shadow.png",
+                "type": "image",
+                "key": "time-bonus-shadow"
+            },
+            {
+                "url": "assets/speed_bonus_shadow.png",
+                "type": "image",
+                "key": "speed-bonus-shadow"
+            },
+            {
+                "url": "assets/earth_1.png",
+                "type": "image",
+                "key": "earth-1"
+            },
+            {
+                "url": "assets/earth_2.png",
+                "type": "image",
+                "key": "earth-2"
+            },
+            {
+                "url": "assets/earth_3.png",
+                "type": "image",
+                "key": "earth-3"
+            },
+            {
+                "url": "assets/start_background.png",
+                "type": "image",
+                "key": "start-bg"
+            },
+            {
+                "url": "assets/hand.png",
+                "type": "image",
+                "key": "hand-icon"
+            },
+            {
+                "url": "assets/button_start.png",
+                "type": "image",
+                "key": "start-button"
+            },
+            {
+                "url": "assets/sprite-256px-25.png",
+                "frameConfig": {
+                    "frameWidth": 512,
+                    "frameHeight": 512,
+                    "startFrame": 0,
+                    "endFrame": 24,
+                    "spacing": 0,
+                    "margin": 0
+                },
+                "type": "spritesheet",
+                "key": "yacht-sheet"
+            }
+        ]
+    },
+    "meta": {
+        "app": "Phaser Editor 2D - Asset Pack Editor",
+        "contentType": "phasereditor2d.pack.core.AssetContentType",
+        "url": "https://phasereditor2d.com",
+        "version": 2,
+        "showAllFilesInBlocks": false,
+        "visible": true
+    }
+}
