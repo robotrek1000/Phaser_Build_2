@@ -1,11 +1,11 @@
 export const TUNING = {
-  SPEED_START_KMH: 40,
+  SPEED_START_KMH: 20,
   FUEL_START: 1,
   FUEL_DRAIN_PER_SEC: 0.025,
   FUEL_PICKUP_VALUE: 0.25,
   DYNAMIC_BUOY_DELTA: 0.2,
   DYNAMIC_BUOY_STATE_MS: 3000,
-  SPEED_PER_100M: 0,
+  SPEED_PER_100M: 5,
   FUEL_HIT_PENALTY: 0.2,
 } as const;
 
@@ -206,6 +206,10 @@ export const INTRO_LAYOUT = {
 export const YACHT_SWAY = {
   amplitudePx: 6,
   frequencyHz: 2.2,
+} as const;
+
+export const YACHT_CONTROL = {
+  controlLerpSpeed: 18,
 } as const;
 
 export const YACHT_VISUAL_OFFSET = {

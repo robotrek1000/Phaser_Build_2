@@ -32,6 +32,7 @@ import {
   UI_TEXT,
   WATER_SCROLL,
   YACHT_HITBOX,
+  YACHT_CONTROL,
   YACHT_SWAY,
   YACHT_VISUAL_OFFSET,
 } from "../config/tuning";
@@ -167,7 +168,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (this.yachtBody) {
-      const lerpSpeed = 12;
+      const lerpSpeed = YACHT_CONTROL.controlLerpSpeed;
       this.yachtBody.setX(Phaser.Math.Linear(this.yachtBody.x, this.targetX, lerpSpeed * (delta / 1000)));
     }
 
