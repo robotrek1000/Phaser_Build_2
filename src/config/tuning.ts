@@ -232,7 +232,7 @@ export const YACHT_SWAY = {
 } as const;
 
 export const YACHT_CONTROL = {
-  controlLerpSpeed: 18,
+  controlLerpSpeed: 32,
 } as const;
 
 export const YACHT_VISUAL_OFFSET = {
