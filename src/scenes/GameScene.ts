@@ -18,6 +18,7 @@ import {
   OBJECT_SIZES,
   OBSTACLE_SWAY,
   PLAY_AREA,
+  POINTER_JOYSTICK,
   PROGRESS_BAR_NEW_KEYS,
   RUN_TIMER,
   SPAWN_BASE_DELAYS,
@@ -80,7 +81,10 @@ export default class GameScene extends Phaser.Scene {
   private targetX = 0;
   private playAreaLeft = 0;
   private playAreaRight = 0;
-  private isDragging = false;
+  private joystickActive = false;
+  private joystickPointerId?: number;
+  private joystickLastPointerX = 0;
+  private joystickFrameInputX = 0;
   private swayTime = 0;
 
   private obstacles!: Phaser.Physics.Arcade.Group;
@@ -122,20 +126,33 @@ export default class GameScene extends Phaser.Scene {
   };
 
   private readonly onPointerDown = (pointer: Phaser.Input.Pointer) => {
-    this.isDragging = true;
-    this.updateTargetX(pointer.x);
-  };
-
-  private readonly onPointerUp = () => {
-    this.isDragging = false;
-  };
-
-  private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
-    if (!this.isDragging) {
+    if (this.joystickActive) {
       return;
     }
 
-    this.updateTargetX(pointer.x);
+    this.joystickActive = true;
+    this.joystickPointerId = pointer.id;
+    this.joystickLastPointerX = pointer.x;
+    this.joystickFrameInputX = 0;
+    if (this.yachtBody) {
+      this.targetX = this.yachtBody.x;
+    }
+  };
+
+  private readonly onPointerUp = (pointer: Phaser.Input.Pointer) => {
+    if (!this.isJoystickPointer(pointer)) {
+      return;
+    }
+
+    this.resetJoystickState();
+  };
+
+  private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
+    if (!this.isJoystickPointer(pointer)) {
+      return;
+    }
+
+    this.updateJoystickInput(pointer.x);
   };
 
   constructor() {
@@ -173,6 +190,16 @@ export default class GameScene extends Phaser.Scene {
     if (this.remainingTimeMs <= 0) {
       this.finishRunOutOfTime();
       return;
+    }
+
+    if (this.joystickActive && this.joystickFrameInputX !== 0) {
+      const absFrameInputX = Math.abs(this.joystickFrameInputX);
+      const strength = POINTER_JOYSTICK.useDeflectionMagnitude
+        ? Math.pow(absFrameInputX, POINTER_JOYSTICK.deflectionExponent)
+        : 1;
+      const signedInput = Math.sign(this.joystickFrameInputX) * strength;
+      this.updateTargetX(this.targetX + signedInput * POINTER_JOYSTICK.moveSpeedPxPerSec * dt);
+      this.joystickFrameInputX = 0;
     }
 
     if (this.yachtBody) {
@@ -635,10 +662,46 @@ export default class GameScene extends Phaser.Scene {
   private setupInput() {
     this.input.off("pointerdown", this.onPointerDown);
     this.input.off("pointerup", this.onPointerUp);
+    this.input.off("pointerupoutside", this.onPointerUp);
     this.input.off("pointermove", this.onPointerMove);
     this.input.on("pointerdown", this.onPointerDown);
     this.input.on("pointerup", this.onPointerUp);
+    this.input.on("pointerupoutside", this.onPointerUp);
     this.input.on("pointermove", this.onPointerMove);
+  }
+
+  private isJoystickPointer(pointer: Phaser.Input.Pointer) {
+    return this.joystickActive && this.joystickPointerId === pointer.id;
+  }
+
+  private updateJoystickInput(pointerX: number) {
+    const deltaX = pointerX - this.joystickLastPointerX;
+    this.joystickLastPointerX = pointerX;
+
+    const clampedDeltaX = Phaser.Math.Clamp(
+      deltaX,
+      -POINTER_JOYSTICK.fullThrowDistancePx,
+      POINTER_JOYSTICK.fullThrowDistancePx,
+    );
+    if (Math.abs(clampedDeltaX) < POINTER_JOYSTICK.deadZonePx) {
+      return;
+    }
+
+    const normalizedDeltaX = clampedDeltaX / Math.max(1, POINTER_JOYSTICK.fullThrowDistancePx);
+    this.joystickFrameInputX = Phaser.Math.Clamp(
+      this.joystickFrameInputX + normalizedDeltaX,
+      -POINTER_JOYSTICK.maxNormalizedInput,
+      POINTER_JOYSTICK.maxNormalizedInput,
+    );
+  }
+
+  private resetJoystickState() {
+    this.joystickActive = false;
+    this.joystickPointerId = undefined;
+    this.joystickFrameInputX = 0;
+    if (this.yachtBody) {
+      this.targetX = this.yachtBody.x;
+    }
   }
 
   private updateTargetX(pointerX: number) {
@@ -1763,7 +1826,7 @@ export default class GameScene extends Phaser.Scene {
 
   private resetState() {
     this.isGameOver = false;
-    this.isDragging = false;
+    this.resetJoystickState();
     this.isSpawnPauseActive = false;
     this.swayTime = 0;
     this.speedKmh = TUNING.SPEED_START_KMH;
@@ -1816,6 +1879,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.input.off("pointerdown", this.onPointerDown);
     this.input.off("pointerup", this.onPointerUp);
+    this.input.off("pointerupoutside", this.onPointerUp);
     this.input.off("pointermove", this.onPointerMove);
   }
 }

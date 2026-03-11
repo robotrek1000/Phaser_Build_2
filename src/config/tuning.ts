@@ -235,6 +235,15 @@ export const YACHT_CONTROL = {
   controlLerpSpeed: 32,
 } as const;
 
+export const POINTER_JOYSTICK = {
+  fullThrowDistancePx: 20,
+  deadZonePx: 0,
+  moveSpeedPxPerSec: 900,
+  useDeflectionMagnitude: false,
+  deflectionExponent: 1.2,
+  maxNormalizedInput: 1,
+} as const;
+
 export const YACHT_VISUAL_OFFSET = {
   y: 32,
 } as const;
