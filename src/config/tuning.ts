@@ -62,7 +62,8 @@ export const TIME_BONUS_SPAWN_MULTIPLIERS = [
 ] as const;
 
 export const SPEED_BONUS_SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 100, multiplier: 1.75 },
+  { minMeters: 0, maxMeters: 99, multiplier: 1.75 },
+  { minMeters: 99, maxMeters: 100, multiplier: 0 },
   { minMeters: 100, maxMeters: 200, multiplier: 1.75 },
   { minMeters: 200, maxMeters: 400, multiplier: 1.75 },
   { minMeters: 400, maxMeters: 500, multiplier: 1.75 },
