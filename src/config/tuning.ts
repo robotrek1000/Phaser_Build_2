@@ -41,10 +41,32 @@ export const PROGRESS_BAR_NEW_KEYS = [
 ] as const;
 
 export const SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 200, obstacle: 2, fuel: 1, dynamic: 2 },
-  { minMeters: 200, maxMeters: 400, obstacle: 1.75, fuel: 1.5, dynamic: 1.75 },
-  { minMeters: 400, maxMeters: 500, obstacle: 1.5, fuel: 2, dynamic: 1.5 },
-  { minMeters: 500, maxMeters: Infinity, obstacle: 1.25, fuel: 2.5, dynamic: 1.25 },
+  { minMeters: 0, maxMeters: 46, obstacle: 3, fuel: 1.75, dynamic: 10 },
+  { minMeters: 46, maxMeters: 50, obstacle: 0.1, fuel: 1.75, dynamic: 10 },
+  { minMeters: 50, maxMeters: 95, obstacle: 2, fuel: 1.75, dynamic: 10 },
+  { minMeters: 95, maxMeters: 100, obstacle: 2, fuel: 1.75, dynamic: 0.05 },
+  { minMeters: 100, maxMeters: 200, obstacle: 1.75, fuel: 2, dynamic: 1 },
+  { minMeters: 200, maxMeters: 400, obstacle: 2, fuel: 2.25, dynamic: 1.75 },
+  { minMeters: 400, maxMeters: 500, obstacle: 1.5, fuel: 2.5, dynamic: 1.5 },
+  { minMeters: 500, maxMeters: Infinity, obstacle: 1.25, fuel: 2.75, dynamic: 1.25 },
+] as const;
+
+export const TIME_BONUS_SPAWN_MULTIPLIERS = [
+  { minMeters: 0, maxMeters: 49, multiplier: 1.75 },
+  { minMeters: 49, maxMeters: 50, multiplier: 0 },
+  { minMeters: 50, maxMeters: 100, multiplier: 1.75 },
+  { minMeters: 100, maxMeters: 200, multiplier: 1.75 },
+  { minMeters: 200, maxMeters: 400, multiplier: 1.75 },
+  { minMeters: 400, maxMeters: 500, multiplier: 1.75 },
+  { minMeters: 500, maxMeters: Infinity, multiplier: 1.75 },
+] as const;
+
+export const SPEED_BONUS_SPAWN_MULTIPLIERS = [
+  { minMeters: 0, maxMeters: 100, multiplier: 1.75 },
+  { minMeters: 100, maxMeters: 200, multiplier: 1.75 },
+  { minMeters: 200, maxMeters: 400, multiplier: 1.75 },
+  { minMeters: 400, maxMeters: 500, multiplier: 1.75 },
+  { minMeters: 500, maxMeters: Infinity, multiplier: 1.75 },
 ] as const;
 
 export const SPAWN_BASE_DELAYS = {
@@ -57,8 +79,8 @@ export const SPAWN_BASE_DELAYS = {
 } as const;
 
 export const SPEED_VARIANCE = {
-  minMultiplier: 0.85,
-  maxMultiplier: 1.15,
+  minMultiplier: 1,
+  maxMultiplier: 2,
 } as const;
 
 export const FALL_SPEED = {
@@ -67,9 +89,9 @@ export const FALL_SPEED = {
 } as const;
 
 export const SPEED_BONUS_FALL_SPEED_MULTIPLIERS = [
-  { minKmh: 0, maxKmh: 30, multiplier: 1.4 },
-  { minKmh: 30, maxKmh: 45, multiplier: 1.8 },
-  { minKmh: 45, maxKmh: Infinity, multiplier: 2.0 },
+  { minKmh: 0, maxKmh: 30, multiplier: 1.1 },
+  { minKmh: 30, maxKmh: 45, multiplier: 1.2 },
+  { minKmh: 45, maxKmh: Infinity, multiplier: 1.3 },
 ] as const;
 
 export const WATER_SCROLL = {
@@ -240,7 +262,9 @@ export const OBJECT_DRIFT = {
 export const TIME_BONUS = {
   textureKey: "time-bonus",
   shadowTextureKey: "time-bonus-shadow",
-  spawnRarityVsFuel: 3,
+  spawnDelayMinMs: 2200,
+  spawnDelayMaxMs: 3800,
+  spawnDelayMultiplier: 2,
   spawnYOffset: -120,
   spawnSideOffset: 70,
   size: 80,
@@ -248,7 +272,7 @@ export const TIME_BONUS = {
   shadowHeight: 32,
   shadowYOffset: 120,
   shadowAlpha: 0.35,
-  speedYMultiplierVsObstacle: 1.35,
+  speedYMultiplier: 1.35,
   zigzagHorizontalSpeed: 500,
   zigzagLeftBoundOffset: 24,
   zigzagRightBoundOffset: 24,
@@ -273,7 +297,9 @@ export const TIME_BONUS = {
 export const SPEED_BONUS = {
   textureKey: "speed-bonus",
   shadowTextureKey: "speed-bonus-shadow",
-  spawnRarityVsFuel: 3,
+  spawnDelayMinMs: 2200,
+  spawnDelayMaxMs: 3800,
+  spawnDelayMultiplier: 2,
   spawnYOffset: -120,
   spawnSideOffset: 70,
   size: 80,
@@ -281,7 +307,7 @@ export const SPEED_BONUS = {
   shadowHeight: 32,
   shadowYOffset: 120,
   shadowAlpha: 0.35,
-  speedYMultiplierVsObstacle: 1.35,
+  speedYMultiplier: 1.35,
   zigzagHorizontalSpeed: 500,
   zigzagLeftBoundOffset: 24,
   zigzagRightBoundOffset: 24,
@@ -302,11 +328,11 @@ export const SPEED_BONUS = {
     maxScaleY: 1,
   },
   effectDurationMs: 5_000,
-  fixedSpeedMultiplierVsStart: 2,
+  speedMultiplier: 2,
 } as const;
 
 export const BONUS_SPAWN = {
-  maxConsecutiveSameType: 2,
+  maxConsecutiveSameType: 1,
   initialType: "random" as "random" | "time" | "speed",
 } as const;
 

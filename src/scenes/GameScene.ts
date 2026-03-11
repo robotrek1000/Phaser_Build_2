@@ -25,8 +25,10 @@ import {
   SPAWN_PAUSE_WINDOW_METERS,
   SPEED_BONUS_FALL_SPEED_MULTIPLIERS,
   SPEED_BONUS,
+  SPEED_BONUS_SPAWN_MULTIPLIERS,
   SPEED_VARIANCE,
   TIME_BONUS,
+  TIME_BONUS_SPAWN_MULTIPLIERS,
   TIME_HUD,
   TUNING,
   UI_TEXT,
@@ -100,8 +102,13 @@ export default class GameScene extends Phaser.Scene {
   private fuel = TUNING.FUEL_START;
   private remainingTimeMs = RUN_TIMER.initialMs;
   private speedBonusRemainingMs = 0;
+  private speedBonusLockedKmh?: number;
   private lastSpawnedBonusType?: AirBonusType;
   private sameTypeSpawnStreak = 0;
+  private scheduledAirBonusType?: AirBonusType;
+  private currentBuoySpawnRangeIndex = -1;
+  private currentTimeBonusSpawnRangeIndex = -1;
+  private currentSpeedBonusSpawnRangeIndex = -1;
   private buoyCollisionPairLastHit = new Map<string, number>();
   private buoyCollisionIdCounter = 0;
 
@@ -148,6 +155,7 @@ export default class GameScene extends Phaser.Scene {
     this.createGroups();
     this.setupCollisions();
 
+    this.initializeSpawnRangeState();
     this.scheduleObstacleSpawn();
     this.scheduleFuelSpawn();
     this.scheduleDynamicSpawn();
@@ -179,14 +187,15 @@ export default class GameScene extends Phaser.Scene {
 
     const baseSpeedBeforeStep = TUNING.SPEED_START_KMH + Math.floor(this.distanceM / 100) * TUNING.SPEED_PER_100M;
     const speedForStepKmh = speedBonusWasActive
-      ? TUNING.SPEED_START_KMH * SPEED_BONUS.fixedSpeedMultiplierVsStart
+      ? (this.speedBonusLockedKmh ?? baseSpeedBeforeStep * SPEED_BONUS.speedMultiplier)
       : baseSpeedBeforeStep;
     const speedMps = (speedForStepKmh * 1000) / 3600;
     this.distanceM += speedMps * dt;
     const baseSpeedAfterStep = TUNING.SPEED_START_KMH + Math.floor(this.distanceM / 100) * TUNING.SPEED_PER_100M;
     this.speedKmh = speedBonusWasActive
-      ? TUNING.SPEED_START_KMH * SPEED_BONUS.fixedSpeedMultiplierVsStart
+      ? (this.speedBonusLockedKmh ?? baseSpeedAfterStep * SPEED_BONUS.speedMultiplier)
       : baseSpeedAfterStep;
+    this.updateSpawnTimersForDistanceRange();
     this.updateActiveBuoyAndAirFallSpeeds(dt);
     this.fuel = Math.max(0, this.fuel - dt * TUNING.FUEL_DRAIN_PER_SEC);
 
@@ -698,8 +707,9 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  private scheduleAirBonusSpawn() {
-    const nextType = this.chooseNextAirBonusType();
+  private scheduleAirBonusSpawn(forcedType?: AirBonusType) {
+    const nextType = forcedType ?? this.chooseNextAirBonusType();
+    this.scheduledAirBonusType = nextType;
     const delay = this.getAirBonusSpawnDelay(nextType);
     this.bonusSpawnTimer = this.time.delayedCall(delay, () => {
       if (this.isGameOver) {
@@ -709,6 +719,54 @@ export default class GameScene extends Phaser.Scene {
       this.registerSpawnedAirBonusType(nextType);
       this.scheduleAirBonusSpawn();
     });
+  }
+
+  private initializeSpawnRangeState() {
+    this.currentBuoySpawnRangeIndex = this.getDistanceRangeIndex(SPAWN_MULTIPLIERS);
+    this.currentTimeBonusSpawnRangeIndex = this.getDistanceRangeIndex(TIME_BONUS_SPAWN_MULTIPLIERS);
+    this.currentSpeedBonusSpawnRangeIndex = this.getDistanceRangeIndex(SPEED_BONUS_SPAWN_MULTIPLIERS);
+  }
+
+  private updateSpawnTimersForDistanceRange() {
+    const nextBuoySpawnRangeIndex = this.getDistanceRangeIndex(SPAWN_MULTIPLIERS);
+    if (nextBuoySpawnRangeIndex != this.currentBuoySpawnRangeIndex) {
+      this.currentBuoySpawnRangeIndex = nextBuoySpawnRangeIndex;
+      this.rescheduleBuoySpawnTimers();
+    }
+
+    const nextTimeBonusSpawnRangeIndex = this.getDistanceRangeIndex(TIME_BONUS_SPAWN_MULTIPLIERS);
+    const nextSpeedBonusSpawnRangeIndex = this.getDistanceRangeIndex(SPEED_BONUS_SPAWN_MULTIPLIERS);
+    const timeBonusRangeChanged = nextTimeBonusSpawnRangeIndex != this.currentTimeBonusSpawnRangeIndex;
+    const speedBonusRangeChanged = nextSpeedBonusSpawnRangeIndex != this.currentSpeedBonusSpawnRangeIndex;
+
+    this.currentTimeBonusSpawnRangeIndex = nextTimeBonusSpawnRangeIndex;
+    this.currentSpeedBonusSpawnRangeIndex = nextSpeedBonusSpawnRangeIndex;
+
+    if (
+      (this.scheduledAirBonusType === "time" && timeBonusRangeChanged) ||
+      (this.scheduledAirBonusType === "speed" && speedBonusRangeChanged)
+    ) {
+      this.rescheduleAirBonusSpawnTimer();
+    }
+  }
+
+  private rescheduleBuoySpawnTimers() {
+    this.obstacleTimer?.remove(false);
+    this.fuelTimer?.remove(false);
+    this.dynamicTimer?.remove(false);
+    this.obstacleTimer = undefined;
+    this.fuelTimer = undefined;
+    this.dynamicTimer = undefined;
+    this.scheduleObstacleSpawn();
+    this.scheduleFuelSpawn();
+    this.scheduleDynamicSpawn();
+  }
+
+  private rescheduleAirBonusSpawnTimer() {
+    const scheduledType = this.scheduledAirBonusType;
+    this.bonusSpawnTimer?.remove(false);
+    this.bonusSpawnTimer = undefined;
+    this.scheduleAirBonusSpawn(scheduledType);
   }
 
   private spawnObstacle() {
@@ -848,7 +906,7 @@ export default class GameScene extends Phaser.Scene {
       ? this.playAreaLeft - config.spawnSideOffset
       : this.playAreaRight + config.spawnSideOffset;
     const y = config.spawnYOffset;
-    const speedY = this.getBuoyAndAirFallSpeed() * config.speedYMultiplierVsObstacle;
+    const speedY = this.getAirBonusFallSpeed(type);
     const directionX = spawnFromLeft ? 1 : -1;
     const speedX = directionX * config.zigzagHorizontalSpeed;
 
@@ -869,7 +927,7 @@ export default class GameScene extends Phaser.Scene {
     bonus.setData("collecting", false);
     bonus.setData("bonusType", type);
     bonus.setData("speedY", speedY);
-    bonus.setData("fallSpeedMultiplierVsObstacle", config.speedYMultiplierVsObstacle);
+    bonus.setData("speedYMultiplier", config.speedYMultiplier);
     bonus.setData("zigzagHorizontalSpeed", config.zigzagHorizontalSpeed);
     bonus.setData("zigzagLeftBoundOffset", config.zigzagLeftBoundOffset);
     bonus.setData("zigzagRightBoundOffset", config.zigzagRightBoundOffset);
@@ -1130,9 +1188,10 @@ export default class GameScene extends Phaser.Scene {
       if (!sprite.active || sprite.getData("collecting")) {
         return;
       }
-      const fallSpeedMultiplierVsObstacle =
-        (sprite.getData("fallSpeedMultiplierVsObstacle") as number | undefined) ?? 1;
-      const targetSpeedY = buoyBaseSpeed * fallSpeedMultiplierVsObstacle;
+      const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
+      const speedYMultiplier =
+        (sprite.getData("speedYMultiplier") as number | undefined) ?? this.getAirBonusConfig(bonusType).speedYMultiplier;
+      const targetSpeedY = this.getBaseFallSpeedByKmh(this.speedKmh) * speedYMultiplier;
       sprite.setVelocityY(targetSpeedY);
       sprite.setData("speedY", targetSpeedY);
     });
@@ -1460,7 +1519,23 @@ export default class GameScene extends Phaser.Scene {
 
   private getAirBonusSpawnDelay(type: AirBonusType) {
     const config = this.getAirBonusConfig(type);
-    return this.getFuelSpawnDelay() * config.spawnRarityVsFuel;
+    const baseDelay = Phaser.Math.Between(config.spawnDelayMinMs, config.spawnDelayMaxMs);
+    return baseDelay * config.spawnDelayMultiplier * this.getAirBonusSpawnRangeMultiplier(type);
+  }
+
+  private getAirBonusFallSpeed(type: AirBonusType) {
+    const config = this.getAirBonusConfig(type);
+    return this.getBaseFallSpeedByKmh(this.speedKmh) * config.speedYMultiplier;
+  }
+
+  private getDistanceRangeIndex<T extends { minMeters: number; maxMeters: number }>(ranges: readonly T[]) {
+    return ranges.findIndex((item) => this.distanceM >= item.minMeters && this.distanceM < item.maxMeters);
+  }
+
+  private getAirBonusSpawnRangeMultiplier(type: AirBonusType) {
+    const ranges = type === "time" ? TIME_BONUS_SPAWN_MULTIPLIERS : SPEED_BONUS_SPAWN_MULTIPLIERS;
+    const entry = ranges.find((item) => this.distanceM >= item.minMeters && this.distanceM < item.maxMeters);
+    return entry ? entry.multiplier : 1;
   }
 
   private getObstacleSpawnMultiplier() {
@@ -1604,6 +1679,8 @@ export default class GameScene extends Phaser.Scene {
     const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
     this.destroyTimeBonusShadow(sprite);
     if (bonusType === "speed") {
+      const pickupBaseSpeed = TUNING.SPEED_START_KMH + Math.floor(this.distanceM / 100) * TUNING.SPEED_PER_100M;
+      this.speedBonusLockedKmh = pickupBaseSpeed * SPEED_BONUS.speedMultiplier;
       this.speedBonusRemainingMs = SPEED_BONUS.effectDurationMs;
     } else {
       this.remainingTimeMs += RUN_TIMER.bonusMs;
@@ -1629,6 +1706,7 @@ export default class GameScene extends Phaser.Scene {
     this.fuelTimer = undefined;
     this.dynamicTimer = undefined;
     this.bonusSpawnTimer = undefined;
+    this.scheduledAirBonusType = undefined;
   }
 
   private finishRunSuccess(reason: SuccessReason) {
@@ -1693,8 +1771,13 @@ export default class GameScene extends Phaser.Scene {
     this.fuel = TUNING.FUEL_START;
     this.remainingTimeMs = RUN_TIMER.initialMs;
     this.speedBonusRemainingMs = 0;
+    this.speedBonusLockedKmh = undefined;
     this.lastSpawnedBonusType = undefined;
     this.sameTypeSpawnStreak = 0;
+    this.scheduledAirBonusType = undefined;
+    this.currentBuoySpawnRangeIndex = -1;
+    this.currentTimeBonusSpawnRangeIndex = -1;
+    this.currentSpeedBonusSpawnRangeIndex = -1;
     this.buoyCollisionPairLastHit.clear();
     this.buoyCollisionIdCounter = 0;
 
