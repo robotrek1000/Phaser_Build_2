@@ -238,7 +238,7 @@ export const YACHT_CONTROL = {
 export const POINTER_JOYSTICK = {
   fullThrowDistancePx: 30,
   deadZonePx: 0,
-  moveSpeedPxPerSec: 600,
+  moveSpeedPxPerSec: 1200,
   useDeflectionMagnitude: false,
   deflectionExponent: 1.2,
   maxNormalizedInput: 1,
