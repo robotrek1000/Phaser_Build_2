@@ -5,6 +5,8 @@ import {
   BUOY_HITBOX,
   COIN_PENDING_MILESTONES,
   DISTANCE_CHECKPOINTS,
+  DYNAMIC_BUOY_STATE_ORDER,
+  DYNAMIC_BUOY_STATES,
   DYNAMIC_SWAY,
   FALL_SPEED,
   FUEL_SWAY,
@@ -45,6 +47,7 @@ type FailureReason = "out_of_assets" | "out_of_time";
 type ResultReason = FailureReason | SuccessReason;
 type LandmarkType = "island200" | "tavern400" | "harbor610";
 type AirBonusType = "time" | "speed";
+type DynamicBuoyStateKey = keyof typeof DYNAMIC_BUOY_STATES;
 type BuoyType = "obstacle" | "fuel" | "dynamic";
 
 type LandmarkConfig = {
@@ -429,20 +432,21 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
-      const state = sprite.getData("dynamicState") as number | undefined;
-      if (state === 1) {
-        this.fuel = Math.min(1, this.fuel + TUNING.DYNAMIC_BUOY_DELTA);
+      const stateKey = this.getDynamicBuoyStateKey(sprite);
+      const stateConfig = DYNAMIC_BUOY_STATES[stateKey];
+      if (stateKey === "up") {
+        this.fuel = Math.min(1, this.fuel + stateConfig.delta);
         this.showHudFeedback("bar-up");
         this.collectFuel(sprite);
-      } else if (state === 3) {
-        this.fuel = Math.max(0, this.fuel - TUNING.DYNAMIC_BUOY_DELTA);
+      } else if (stateKey === "down") {
+        this.fuel = Math.max(0, this.fuel + stateConfig.delta);
         this.showHudFeedback("bar-down");
         if (this.fuel <= 0) {
           this.finishRunOutOfAssets();
           return;
         }
         this.collectFuel(sprite);
-      } else if (state === 2) {
+      } else {
         this.handleYachtVsEmptyDynamicCollision(sprite);
       }
     });
@@ -908,13 +912,7 @@ export default class GameScene extends Phaser.Scene {
     const baseSpeed = this.getBuoyAndAirFallSpeed() / 1.5;
     const speedVarianceMultiplier = this.getSpeedVarianceMultiplier();
     const speed = baseSpeed * speedVarianceMultiplier;
-    const initialState = Phaser.Math.Between(1, 3);
-    let initialDirection = 1;
-    if (initialState === 3) {
-      initialDirection = -1;
-    } else if (initialState === 2) {
-      initialDirection = Phaser.Math.Between(0, 1) === 0 ? -1 : 1;
-    }
+    const initialStateKey = Phaser.Utils.Array.GetRandom([...DYNAMIC_BUOY_STATE_ORDER]) as DynamicBuoyStateKey;
     const targetWidth = OBJECT_SIZES.dynamic.width * FUEL_VISUAL_SCALE;
     const targetHeight = OBJECT_SIZES.dynamic.height * FUEL_VISUAL_SCALE;
     const dynamicBuoy = this.dynamicBuoys.get(x, y, "money-change-up") as Phaser.Physics.Arcade.Sprite | null;
@@ -929,7 +927,7 @@ export default class GameScene extends Phaser.Scene {
     dynamicBuoy.setRotation(0);
     dynamicBuoy.body.setAllowGravity(false);
     dynamicBuoy.body.setSize(OBJECT_SIZES.dynamic.width, OBJECT_SIZES.dynamic.height, true);
-    dynamicBuoy.setTexture(this.getDynamicBuoyTextureKey(initialState));
+    dynamicBuoy.setTexture(DYNAMIC_BUOY_STATES[initialStateKey].textureKey);
     dynamicBuoy.setDisplaySize(targetWidth, targetHeight);
     this.applyBuoyHitbox(dynamicBuoy, "dynamic", targetWidth, targetHeight);
     dynamicBuoy.setDepth(10);
@@ -942,16 +940,22 @@ export default class GameScene extends Phaser.Scene {
     dynamicBuoy.setData("driftFrequency", OBJECT_DRIFT.dynamic.frequencyHz);
     dynamicBuoy.setData("driftPhase", Phaser.Math.FloatBetween(OBJECT_DRIFT.dynamic.phaseMin, OBJECT_DRIFT.dynamic.phaseMax));
     dynamicBuoy.setData("swayPhase", Phaser.Math.FloatBetween(DYNAMIC_SWAY.phaseMin, DYNAMIC_SWAY.phaseMax));
-    dynamicBuoy.setData("dynamicState", initialState);
-    dynamicBuoy.setData("dynamicDirection", initialDirection);
+    dynamicBuoy.setData("dynamicStateKey", initialStateKey);
+    dynamicBuoy.setData("dynamicState", DYNAMIC_BUOY_STATES[initialStateKey].stateId);
+    const initialNoNextStateKey =
+      initialStateKey === "no"
+        ? (Phaser.Utils.Array.GetRandom(["up", "down"]) as Exclude<DynamicBuoyStateKey, "no">)
+        : (initialStateKey === "up" ? "down" : "up");
+    dynamicBuoy.setData("dynamicNoNextStateKey", initialNoNextStateKey);
     dynamicBuoy.setData("pushX", 0);
     dynamicBuoy.setData("pushVx", 0);
     dynamicBuoy.setData("pushVy", 0);
     dynamicBuoy.setData("lastCollisionAt", 0);
 
+    const initialStateConfig = DYNAMIC_BUOY_STATES[initialStateKey];
     const stateTimer = this.time.addEvent({
-      delay: TUNING.DYNAMIC_BUOY_STATE_MS,
-      loop: true,
+      delay: initialStateConfig.durationMs,
+      loop: false,
       callback: () => {
         if (!dynamicBuoy.active || dynamicBuoy.getData("collecting")) {
           return;
@@ -1620,42 +1624,74 @@ export default class GameScene extends Phaser.Scene {
     return Phaser.Math.FloatBetween(SPEED_VARIANCE.minMultiplier, SPEED_VARIANCE.maxMultiplier);
   }
 
-  private getDynamicBuoyTextureKey(state: number) {
-    if (state === 1) {
-      return "money-change-up";
+  private getDynamicBuoyStateKey(sprite: Phaser.Physics.Arcade.Sprite): DynamicBuoyStateKey {
+    const stateKey = sprite.getData("dynamicStateKey") as DynamicBuoyStateKey | undefined;
+    if (stateKey && stateKey in DYNAMIC_BUOY_STATES) {
+      return stateKey;
     }
-    if (state === 2) {
-      return "money-change-no";
+
+    const stateId = sprite.getData("dynamicState") as number | undefined;
+    const entry = Object.entries(DYNAMIC_BUOY_STATES).find(([, config]) => config.stateId === stateId);
+    return (entry?.[0] as DynamicBuoyStateKey | undefined) ?? DYNAMIC_BUOY_STATE_ORDER[0];
+  }
+
+  private getDynamicBuoyNoNextStateKey(
+    sprite: Phaser.Physics.Arcade.Sprite,
+  ): Exclude<DynamicBuoyStateKey, "no"> {
+    const nextStateKey = sprite.getData("dynamicNoNextStateKey") as DynamicBuoyStateKey | undefined;
+    if (nextStateKey === "up" || nextStateKey === "down") {
+      return nextStateKey;
     }
-    return "money-change-down";
+
+    const currentStateKey = this.getDynamicBuoyStateKey(sprite);
+    if (currentStateKey === "up") {
+      return "down";
+    }
+    if (currentStateKey === "down") {
+      return "up";
+    }
+    return Phaser.Utils.Array.GetRandom(["up", "down"]) as Exclude<DynamicBuoyStateKey, "no">;
+  }
+
+  private scheduleDynamicBuoyStateTransition(sprite: Phaser.Physics.Arcade.Sprite) {
+    const stateKey = this.getDynamicBuoyStateKey(sprite);
+    const stateTimer = this.time.addEvent({
+      delay: DYNAMIC_BUOY_STATES[stateKey].durationMs,
+      loop: false,
+      callback: () => {
+        if (!sprite.active || sprite.getData("collecting")) {
+          return;
+        }
+        this.advanceDynamicBuoyState(sprite);
+      },
+    });
+    sprite.setData("stateTimer", stateTimer);
   }
 
   private advanceDynamicBuoyState(sprite: Phaser.Physics.Arcade.Sprite) {
-    const currentState = (sprite.getData("dynamicState") as number | undefined) ?? 1;
-    const currentDirection = (sprite.getData("dynamicDirection") as number | undefined) ?? 1;
-    let nextState = currentState;
-    let nextDirection = currentDirection;
+    const currentStateKey = this.getDynamicBuoyStateKey(sprite);
+    let nextStateKey: DynamicBuoyStateKey;
 
-    if (currentState === 1) {
-      nextState = 2;
-      nextDirection = 1;
-    } else if (currentState === 3) {
-      nextState = 2;
-      nextDirection = -1;
-    } else if (currentDirection >= 0) {
-      nextState = 3;
-      nextDirection = 1;
+    if (currentStateKey === "up") {
+      nextStateKey = "no";
+      sprite.setData("dynamicNoNextStateKey", "down");
+    } else if (currentStateKey === "down") {
+      nextStateKey = "no";
+      sprite.setData("dynamicNoNextStateKey", "up");
     } else {
-      nextState = 1;
-      nextDirection = -1;
+      nextStateKey = this.getDynamicBuoyNoNextStateKey(sprite);
     }
 
+    const nextStateConfig = DYNAMIC_BUOY_STATES[nextStateKey];
     const prevWidth = sprite.displayWidth;
     const prevHeight = sprite.displayHeight;
-    sprite.setData("dynamicState", nextState);
-    sprite.setData("dynamicDirection", nextDirection);
-    sprite.setTexture(this.getDynamicBuoyTextureKey(nextState));
+    sprite.setData("dynamicStateKey", nextStateKey);
+    sprite.setData("dynamicState", nextStateConfig.stateId);
+    sprite.setTexture(nextStateConfig.textureKey);
     sprite.setDisplaySize(prevWidth, prevHeight);
+
+    this.stopDynamicBuoyStateTimer(sprite);
+    this.scheduleDynamicBuoyStateTransition(sprite);
   }
 
   private stopDynamicBuoyStateTimer(sprite: Phaser.Physics.Arcade.Sprite) {
