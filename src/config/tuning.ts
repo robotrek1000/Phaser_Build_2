@@ -236,11 +236,11 @@ export const YACHT_CONTROL = {
 } as const;
 
 export const POINTER_JOYSTICK = {
-  fullThrowDistancePx: 30,
+  fullThrowDistancePx: 10,
   deadZonePx: 0,
-  moveSpeedPxPerSec: 1200,
-  useDeflectionMagnitude: false,
-  deflectionExponent: 1.2,
+  moveSpeedPxPerSec: 1800,
+  useDeflectionMagnitude: true,
+  deflectionExponent: 1,
   maxNormalizedInput: 1,
 } as const;
 
