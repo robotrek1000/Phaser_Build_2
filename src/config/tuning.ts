@@ -1,9 +1,9 @@
 export const TUNING = {
-  SPEED_START_KMH: 20,
+  SPEED_START_KMH: 60,
   FUEL_START: 1,
   FUEL_DRAIN_PER_SEC: 0,
   FUEL_PICKUP_VALUE: 0.25,
-  SPEED_PER_100M: 5,
+  SPEED_PER_100M: 0,
   FUEL_HIT_PENALTY: 0.2,
 } as const;
 
@@ -90,13 +90,13 @@ export const TIME_BONUS_SPAWN_MULTIPLIERS = [
 ] as const;
 
 export const SPEED_BONUS_SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 99, multiplier: 1.75 },
-  { minMeters: 99, maxMeters: 100, multiplier: 0 },
-  { minMeters: 100, maxMeters: 200, multiplier: 0.5 },
-  { minMeters: 200, maxMeters: 350, multiplier: 0.25 },
-  { minMeters: 350, maxMeters: 400, multiplier: 0.5 },
-  { minMeters: 400, maxMeters: 500, multiplier: 0.25 },
-  { minMeters: 500, maxMeters: Infinity, multiplier: 1.75 },
+  { minMeters: 0, maxMeters: 99, multiplier: 10 },
+  { minMeters: 99, maxMeters: 100, multiplier: 10 },
+  { minMeters: 100, maxMeters: 200, multiplier: 10 },
+  { minMeters: 200, maxMeters: 350, multiplier: 10 },
+  { minMeters: 350, maxMeters: 400, multiplier: 10 },
+  { minMeters: 400, maxMeters: 500, multiplier: 10 },
+  { minMeters: 500, maxMeters: Infinity, multiplier: 10 },
 ] as const;
 
 export const SPAWN_BASE_DELAYS = {
@@ -125,7 +125,7 @@ export const SPEED_BONUS_FALL_SPEED_MULTIPLIERS = [
 ] as const;
 
 export const WATER_SCROLL = {
-  baseSpeed: 0.1,
+  baseSpeed: 0,
   perKmh: 0.01,
   extraPerKmhAfter20: 0,
 } as const;
@@ -274,9 +274,13 @@ export const FREE_CONTROL_2D = {
 } as const;
 
 export const BRAKING = {
-  minDropFromStartKmh: 20,
+  minDropFromStartKmh: 60,
   decelKmhPerSec: 30,
-  recoverKmhPerSec: 30,
+  recoverKmhPerSec: 5,
+} as const;
+
+export const RUN_START_SPEED = {
+  startDropKmh: 60,
 } as const;
 
 export const SPEED_BONUS_TRANSITION = {

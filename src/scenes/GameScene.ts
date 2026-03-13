@@ -24,6 +24,7 @@ import {
   PLAY_AREA,
   PROGRESS_BAR_NEW_KEYS,
   RUN_TIMER,
+  RUN_START_SPEED,
   SPAWN_BASE_DELAYS,
   SPAWN_MULTIPLIERS,
   SPAWN_PAUSE_WINDOW_METERS,
@@ -113,7 +114,7 @@ export default class GameScene extends Phaser.Scene {
 
   private isGameOver = false;
   private isSpawnPauseActive = false;
-  private speedKmh = TUNING.SPEED_START_KMH;
+  private speedKmh = Math.max(0, TUNING.SPEED_START_KMH - RUN_START_SPEED.startDropKmh);
   private distanceM = 0;
   private fuel = TUNING.FUEL_START;
   private remainingTimeMs = RUN_TIMER.initialMs;
@@ -220,6 +221,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const baseSpeedKmh = this.getBaseSpeedKmhByDistance(this.distanceM);
+    const initialRunSpeedKmh = this.getInitialRunSpeedKmh();
     const brakeFloorKmh = Math.max(0, TUNING.SPEED_START_KMH - BRAKING.minDropFromStartKmh);
     let speedTargetKmh = baseSpeedKmh;
     let speedStepKmh = BRAKING.recoverKmhPerSec * dt;
@@ -239,6 +241,9 @@ export default class GameScene extends Phaser.Scene {
       speedStepKmh = BRAKING.recoverKmhPerSec * dt;
     } else if (this.hasPointerControlInput) {
       speedTargetKmh = brakeFloorKmh;
+      speedStepKmh = BRAKING.decelKmhPerSec * dt;
+    } else {
+      speedTargetKmh = initialRunSpeedKmh;
       speedStepKmh = BRAKING.decelKmhPerSec * dt;
     }
 
@@ -777,6 +782,10 @@ export default class GameScene extends Phaser.Scene {
 
   private getBaseSpeedKmhByDistance(distanceM: number) {
     return TUNING.SPEED_START_KMH + Math.floor(distanceM / 100) * TUNING.SPEED_PER_100M;
+  }
+
+  private getInitialRunSpeedKmh() {
+    return Math.max(0, TUNING.SPEED_START_KMH - RUN_START_SPEED.startDropKmh);
   }
 
   private updateFuelMeter(fuel: number) {
@@ -1939,7 +1948,7 @@ export default class GameScene extends Phaser.Scene {
     this.swayTime = 0;
     this.yMotionOffsetPx = 0;
     this.stopYachtSpeedMotionTweens();
-    this.speedKmh = TUNING.SPEED_START_KMH;
+    this.speedKmh = this.getInitialRunSpeedKmh();
     this.distanceM = 0;
     this.fuel = TUNING.FUEL_START;
     this.remainingTimeMs = RUN_TIMER.initialMs;
