@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import {
   BONUS_SPAWN,
+  BRAKING,
   BUOY_COLLISION,
   BUOY_HITBOX,
   COIN_PENDING_MILESTONES,
@@ -9,6 +10,7 @@ import {
   DYNAMIC_BUOY_STATES,
   DYNAMIC_SWAY,
   FALL_SPEED,
+  FREE_CONTROL_2D,
   FUEL_SWAY,
   FUEL_VISUAL_SCALE,
   HUD_FEEDBACK,
@@ -20,7 +22,6 @@ import {
   OBJECT_SIZES,
   OBSTACLE_SWAY,
   PLAY_AREA,
-  POINTER_JOYSTICK,
   PROGRESS_BAR_NEW_KEYS,
   RUN_TIMER,
   SPAWN_BASE_DELAYS,
@@ -29,6 +30,7 @@ import {
   SPEED_BONUS_FALL_SPEED_MULTIPLIERS,
   SPEED_BONUS,
   SPEED_BONUS_SPAWN_MULTIPLIERS,
+  SPEED_BONUS_TRANSITION,
   SPEED_VARIANCE,
   TIME_BONUS,
   TIME_BONUS_SPAWN_MULTIPLIERS,
@@ -37,7 +39,7 @@ import {
   UI_TEXT,
   WATER_SCROLL,
   YACHT_HITBOX,
-  YACHT_CONTROL,
+  YACHT_SPEED_Y_ANIM,
   YACHT_SWAY,
   YACHT_VISUAL_OFFSET,
 } from "../config/tuning";
@@ -82,12 +84,19 @@ export default class GameScene extends Phaser.Scene {
   private yachtBody?: Phaser.Physics.Arcade.Sprite;
   private yachtVisual?: Phaser.GameObjects.Sprite;
   private targetX = 0;
+  private targetY = 0;
   private playAreaLeft = 0;
   private playAreaRight = 0;
-  private joystickActive = false;
-  private joystickPointerId?: number;
-  private joystickLastPointerX = 0;
-  private joystickFrameInputX = 0;
+  private controlMinX = 0;
+  private controlMaxX = 0;
+  private controlMinY = 0;
+  private controlMaxY = 0;
+  private pointerControlActive = false;
+  private pointerControlId?: number;
+  private hasPointerControlInput = false;
+  private yMotionOffsetPx = 0;
+  private yachtSpeedMotionOutTween?: Phaser.Tweens.Tween;
+  private yachtSpeedMotionReturnTween?: Phaser.Tweens.Tween;
   private swayTime = 0;
 
   private obstacles!: Phaser.Physics.Arcade.Group;
@@ -110,6 +119,7 @@ export default class GameScene extends Phaser.Scene {
   private remainingTimeMs = RUN_TIMER.initialMs;
   private speedBonusRemainingMs = 0;
   private speedBonusLockedKmh?: number;
+  private bonusDecayActive = false;
   private lastSpawnedBonusType?: AirBonusType;
   private sameTypeSpawnStreak = 0;
   private scheduledAirBonusType?: AirBonusType;
@@ -129,33 +139,37 @@ export default class GameScene extends Phaser.Scene {
   };
 
   private readonly onPointerDown = (pointer: Phaser.Input.Pointer) => {
-    if (this.joystickActive) {
+    if (this.pointerControlActive && this.pointerControlId !== pointer.id) {
       return;
     }
 
-    this.joystickActive = true;
-    this.joystickPointerId = pointer.id;
-    this.joystickLastPointerX = pointer.x;
-    this.joystickFrameInputX = 0;
-    if (this.yachtBody) {
-      this.targetX = this.yachtBody.x;
+    const wasInactive = !this.pointerControlActive;
+    this.pointerControlActive = true;
+    this.pointerControlId = pointer.id;
+    this.hasPointerControlInput = true;
+    this.updateTargetPosition(pointer.x, pointer.y);
+    if (wasInactive) {
+      this.playYachtSpeedMotion("accel");
     }
   };
 
   private readonly onPointerUp = (pointer: Phaser.Input.Pointer) => {
-    if (!this.isJoystickPointer(pointer)) {
+    if (!this.isPointerControlPointer(pointer)) {
       return;
     }
 
-    this.resetJoystickState();
+    this.resetPointerControlState();
+    if (!this.isSpeedBonusActive() && !this.bonusDecayActive) {
+      this.playYachtSpeedMotion("brake");
+    }
   };
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
-    if (!this.isJoystickPointer(pointer)) {
+    if (!this.isPointerControlPointer(pointer)) {
       return;
     }
 
-    this.updateJoystickInput(pointer.x);
+    this.updateTargetPosition(pointer.x, pointer.y);
   };
 
   constructor() {
@@ -195,36 +209,55 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.joystickActive && this.joystickFrameInputX !== 0) {
-      const absFrameInputX = Math.abs(this.joystickFrameInputX);
-      const strength = POINTER_JOYSTICK.useDeflectionMagnitude
-        ? Math.pow(absFrameInputX, POINTER_JOYSTICK.deflectionExponent)
-        : 1;
-      const signedInput = Math.sign(this.joystickFrameInputX) * strength;
-      this.updateTargetX(this.targetX + signedInput * POINTER_JOYSTICK.moveSpeedPxPerSec * dt);
-      this.joystickFrameInputX = 0;
-    }
-
-    if (this.yachtBody) {
-      const lerpSpeed = YACHT_CONTROL.controlLerpSpeed;
-      this.yachtBody.setX(Phaser.Math.Linear(this.yachtBody.x, this.targetX, lerpSpeed * (delta / 1000)));
-    }
-
     const speedBonusWasActive = this.speedBonusRemainingMs > 0;
     if (speedBonusWasActive) {
       this.speedBonusRemainingMs = Math.max(0, this.speedBonusRemainingMs - delta);
     }
+    const speedBonusIsActive = this.speedBonusRemainingMs > 0;
+    if (speedBonusWasActive && !speedBonusIsActive) {
+      this.bonusDecayActive = true;
+      this.speedBonusLockedKmh = undefined;
+    }
 
-    const baseSpeedBeforeStep = TUNING.SPEED_START_KMH + Math.floor(this.distanceM / 100) * TUNING.SPEED_PER_100M;
-    const speedForStepKmh = speedBonusWasActive
-      ? (this.speedBonusLockedKmh ?? baseSpeedBeforeStep * SPEED_BONUS.speedMultiplier)
-      : baseSpeedBeforeStep;
-    const speedMps = (speedForStepKmh * 1000) / 3600;
+    const baseSpeedKmh = this.getBaseSpeedKmhByDistance(this.distanceM);
+    const brakeFloorKmh = Math.max(0, TUNING.SPEED_START_KMH - BRAKING.minDropFromStartKmh);
+    let speedTargetKmh = baseSpeedKmh;
+    let speedStepKmh = BRAKING.recoverKmhPerSec * dt;
+
+    if (speedBonusIsActive) {
+      const lockedBonusSpeed =
+        this.speedBonusLockedKmh ?? this.getBaseSpeedKmhByDistance(this.distanceM) * SPEED_BONUS.speedMultiplier;
+      this.speedBonusLockedKmh = lockedBonusSpeed;
+      speedTargetKmh = lockedBonusSpeed;
+      speedStepKmh = SPEED_BONUS_TRANSITION.rampUpKmhPerSec * dt;
+      this.bonusDecayActive = false;
+    } else if (this.bonusDecayActive) {
+      speedTargetKmh = baseSpeedKmh;
+      speedStepKmh = SPEED_BONUS_TRANSITION.rampDownKmhPerSec * dt;
+    } else if (this.pointerControlActive) {
+      speedTargetKmh = baseSpeedKmh;
+      speedStepKmh = BRAKING.recoverKmhPerSec * dt;
+    } else if (this.hasPointerControlInput) {
+      speedTargetKmh = brakeFloorKmh;
+      speedStepKmh = BRAKING.decelKmhPerSec * dt;
+    }
+
+    this.speedKmh = this.moveTowardValue(this.speedKmh, speedTargetKmh, speedStepKmh);
+    if (this.bonusDecayActive && Math.abs(this.speedKmh - baseSpeedKmh) < 0.01) {
+      this.bonusDecayActive = false;
+    }
+
+    const speedMps = (this.speedKmh * 1000) / 3600;
     this.distanceM += speedMps * dt;
-    const baseSpeedAfterStep = TUNING.SPEED_START_KMH + Math.floor(this.distanceM / 100) * TUNING.SPEED_PER_100M;
-    this.speedKmh = speedBonusWasActive
-      ? (this.speedBonusLockedKmh ?? baseSpeedAfterStep * SPEED_BONUS.speedMultiplier)
-      : baseSpeedAfterStep;
+
+    if (this.yachtBody) {
+      this.yachtBody.setX(
+        Phaser.Math.Linear(this.yachtBody.x, this.targetX, FREE_CONTROL_2D.positionLerpPerSecX * dt),
+      );
+      this.yachtBody.setY(
+        Phaser.Math.Linear(this.yachtBody.y, this.targetY + this.yMotionOffsetPx, FREE_CONTROL_2D.positionLerpPerSecY * dt),
+      );
+    }
     this.updateSpawnTimersForDistanceRange();
     this.updateActiveBuoyAndAirFallSpeeds(dt);
     this.fuel = Math.max(0, this.fuel - dt * TUNING.FUEL_DRAIN_PER_SEC);
@@ -374,6 +407,11 @@ export default class GameScene extends Phaser.Scene {
     this.playAreaLeft = Math.round(width * PLAY_AREA.leftPaddingRatio);
     this.playAreaRight = Math.round(width * PLAY_AREA.rightPaddingRatio);
 
+    this.controlMinX = FREE_CONTROL_2D.minXPaddingPx;
+    this.controlMaxX = width - FREE_CONTROL_2D.maxXPaddingPx;
+    this.controlMinY = FREE_CONTROL_2D.minYPaddingPx;
+    this.controlMaxY = height - FREE_CONTROL_2D.maxYPaddingPx;
+
     const startX = Math.round(width * 0.5);
     const startY = Math.round(height * 0.8);
 
@@ -386,7 +424,8 @@ export default class GameScene extends Phaser.Scene {
     this.yachtVisual.setDepth(5);
     this.yachtVisual.play("yacht-sail");
 
-    this.targetX = startX;
+    this.targetX = Phaser.Math.Clamp(startX, this.controlMinX, this.controlMaxX);
+    this.targetY = Phaser.Math.Clamp(startY, this.controlMinY, this.controlMaxY);
   }
 
   private createGroups() {
@@ -674,42 +713,70 @@ export default class GameScene extends Phaser.Scene {
     this.input.on("pointermove", this.onPointerMove);
   }
 
-  private isJoystickPointer(pointer: Phaser.Input.Pointer) {
-    return this.joystickActive && this.joystickPointerId === pointer.id;
+  private isPointerControlPointer(pointer: Phaser.Input.Pointer) {
+    return this.pointerControlActive && this.pointerControlId === pointer.id;
   }
 
-  private updateJoystickInput(pointerX: number) {
-    const deltaX = pointerX - this.joystickLastPointerX;
-    this.joystickLastPointerX = pointerX;
-
-    const clampedDeltaX = Phaser.Math.Clamp(
-      deltaX,
-      -POINTER_JOYSTICK.fullThrowDistancePx,
-      POINTER_JOYSTICK.fullThrowDistancePx,
-    );
-    if (Math.abs(clampedDeltaX) < POINTER_JOYSTICK.deadZonePx) {
-      return;
-    }
-
-    const normalizedDeltaX = clampedDeltaX / Math.max(1, POINTER_JOYSTICK.fullThrowDistancePx);
-    this.joystickFrameInputX = Phaser.Math.Clamp(
-      this.joystickFrameInputX + normalizedDeltaX,
-      -POINTER_JOYSTICK.maxNormalizedInput,
-      POINTER_JOYSTICK.maxNormalizedInput,
-    );
+  private updateTargetPosition(pointerX: number, pointerY: number) {
+    this.targetX = Phaser.Math.Clamp(pointerX, this.controlMinX, this.controlMaxX);
+    this.targetY = Phaser.Math.Clamp(pointerY, this.controlMinY, this.controlMaxY);
   }
 
-  private resetJoystickState() {
-    this.joystickActive = false;
-    this.joystickPointerId = undefined;
-    this.joystickFrameInputX = 0;
+  private resetPointerControlState() {
+    this.pointerControlActive = false;
+    this.pointerControlId = undefined;
     if (this.yachtBody) {
       this.targetX = this.yachtBody.x;
+      this.targetY = this.yachtBody.y - this.yMotionOffsetPx;
     }
   }
 
-  private updateTargetX(pointerX: number) {
-    this.targetX = Phaser.Math.Clamp(pointerX, this.playAreaLeft, this.playAreaRight);
+  private playYachtSpeedMotion(type: "accel" | "brake") {
+    const isAccel = type === "accel";
+    const offsetPx = isAccel ? YACHT_SPEED_Y_ANIM.accelOffsetPx : YACHT_SPEED_Y_ANIM.brakeOffsetPx;
+    const outDurationMs = isAccel ? YACHT_SPEED_Y_ANIM.accelDurationMs : YACHT_SPEED_Y_ANIM.brakeDurationMs;
+    const returnDurationMs = isAccel ? YACHT_SPEED_Y_ANIM.accelReturnMs : YACHT_SPEED_Y_ANIM.brakeReturnMs;
+
+    this.stopYachtSpeedMotionTweens();
+    this.yachtSpeedMotionOutTween = this.tweens.add({
+      targets: this,
+      yMotionOffsetPx: offsetPx,
+      duration: outDurationMs,
+      ease: YACHT_SPEED_Y_ANIM.ease,
+      onComplete: () => {
+        this.yachtSpeedMotionOutTween = undefined;
+        this.yachtSpeedMotionReturnTween = this.tweens.add({
+          targets: this,
+          yMotionOffsetPx: 0,
+          duration: returnDurationMs,
+          ease: YACHT_SPEED_Y_ANIM.ease,
+          onComplete: () => {
+            this.yachtSpeedMotionReturnTween = undefined;
+          },
+        });
+      },
+    });
+  }
+
+  private stopYachtSpeedMotionTweens() {
+    this.yachtSpeedMotionOutTween?.stop();
+    this.yachtSpeedMotionReturnTween?.stop();
+    this.yachtSpeedMotionOutTween = undefined;
+    this.yachtSpeedMotionReturnTween = undefined;
+  }
+
+  private moveTowardValue(current: number, target: number, maxDelta: number) {
+    if (maxDelta <= 0 || current === target) {
+      return current;
+    }
+    if (current < target) {
+      return Math.min(current + maxDelta, target);
+    }
+    return Math.max(current - maxDelta, target);
+  }
+
+  private getBaseSpeedKmhByDistance(distanceM: number) {
+    return TUNING.SPEED_START_KMH + Math.floor(distanceM / 100) * TUNING.SPEED_PER_100M;
   }
 
   private updateFuelMeter(fuel: number) {
@@ -1778,9 +1845,14 @@ export default class GameScene extends Phaser.Scene {
     const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
     this.destroyTimeBonusShadow(sprite);
     if (bonusType === "speed") {
-      const pickupBaseSpeed = TUNING.SPEED_START_KMH + Math.floor(this.distanceM / 100) * TUNING.SPEED_PER_100M;
-      this.speedBonusLockedKmh = pickupBaseSpeed * SPEED_BONUS.speedMultiplier;
+      const hasActiveLockedSpeed = this.speedBonusRemainingMs > 0 && this.speedBonusLockedKmh !== undefined;
+      if (!hasActiveLockedSpeed) {
+        const pickupBaseSpeedKmh = this.getBaseSpeedKmhByDistance(this.distanceM);
+        this.speedBonusLockedKmh = pickupBaseSpeedKmh * SPEED_BONUS.speedMultiplier;
+      }
       this.speedBonusRemainingMs = SPEED_BONUS.effectDurationMs;
+      this.bonusDecayActive = false;
+      this.playYachtSpeedMotion("accel");
     } else {
       this.remainingTimeMs += RUN_TIMER.bonusMs;
       this.updateTimerHud();
@@ -1862,15 +1934,19 @@ export default class GameScene extends Phaser.Scene {
 
   private resetState() {
     this.isGameOver = false;
-    this.resetJoystickState();
+    this.resetPointerControlState();
     this.isSpawnPauseActive = false;
     this.swayTime = 0;
+    this.yMotionOffsetPx = 0;
+    this.stopYachtSpeedMotionTweens();
     this.speedKmh = TUNING.SPEED_START_KMH;
     this.distanceM = 0;
     this.fuel = TUNING.FUEL_START;
     this.remainingTimeMs = RUN_TIMER.initialMs;
     this.speedBonusRemainingMs = 0;
     this.speedBonusLockedKmh = undefined;
+    this.bonusDecayActive = false;
+    this.hasPointerControlInput = false;
     this.lastSpawnedBonusType = undefined;
     this.sameTypeSpawnStreak = 0;
     this.scheduledAirBonusType = undefined;

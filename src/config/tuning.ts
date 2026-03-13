@@ -80,7 +80,7 @@ export const SPAWN_MULTIPLIERS = [
 
 export const TIME_BONUS_SPAWN_MULTIPLIERS = [
   { minMeters: 0, maxMeters: 49, multiplier: 1.75 },
-  { minMeters: 49, maxMeters: 50, multiplier: 0.1 },
+  { minMeters: 49, maxMeters: 50, multiplier: 0 },
   { minMeters: 50, maxMeters: 100, multiplier: 1.75 },
   { minMeters: 100, maxMeters: 200, multiplier: 1.75 },
   { minMeters: 200, maxMeters: 350, multiplier: 1.75 },
@@ -262,6 +262,36 @@ export const YACHT_SWAY = {
 
 export const YACHT_CONTROL = {
   controlLerpSpeed: 32,
+} as const;
+
+export const FREE_CONTROL_2D = {
+  positionLerpPerSecX: 14,
+  positionLerpPerSecY: 14,
+  minXPaddingPx: 12,
+  maxXPaddingPx: 12,
+  minYPaddingPx: 12,
+  maxYPaddingPx: 12,
+} as const;
+
+export const BRAKING = {
+  minDropFromStartKmh: 20,
+  decelKmhPerSec: 30,
+  recoverKmhPerSec: 30,
+} as const;
+
+export const SPEED_BONUS_TRANSITION = {
+  rampUpKmhPerSec: 28,
+  rampDownKmhPerSec: 16,
+} as const;
+
+export const YACHT_SPEED_Y_ANIM = {
+  accelOffsetPx: 120,
+  accelDurationMs: 360,
+  accelReturnMs: 180,
+  brakeOffsetPx: -120,
+  brakeDurationMs: 180,
+  brakeReturnMs: 360,
+  ease: "Sine.easeOut",
 } as const;
 
 export const POINTER_JOYSTICK = {
