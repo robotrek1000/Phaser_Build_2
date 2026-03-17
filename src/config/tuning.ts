@@ -79,24 +79,12 @@ export const SPAWN_MULTIPLIERS = [
 ] as const;
 
 export const TIME_BONUS_SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 49, multiplier: 1.75 },
-  { minMeters: 49, maxMeters: 50, multiplier: 0 },
-  { minMeters: 50, maxMeters: 100, multiplier: 1.75 },
+  { minMeters: 0, maxMeters: 100, multiplier: 1.75 },
   { minMeters: 100, maxMeters: 200, multiplier: 1.75 },
   { minMeters: 200, maxMeters: 350, multiplier: 1.75 },
   { minMeters: 350, maxMeters: 400, multiplier: 0.5 },
   { minMeters: 400, maxMeters: 500, multiplier: 0.25 },
   { minMeters: 500, maxMeters: Infinity, multiplier: 1.75 },
-] as const;
-
-export const SPEED_BONUS_SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 99, multiplier: 10 },
-  { minMeters: 99, maxMeters: 100, multiplier: 10 },
-  { minMeters: 100, maxMeters: 200, multiplier: 10 },
-  { minMeters: 200, maxMeters: 350, multiplier: 10 },
-  { minMeters: 350, maxMeters: 400, multiplier: 10 },
-  { minMeters: 400, maxMeters: 500, multiplier: 10 },
-  { minMeters: 500, maxMeters: Infinity, multiplier: 10 },
 ] as const;
 
 export const SPAWN_BASE_DELAYS = {
@@ -108,21 +96,23 @@ export const SPAWN_BASE_DELAYS = {
   dynamicMaxMs: 3800,
 } as const;
 
+export const BUOY_SPAWN_LIMITS = {
+  maxActiveTotal: 10,
+} as const;
+
+export const TIME_BONUS_LIMITS = {
+  maxActiveTotal: 1,
+} as const;
+
 export const SPEED_VARIANCE = {
   minMultiplier: 1,
-  maxMultiplier: 2,
+  maxMultiplier: 1.5,
 } as const;
 
 export const FALL_SPEED = {
-  base: 10,
+  base: 0,
   perKmh: 10,
 } as const;
-
-export const SPEED_BONUS_FALL_SPEED_MULTIPLIERS = [
-  { minKmh: 0, maxKmh: 30, multiplier: 1.1 },
-  { minKmh: 30, maxKmh: 45, multiplier: 1.2 },
-  { minKmh: 45, maxKmh: Infinity, multiplier: 1.3 },
-] as const;
 
 export const WATER_SCROLL = {
   baseSpeed: 0,
@@ -283,11 +273,6 @@ export const RUN_START_SPEED = {
   startDropKmh: 60,
 } as const;
 
-export const SPEED_BONUS_TRANSITION = {
-  rampUpKmhPerSec: 28,
-  rampDownKmhPerSec: 16,
-} as const;
-
 export const YACHT_SPEED_Y_ANIM = {
   accelOffsetPx: 120,
   accelDurationMs: 360,
@@ -365,48 +350,6 @@ export const TIME_BONUS = {
     minScaleY: 0.1,
     maxScaleY: 1,
   },
-} as const;
-
-export const SPEED_BONUS = {
-  textureKey: "speed-bonus",
-  shadowTextureKey: "speed-bonus-shadow",
-  spawnDelayMinMs: 2200,
-  spawnDelayMaxMs: 3800,
-  spawnDelayMultiplier: 2,
-  spawnYOffset: -120,
-  spawnSideOffset: 70,
-  size: 80,
-  shadowWidth: 100,
-  shadowHeight: 32,
-  shadowYOffset: 120,
-  shadowAlpha: 0.35,
-  speedYMultiplier: 1.35,
-  zigzagHorizontalSpeed: 500,
-  zigzagLeftBoundOffset: 24,
-  zigzagRightBoundOffset: 24,
-  depth: 20,
-  shadowDepth: 8,
-  yBobAmplitudePx: 100,
-  yBobFrequencyHz: 5,
-  yBobPhaseMin: 0,
-  yBobPhaseMax: Math.PI * 2,
-  shadowBobScale: {
-    baseScaleX: 0.25,
-    baseScaleY: 0.25,
-    responseX: 0.05,
-    responseY: 0.05,
-    minScaleX: 0.1,
-    maxScaleX: 1,
-    minScaleY: 0.1,
-    maxScaleY: 1,
-  },
-  effectDurationMs: 5_000,
-  speedMultiplier: 2,
-} as const;
-
-export const BONUS_SPAWN = {
-  maxConsecutiveSameType: 2,
-  initialType: "random" as "random" | "time" | "speed",
 } as const;
 
 export const BUOY_COLLISION = {

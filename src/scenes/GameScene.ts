@@ -1,9 +1,9 @@
 import Phaser from "phaser";
 import {
-  BONUS_SPAWN,
   BRAKING,
   BUOY_COLLISION,
   BUOY_HITBOX,
+  BUOY_SPAWN_LIMITS,
   COIN_PENDING_MILESTONES,
   DISTANCE_CHECKPOINTS,
   DYNAMIC_BUOY_STATE_ORDER,
@@ -28,12 +28,9 @@ import {
   SPAWN_BASE_DELAYS,
   SPAWN_MULTIPLIERS,
   SPAWN_PAUSE_WINDOW_METERS,
-  SPEED_BONUS_FALL_SPEED_MULTIPLIERS,
-  SPEED_BONUS,
-  SPEED_BONUS_SPAWN_MULTIPLIERS,
-  SPEED_BONUS_TRANSITION,
   SPEED_VARIANCE,
   TIME_BONUS,
+  TIME_BONUS_LIMITS,
   TIME_BONUS_SPAWN_MULTIPLIERS,
   TIME_HUD,
   TUNING,
@@ -49,7 +46,6 @@ type SuccessReason = "success_island_200" | "success_tavern_400" | "success_harb
 type FailureReason = "out_of_assets" | "out_of_time";
 type ResultReason = FailureReason | SuccessReason;
 type LandmarkType = "island200" | "tavern400" | "harbor610";
-type AirBonusType = "time" | "speed";
 type DynamicBuoyStateKey = keyof typeof DYNAMIC_BUOY_STATES;
 type BuoyType = "obstacle" | "fuel" | "dynamic";
 
@@ -118,15 +114,8 @@ export default class GameScene extends Phaser.Scene {
   private distanceM = 0;
   private fuel = TUNING.FUEL_START;
   private remainingTimeMs = RUN_TIMER.initialMs;
-  private speedBonusRemainingMs = 0;
-  private speedBonusLockedKmh?: number;
-  private bonusDecayActive = false;
-  private lastSpawnedBonusType?: AirBonusType;
-  private sameTypeSpawnStreak = 0;
-  private scheduledAirBonusType?: AirBonusType;
   private currentBuoySpawnRangeIndex = -1;
   private currentTimeBonusSpawnRangeIndex = -1;
-  private currentSpeedBonusSpawnRangeIndex = -1;
   private buoyCollisionPairLastHit = new Map<string, number>();
   private buoyCollisionIdCounter = 0;
 
@@ -160,9 +149,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.resetPointerControlState();
-    if (!this.isSpeedBonusActive() && !this.bonusDecayActive) {
-      this.playYachtSpeedMotion("brake");
-    }
+    this.playYachtSpeedMotion("brake");
   };
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
@@ -210,33 +197,13 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const speedBonusWasActive = this.speedBonusRemainingMs > 0;
-    if (speedBonusWasActive) {
-      this.speedBonusRemainingMs = Math.max(0, this.speedBonusRemainingMs - delta);
-    }
-    const speedBonusIsActive = this.speedBonusRemainingMs > 0;
-    if (speedBonusWasActive && !speedBonusIsActive) {
-      this.bonusDecayActive = true;
-      this.speedBonusLockedKmh = undefined;
-    }
-
     const baseSpeedKmh = this.getBaseSpeedKmhByDistance(this.distanceM);
     const initialRunSpeedKmh = this.getInitialRunSpeedKmh();
     const brakeFloorKmh = Math.max(0, TUNING.SPEED_START_KMH - BRAKING.minDropFromStartKmh);
     let speedTargetKmh = baseSpeedKmh;
     let speedStepKmh = BRAKING.recoverKmhPerSec * dt;
 
-    if (speedBonusIsActive) {
-      const lockedBonusSpeed =
-        this.speedBonusLockedKmh ?? this.getBaseSpeedKmhByDistance(this.distanceM) * SPEED_BONUS.speedMultiplier;
-      this.speedBonusLockedKmh = lockedBonusSpeed;
-      speedTargetKmh = lockedBonusSpeed;
-      speedStepKmh = SPEED_BONUS_TRANSITION.rampUpKmhPerSec * dt;
-      this.bonusDecayActive = false;
-    } else if (this.bonusDecayActive) {
-      speedTargetKmh = baseSpeedKmh;
-      speedStepKmh = SPEED_BONUS_TRANSITION.rampDownKmhPerSec * dt;
-    } else if (this.pointerControlActive) {
+    if (this.pointerControlActive) {
       speedTargetKmh = baseSpeedKmh;
       speedStepKmh = BRAKING.recoverKmhPerSec * dt;
     } else if (this.hasPointerControlInput) {
@@ -248,9 +215,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.speedKmh = this.moveTowardValue(this.speedKmh, speedTargetKmh, speedStepKmh);
-    if (this.bonusDecayActive && Math.abs(this.speedKmh - baseSpeedKmh) < 0.01) {
-      this.bonusDecayActive = false;
-    }
 
     const speedMps = (this.speedKmh * 1000) / 3600;
     this.distanceM += speedMps * dt;
@@ -817,7 +781,7 @@ export default class GameScene extends Phaser.Scene {
       if (this.isGameOver) {
         return;
       }
-      if (!this.isInSpawnPauseWindow(this.distanceM)) {
+      if (!this.isInSpawnPauseWindow(this.distanceM) && this.canSpawnBuoyByLimit()) {
         this.spawnObstacle();
       }
       this.scheduleObstacleSpawn();
@@ -830,7 +794,7 @@ export default class GameScene extends Phaser.Scene {
       if (this.isGameOver) {
         return;
       }
-      if (!this.isInSpawnPauseWindow(this.distanceM)) {
+      if (!this.isInSpawnPauseWindow(this.distanceM) && this.canSpawnBuoyByLimit()) {
         this.spawnFuel();
       }
       this.scheduleFuelSpawn();
@@ -843,23 +807,22 @@ export default class GameScene extends Phaser.Scene {
       if (this.isGameOver) {
         return;
       }
-      if (!this.isInSpawnPauseWindow(this.distanceM)) {
+      if (!this.isInSpawnPauseWindow(this.distanceM) && this.canSpawnBuoyByLimit()) {
         this.spawnDynamicBuoy();
       }
       this.scheduleDynamicSpawn();
     });
   }
 
-  private scheduleAirBonusSpawn(forcedType?: AirBonusType) {
-    const nextType = forcedType ?? this.chooseNextAirBonusType();
-    this.scheduledAirBonusType = nextType;
-    const delay = this.getAirBonusSpawnDelay(nextType);
+  private scheduleAirBonusSpawn() {
+    const delay = this.getAirBonusSpawnDelay();
     this.bonusSpawnTimer = this.time.delayedCall(delay, () => {
       if (this.isGameOver) {
         return;
       }
-      this.spawnAirBonus(nextType);
-      this.registerSpawnedAirBonusType(nextType);
+      if (this.canSpawnTimeBonusByLimit()) {
+        this.spawnAirBonus();
+      }
       this.scheduleAirBonusSpawn();
     });
   }
@@ -867,7 +830,6 @@ export default class GameScene extends Phaser.Scene {
   private initializeSpawnRangeState() {
     this.currentBuoySpawnRangeIndex = this.getDistanceRangeIndex(SPAWN_MULTIPLIERS);
     this.currentTimeBonusSpawnRangeIndex = this.getDistanceRangeIndex(TIME_BONUS_SPAWN_MULTIPLIERS);
-    this.currentSpeedBonusSpawnRangeIndex = this.getDistanceRangeIndex(SPEED_BONUS_SPAWN_MULTIPLIERS);
   }
 
   private updateSpawnTimersForDistanceRange() {
@@ -878,17 +840,10 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const nextTimeBonusSpawnRangeIndex = this.getDistanceRangeIndex(TIME_BONUS_SPAWN_MULTIPLIERS);
-    const nextSpeedBonusSpawnRangeIndex = this.getDistanceRangeIndex(SPEED_BONUS_SPAWN_MULTIPLIERS);
     const timeBonusRangeChanged = nextTimeBonusSpawnRangeIndex != this.currentTimeBonusSpawnRangeIndex;
-    const speedBonusRangeChanged = nextSpeedBonusSpawnRangeIndex != this.currentSpeedBonusSpawnRangeIndex;
-
     this.currentTimeBonusSpawnRangeIndex = nextTimeBonusSpawnRangeIndex;
-    this.currentSpeedBonusSpawnRangeIndex = nextSpeedBonusSpawnRangeIndex;
 
-    if (
-      (this.scheduledAirBonusType === "time" && timeBonusRangeChanged) ||
-      (this.scheduledAirBonusType === "speed" && speedBonusRangeChanged)
-    ) {
+    if (timeBonusRangeChanged) {
       this.rescheduleAirBonusSpawnTimer();
     }
   }
@@ -906,10 +861,43 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private rescheduleAirBonusSpawnTimer() {
-    const scheduledType = this.scheduledAirBonusType;
     this.bonusSpawnTimer?.remove(false);
     this.bonusSpawnTimer = undefined;
-    this.scheduleAirBonusSpawn(scheduledType);
+    this.scheduleAirBonusSpawn();
+  }
+
+  private getActiveBuoyCountInSimulation() {
+    const countGroup = (group: Phaser.Physics.Arcade.Group) => {
+      let count = 0;
+      group.children.each((child) => {
+        const sprite = child as Phaser.Physics.Arcade.Sprite;
+        if (sprite.active && !sprite.getData("collecting")) {
+          count += 1;
+        }
+      });
+      return count;
+    };
+
+    return countGroup(this.obstacles) + countGroup(this.fuels) + countGroup(this.dynamicBuoys);
+  }
+
+  private canSpawnBuoyByLimit() {
+    return this.getActiveBuoyCountInSimulation() < BUOY_SPAWN_LIMITS.maxActiveTotal;
+  }
+
+  private getActiveTimeBonusCountInSimulation() {
+    let count = 0;
+    this.timeBonuses.children.each((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      if (sprite.active && !sprite.getData("collecting")) {
+        count += 1;
+      }
+    });
+    return count;
+  }
+
+  private canSpawnTimeBonusByLimit() {
+    return this.getActiveTimeBonusCountInSimulation() < TIME_BONUS_LIMITS.maxActiveTotal;
   }
 
   private spawnObstacle() {
@@ -1042,14 +1030,14 @@ export default class GameScene extends Phaser.Scene {
     dynamicBuoy.setData("stateTimer", stateTimer);
   }
 
-  private spawnAirBonus(type: AirBonusType) {
-    const config = this.getAirBonusConfig(type);
+  private spawnAirBonus() {
+    const config = TIME_BONUS;
     const spawnFromLeft = Phaser.Math.Between(0, 1) === 0;
     const x = spawnFromLeft
       ? this.playAreaLeft - config.spawnSideOffset
       : this.playAreaRight + config.spawnSideOffset;
     const y = config.spawnYOffset;
-    const speedY = this.getAirBonusFallSpeed(type);
+    const speedY = this.getAirBonusFallSpeed();
     const directionX = spawnFromLeft ? 1 : -1;
     const speedX = directionX * config.zigzagHorizontalSpeed;
 
@@ -1068,7 +1056,6 @@ export default class GameScene extends Phaser.Scene {
     bonus.setDisplaySize(config.size, config.size);
     bonus.setVelocity(speedX, speedY);
     bonus.setData("collecting", false);
-    bonus.setData("bonusType", type);
     bonus.setData("speedY", speedY);
     bonus.setData("speedYMultiplier", config.speedYMultiplier);
     bonus.setData("zigzagHorizontalSpeed", config.zigzagHorizontalSpeed);
@@ -1096,37 +1083,6 @@ export default class GameScene extends Phaser.Scene {
     shadow.setAlpha(config.shadowAlpha);
     shadow.setDepth(config.shadowDepth);
     bonus.setData("shadow", shadow);
-  }
-
-  private getAirBonusConfig(type: AirBonusType) {
-    return type === "speed" ? SPEED_BONUS : TIME_BONUS;
-  }
-
-  private chooseNextAirBonusType(): AirBonusType {
-    if (!this.lastSpawnedBonusType) {
-      if (BONUS_SPAWN.initialType === "time") {
-        return "time";
-      }
-      if (BONUS_SPAWN.initialType === "speed") {
-        return "speed";
-      }
-      return Phaser.Math.Between(0, 1) === 0 ? "time" : "speed";
-    }
-
-    if (this.sameTypeSpawnStreak >= BONUS_SPAWN.maxConsecutiveSameType) {
-      return this.lastSpawnedBonusType === "time" ? "speed" : "time";
-    }
-
-    return Phaser.Math.Between(0, 1) === 0 ? "time" : "speed";
-  }
-
-  private registerSpawnedAirBonusType(type: AirBonusType) {
-    if (this.lastSpawnedBonusType === type) {
-      this.sameTypeSpawnStreak += 1;
-    } else {
-      this.lastSpawnedBonusType = type;
-      this.sameTypeSpawnStreak = 1;
-    }
   }
 
   private spawnLandmarksByDistance() {
@@ -1331,9 +1287,7 @@ export default class GameScene extends Phaser.Scene {
       if (!sprite.active || sprite.getData("collecting")) {
         return;
       }
-      const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
-      const speedYMultiplier =
-        (sprite.getData("speedYMultiplier") as number | undefined) ?? this.getAirBonusConfig(bonusType).speedYMultiplier;
+      const speedYMultiplier = (sprite.getData("speedYMultiplier") as number | undefined) ?? TIME_BONUS.speedYMultiplier;
       const targetSpeedY = this.getBaseFallSpeedByKmh(this.speedKmh) * speedYMultiplier;
       sprite.setVelocityY(targetSpeedY);
       sprite.setData("speedY", targetSpeedY);
@@ -1624,21 +1578,8 @@ export default class GameScene extends Phaser.Scene {
     return FALL_SPEED.base + speedKmh * FALL_SPEED.perKmh;
   }
 
-  private isSpeedBonusActive() {
-    return this.speedBonusRemainingMs > 0;
-  }
-
-  private getSpeedBonusFallMultiplier(speedKmh: number) {
-    const entry = SPEED_BONUS_FALL_SPEED_MULTIPLIERS.find((item) => speedKmh >= item.minKmh && speedKmh < item.maxKmh);
-    return entry ? entry.multiplier : 1;
-  }
-
   private getBuoyAndAirFallSpeed() {
-    const baseFallSpeed = this.getBaseFallSpeedByKmh(this.speedKmh);
-    if (!this.isSpeedBonusActive()) {
-      return baseFallSpeed;
-    }
-    return baseFallSpeed * this.getSpeedBonusFallMultiplier(this.speedKmh);
+    return this.getBaseFallSpeedByKmh(this.speedKmh);
   }
 
   private getLandmarkFallSpeed() {
@@ -1660,24 +1601,22 @@ export default class GameScene extends Phaser.Scene {
     return baseDelay * this.getDynamicSpawnMultiplier();
   }
 
-  private getAirBonusSpawnDelay(type: AirBonusType) {
-    const config = this.getAirBonusConfig(type);
+  private getAirBonusSpawnDelay() {
+    const config = TIME_BONUS;
     const baseDelay = Phaser.Math.Between(config.spawnDelayMinMs, config.spawnDelayMaxMs);
-    return baseDelay * config.spawnDelayMultiplier * this.getAirBonusSpawnRangeMultiplier(type);
+    return baseDelay * config.spawnDelayMultiplier * this.getAirBonusSpawnRangeMultiplier();
   }
 
-  private getAirBonusFallSpeed(type: AirBonusType) {
-    const config = this.getAirBonusConfig(type);
-    return this.getBaseFallSpeedByKmh(this.speedKmh) * config.speedYMultiplier;
+  private getAirBonusFallSpeed() {
+    return this.getBaseFallSpeedByKmh(this.speedKmh) * TIME_BONUS.speedYMultiplier;
   }
 
   private getDistanceRangeIndex<T extends { minMeters: number; maxMeters: number }>(ranges: readonly T[]) {
     return ranges.findIndex((item) => this.distanceM >= item.minMeters && this.distanceM < item.maxMeters);
   }
 
-  private getAirBonusSpawnRangeMultiplier(type: AirBonusType) {
-    const ranges = type === "time" ? TIME_BONUS_SPAWN_MULTIPLIERS : SPEED_BONUS_SPAWN_MULTIPLIERS;
-    const entry = ranges.find((item) => this.distanceM >= item.minMeters && this.distanceM < item.maxMeters);
+  private getAirBonusSpawnRangeMultiplier() {
+    const entry = TIME_BONUS_SPAWN_MULTIPLIERS.find((item) => this.distanceM >= item.minMeters && this.distanceM < item.maxMeters);
     return entry ? entry.multiplier : 1;
   }
 
@@ -1851,21 +1790,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private collectAirBonus(sprite: Phaser.Physics.Arcade.Sprite) {
-    const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
     this.destroyTimeBonusShadow(sprite);
-    if (bonusType === "speed") {
-      const hasActiveLockedSpeed = this.speedBonusRemainingMs > 0 && this.speedBonusLockedKmh !== undefined;
-      if (!hasActiveLockedSpeed) {
-        const pickupBaseSpeedKmh = this.getBaseSpeedKmhByDistance(this.distanceM);
-        this.speedBonusLockedKmh = pickupBaseSpeedKmh * SPEED_BONUS.speedMultiplier;
-      }
-      this.speedBonusRemainingMs = SPEED_BONUS.effectDurationMs;
-      this.bonusDecayActive = false;
-      this.playYachtSpeedMotion("accel");
-    } else {
-      this.remainingTimeMs += RUN_TIMER.bonusMs;
-      this.updateTimerHud();
-    }
+    this.remainingTimeMs += RUN_TIMER.bonusMs;
+    this.updateTimerHud();
     this.collectFuel(sprite);
   }
 
@@ -1886,7 +1813,6 @@ export default class GameScene extends Phaser.Scene {
     this.fuelTimer = undefined;
     this.dynamicTimer = undefined;
     this.bonusSpawnTimer = undefined;
-    this.scheduledAirBonusType = undefined;
   }
 
   private finishRunSuccess(reason: SuccessReason) {
@@ -1952,16 +1878,9 @@ export default class GameScene extends Phaser.Scene {
     this.distanceM = 0;
     this.fuel = TUNING.FUEL_START;
     this.remainingTimeMs = RUN_TIMER.initialMs;
-    this.speedBonusRemainingMs = 0;
-    this.speedBonusLockedKmh = undefined;
-    this.bonusDecayActive = false;
     this.hasPointerControlInput = false;
-    this.lastSpawnedBonusType = undefined;
-    this.sameTypeSpawnStreak = 0;
-    this.scheduledAirBonusType = undefined;
     this.currentBuoySpawnRangeIndex = -1;
     this.currentTimeBonusSpawnRangeIndex = -1;
-    this.currentSpeedBonusSpawnRangeIndex = -1;
     this.buoyCollisionPairLastHit.clear();
     this.buoyCollisionIdCounter = 0;
 
