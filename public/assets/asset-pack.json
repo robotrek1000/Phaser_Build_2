@@ -12,16 +12,6 @@
                 "key": "sea-bg"
             },
             {
-                "url": "assets/briefcase.png",
-                "type": "image",
-                "key": "fuel-briefcase"
-            },
-            {
-                "url": "assets/obstacle.png",
-                "type": "image",
-                "key": "obstacle-img"
-            },
-            {
                 "url": "assets/money_down.png",
                 "type": "image",
                 "key": "money-down"
@@ -97,26 +87,6 @@
                 "key": "icon-flag"
             },
             {
-                "url": "assets/progress_0.png",
-                "type": "image",
-                "key": "progress-0"
-            },
-            {
-                "url": "assets/progress_1.png",
-                "type": "image",
-                "key": "progress-1"
-            },
-            {
-                "url": "assets/progress_2.png",
-                "type": "image",
-                "key": "progress-2"
-            },
-            {
-                "url": "assets/progress_3.png",
-                "type": "image",
-                "key": "progress-3"
-            },
-            {
                 "url": "assets/progress_bar_new_0.png",
                 "type": "image",
                 "key": "progress-bar-new-0"
@@ -162,19 +132,9 @@
                 "key": "time-bonus"
             },
             {
-                "url": "assets/speed_bonus.png",
-                "type": "image",
-                "key": "speed-bonus"
-            },
-            {
                 "url": "assets/time_bonus_shadow.png",
                 "type": "image",
                 "key": "time-bonus-shadow"
-            },
-            {
-                "url": "assets/speed_bonus_shadow.png",
-                "type": "image",
-                "key": "speed-bonus-shadow"
             },
             {
                 "url": "assets/earth_1.png",
