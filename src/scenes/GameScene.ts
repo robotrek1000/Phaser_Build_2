@@ -5,6 +5,8 @@ import {
   BUOY_HITBOX,
   BUOY_SPAWN_LIMITS,
   COIN_PENDING_MILESTONES,
+  COLLECT_ANIMATION_BUOY,
+  COLLECT_ANIMATION_TIME_BONUS,
   DISTANCE_CHECKPOINTS,
   DYNAMIC_BUOY_STATE_ORDER,
   DYNAMIC_BUOY_STATES,
@@ -48,6 +50,7 @@ type ResultReason = FailureReason | SuccessReason;
 type LandmarkType = "island200" | "tavern400" | "harbor610";
 type DynamicBuoyStateKey = keyof typeof DYNAMIC_BUOY_STATES;
 type BuoyType = "obstacle" | "fuel" | "dynamic";
+type CollectAnimationType = "buoy" | "timeBonus";
 
 type LandmarkConfig = {
   xRatio: number;
@@ -453,7 +456,8 @@ export default class GameScene extends Phaser.Scene {
           this.finishRunOutOfAssets();
           return;
         }
-        this.collectFuel(sprite);
+        this.stopDynamicBuoyStateTimer(sprite);
+        this.handleObstacleHit(sprite);
       } else {
         this.handleYachtVsEmptyDynamicCollision(sprite);
       }
@@ -1724,8 +1728,10 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  private collectFuel(sprite: Phaser.Physics.Arcade.Sprite) {
+  private collectFuel(sprite: Phaser.Physics.Arcade.Sprite, animationType: CollectAnimationType = "buoy") {
     this.stopDynamicBuoyStateTimer(sprite);
+    const config = animationType === "timeBonus" ? COLLECT_ANIMATION_TIME_BONUS : COLLECT_ANIMATION_BUOY;
+
     if (!this.yachtVisual) {
       this.destroyTimeBonusShadow(sprite);
       sprite.destroy();
@@ -1740,21 +1746,22 @@ export default class GameScene extends Phaser.Scene {
     const startY = sprite.y;
     const baseScaleX = sprite.scaleX;
     const baseScaleY = sprite.scaleY;
-    const swayOffsetX = Phaser.Math.Between(-60, 60);
-    const swayOffsetY = -Phaser.Math.Between(40, 110);
+    const swayOffsetX = Phaser.Math.Between(config.arcOffsetXMin, config.arcOffsetXMax);
+    const swayOffsetY = -Phaser.Math.Between(config.arcOffsetYMin, config.arcOffsetYMax);
     const state = { t: 0 };
 
     this.tweens.add({
       targets: state,
       t: 1,
-      duration: 380,
-      ease: "Sine.easeInOut",
+      duration: config.durationMs,
+      ease: config.ease,
       onUpdate: () => {
         if (!this.yachtVisual) {
           this.destroyTimeBonusShadow(sprite);
           sprite.destroy();
           return;
         }
+
         const t = state.t;
         const endX = this.yachtVisual.x;
         const endY = this.yachtVisual.y;
@@ -1769,17 +1776,20 @@ export default class GameScene extends Phaser.Scene {
         sprite.x = Phaser.Math.Linear(ax, bx, t);
         sprite.y = Phaser.Math.Linear(ay, by, t);
 
-        const scale = 1 - t;
-        sprite.setScale(baseScaleX * scale, baseScaleY * scale);
-        sprite.setAlpha(1 - t);
+        const spriteScaleFactor = Phaser.Math.Linear(config.spriteScaleStart, config.spriteScaleEnd, t);
+        const spriteAlpha = Phaser.Math.Linear(config.spriteAlphaStart, config.spriteAlphaEnd, t);
+        sprite.setScale(baseScaleX * spriteScaleFactor, baseScaleY * spriteScaleFactor);
+        sprite.setAlpha(spriteAlpha);
 
         const shadow = sprite.getData("shadow") as Phaser.GameObjects.Image | undefined;
         if (shadow && shadow.active) {
           const shadowYOffset = (sprite.getData("shadowYOffset") as number | undefined) ?? TIME_BONUS.shadowYOffset;
-          const shadowAlpha = (sprite.getData("shadowAlpha") as number | undefined) ?? TIME_BONUS.shadowAlpha;
+          const shadowBaseAlpha = (sprite.getData("shadowAlpha") as number | undefined) ?? TIME_BONUS.shadowAlpha;
+          const shadowScaleFactor = Phaser.Math.Linear(config.shadowScaleStart, config.shadowScaleEnd, t);
+          const shadowAlphaFactor = Phaser.Math.Linear(config.shadowAlphaStart, config.shadowAlphaEnd, t);
           shadow.setPosition(sprite.x, sprite.y + shadowYOffset);
-          shadow.setScale(scale);
-          shadow.setAlpha(shadowAlpha * (1 - t));
+          shadow.setScale(shadowScaleFactor);
+          shadow.setAlpha(shadowBaseAlpha * shadowAlphaFactor);
         }
       },
       onComplete: () => {
@@ -1793,7 +1803,7 @@ export default class GameScene extends Phaser.Scene {
     this.destroyTimeBonusShadow(sprite);
     this.remainingTimeMs += RUN_TIMER.bonusMs;
     this.updateTimerHud();
-    this.collectFuel(sprite);
+    this.collectFuel(sprite, "timeBonus");
   }
 
   private destroyTimeBonusShadow(sprite: Phaser.Physics.Arcade.Sprite) {

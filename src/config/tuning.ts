@@ -401,6 +401,40 @@ export const IMPACT_ANIMATION = {
   spinScaleMin: 0,
 } as const;
 
+export const COLLECT_ANIMATION_BUOY = {
+  durationMs: 380,
+  ease: "Sine.easeInOut",
+  arcOffsetXMin: -60,
+  arcOffsetXMax: 60,
+  arcOffsetYMin: 40,
+  arcOffsetYMax: 110,
+  spriteScaleStart: 1,
+  spriteScaleEnd: 0,
+  spriteAlphaStart: 1,
+  spriteAlphaEnd: 0,
+  shadowScaleStart: 1,
+  shadowScaleEnd: 0,
+  shadowAlphaStart: 1,
+  shadowAlphaEnd: 0,
+} as const;
+
+export const COLLECT_ANIMATION_TIME_BONUS = {
+  durationMs: 380,
+  ease: "Sine.easeInOut",
+  arcOffsetXMin: -60,
+  arcOffsetXMax: 60,
+  arcOffsetYMin: 40,
+  arcOffsetYMax: 110,
+  spriteScaleStart: 1,
+  spriteScaleEnd: 0,
+  spriteAlphaStart: 1,
+  spriteAlphaEnd: 0,
+  shadowScaleStart: 1,
+  shadowScaleEnd: 0,
+  shadowAlphaStart: 1,
+  shadowAlphaEnd: 0,
+} as const;
+
 export const HUD_FEEDBACK = {
   scaleFrom: 0,
   scaleUp: 1,
