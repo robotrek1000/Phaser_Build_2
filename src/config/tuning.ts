@@ -265,8 +265,8 @@ export const FREE_CONTROL_2D = {
 
 export const BRAKING = {
   minDropFromStartKmh: 60,
-  decelKmhPerSec: 30,
-  recoverKmhPerSec: 5,
+  decelKmhPerSec: 60,
+  recoverKmhPerSec: 30,
 } as const;
 
 export const RUN_START_SPEED = {
@@ -274,10 +274,10 @@ export const RUN_START_SPEED = {
 } as const;
 
 export const YACHT_SPEED_Y_ANIM = {
-  accelOffsetPx: 120,
+  accelOffsetPx: 80,
   accelDurationMs: 360,
   accelReturnMs: 180,
-  brakeOffsetPx: -120,
+  brakeOffsetPx: -80,
   brakeDurationMs: 180,
   brakeReturnMs: 360,
   ease: "Sine.easeOut",
