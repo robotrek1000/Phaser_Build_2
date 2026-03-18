@@ -14,7 +14,10 @@ import {
   DYNAMIC_SWAY,
   FALL_SPEED,
   FREE_CONTROL_2D,
+  CONTROL_MODE_BY_PLATFORM,
+  CONTROL_ROUTING,
   GREEN_HIT_FEEDBACK,
+  JOYSTICK_2D,
   FUEL_SWAY,
   FUEL_VISUAL_SCALE,
   HUD_LAYOUT,
@@ -55,6 +58,8 @@ type LandmarkType = "island200" | "tavern400" | "harbor610";
 type DynamicBuoyStateKey = keyof typeof DYNAMIC_BUOY_STATES;
 type BuoyType = "obstacle" | "fuel" | "dynamic";
 type CollectAnimationType = "buoy" | "timeBonus";
+type ControlPlatform = "desktop" | "mobile";
+type ControlMode = "follow" | "joystick";
 
 type LandmarkConfig = {
   xRatio: number;
@@ -94,6 +99,12 @@ export default class GameScene extends Phaser.Scene {
   private controlMaxY = 0;
   private pointerControlActive = false;
   private pointerControlId?: number;
+  private activeControlPlatform: ControlPlatform = CONTROL_ROUTING.manualPlatform;
+  private activeControlMode: ControlMode = CONTROL_MODE_BY_PLATFORM[CONTROL_ROUTING.manualPlatform];
+  private pointerLastX = 0;
+  private pointerLastY = 0;
+  private joystickFrameDeltaX = 0;
+  private joystickFrameDeltaY = 0;
   private hasPointerControlInput = false;
   private yMotionOffsetPx = 0;
   private yachtSpeedMotionOutTween?: Phaser.Tweens.Tween;
@@ -146,7 +157,20 @@ export default class GameScene extends Phaser.Scene {
     this.pointerControlActive = true;
     this.pointerControlId = pointer.id;
     this.hasPointerControlInput = true;
-    this.updateTargetPosition(pointer.x, pointer.y);
+
+    const platform = this.resolveControlPlatformForPointer(pointer);
+    this.activeControlPlatform = platform;
+    this.activeControlMode = this.resolveControlModeForPlatform(platform);
+
+    if (this.activeControlMode === "joystick") {
+      this.pointerLastX = pointer.x;
+      this.pointerLastY = pointer.y;
+      this.joystickFrameDeltaX = 0;
+      this.joystickFrameDeltaY = 0;
+    } else {
+      this.updateTargetPosition(pointer.x, pointer.y);
+    }
+
     if (wasInactive) {
       this.playYachtSpeedMotion("accel");
     }
@@ -163,6 +187,11 @@ export default class GameScene extends Phaser.Scene {
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
     if (!this.isPointerControlPointer(pointer)) {
+      return;
+    }
+
+    if (this.activeControlMode === "joystick") {
+      this.updateJoystickFrameDelta(pointer);
       return;
     }
 
@@ -227,13 +256,38 @@ export default class GameScene extends Phaser.Scene {
     const speedMps = (this.speedKmh * 1000) / 3600;
     this.distanceM += speedMps * dt;
 
+    if (this.pointerControlActive && this.activeControlMode === "joystick") {
+      if (this.joystickFrameDeltaX !== 0 || this.joystickFrameDeltaY !== 0) {
+        this.targetX = Phaser.Math.Clamp(
+          this.targetX + this.joystickFrameDeltaX * JOYSTICK_2D.gainX,
+          this.controlMinX,
+          this.controlMaxX,
+        );
+        this.targetY = Phaser.Math.Clamp(
+          this.targetY + this.joystickFrameDeltaY * JOYSTICK_2D.gainY,
+          this.controlMinY,
+          this.controlMaxY,
+        );
+      }
+
+      this.joystickFrameDeltaX = 0;
+      this.joystickFrameDeltaY = 0;
+    }
+
     if (this.yachtBody) {
-      this.yachtBody.setX(
-        Phaser.Math.Linear(this.yachtBody.x, this.targetX, FREE_CONTROL_2D.positionLerpPerSecX * dt),
-      );
-      this.yachtBody.setY(
-        Phaser.Math.Linear(this.yachtBody.y, this.targetY + this.yMotionOffsetPx, FREE_CONTROL_2D.positionLerpPerSecY * dt),
-      );
+      const lerpPerSecX =
+        this.pointerControlActive && this.activeControlMode === "joystick"
+          ? JOYSTICK_2D.lerpPerSecX
+          : FREE_CONTROL_2D.positionLerpPerSecX;
+      const lerpPerSecY =
+        this.pointerControlActive && this.activeControlMode === "joystick"
+          ? JOYSTICK_2D.lerpPerSecY
+          : FREE_CONTROL_2D.positionLerpPerSecY;
+      const lerpTgx = Phaser.Math.Clamp(lerpPerSecX * dt, 0, 1);
+      const lerpTgy = Phaser.Math.Clamp(lerpPerSecY * dt, 0, 1);
+
+      this.yachtBody.setX(Phaser.Math.Linear(this.yachtBody.x, this.targetX, lerpTgx));
+      this.yachtBody.setY(Phaser.Math.Linear(this.yachtBody.y, this.targetY + this.yMotionOffsetPx, lerpTgy));
     }
     this.updateSpawnTimersForDistanceRange();
     this.updateActiveBuoyAndAirFallSpeeds(dt);
@@ -724,6 +778,39 @@ export default class GameScene extends Phaser.Scene {
     return this.pointerControlActive && this.pointerControlId === pointer.id;
   }
 
+  private resolveControlPlatformForPointer(pointer: Phaser.Input.Pointer): ControlPlatform {
+    if (CONTROL_ROUTING.platformSource === "manual") {
+      return CONTROL_ROUTING.manualPlatform;
+    }
+
+    const pointerType = pointer.pointerType ?? "mouse";
+    return pointerType === "touch" ? "mobile" : "desktop";
+  }
+
+  private resolveControlModeForPlatform(platform: ControlPlatform): ControlMode {
+    return CONTROL_MODE_BY_PLATFORM[platform];
+  }
+
+  private updateJoystickFrameDelta(pointer: Phaser.Input.Pointer) {
+    const deltaXRaw = pointer.x - this.pointerLastX;
+    const deltaYRaw = pointer.y - this.pointerLastY;
+    this.pointerLastX = pointer.x;
+    this.pointerLastY = pointer.y;
+
+    const deltaX = Phaser.Math.Clamp(deltaXRaw, -JOYSTICK_2D.maxDeltaXPerEventPx, JOYSTICK_2D.maxDeltaXPerEventPx);
+    const deltaY = Phaser.Math.Clamp(deltaYRaw, -JOYSTICK_2D.maxDeltaYPerEventPx, JOYSTICK_2D.maxDeltaYPerEventPx);
+    const magnitude = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+    if (magnitude < JOYSTICK_2D.deadZonePx) {
+      this.joystickFrameDeltaX = 0;
+      this.joystickFrameDeltaY = 0;
+      return;
+    }
+
+    this.joystickFrameDeltaX = deltaX;
+    this.joystickFrameDeltaY = deltaY;
+  }
+
   private updateTargetPosition(pointerX: number, pointerY: number) {
     this.targetX = Phaser.Math.Clamp(pointerX, this.controlMinX, this.controlMaxX);
     this.targetY = Phaser.Math.Clamp(pointerY, this.controlMinY, this.controlMaxY);
@@ -732,6 +819,12 @@ export default class GameScene extends Phaser.Scene {
   private resetPointerControlState() {
     this.pointerControlActive = false;
     this.pointerControlId = undefined;
+    this.activeControlPlatform = CONTROL_ROUTING.manualPlatform;
+    this.activeControlMode = CONTROL_MODE_BY_PLATFORM[this.activeControlPlatform];
+    this.pointerLastX = 0;
+    this.pointerLastY = 0;
+    this.joystickFrameDeltaX = 0;
+    this.joystickFrameDeltaY = 0;
     if (this.yachtBody) {
       this.targetX = this.yachtBody.x;
       this.targetY = this.yachtBody.y - this.yMotionOffsetPx;

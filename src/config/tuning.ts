@@ -317,6 +317,26 @@ export const FREE_CONTROL_2D = {
   maxYPaddingPx: 12,
 } as const;
 
+export const CONTROL_ROUTING = {
+  platformSource: "manual" as "manual" | "pointerType",
+  manualPlatform: "mobile" as "desktop" | "mobile",
+} as const;
+
+export const CONTROL_MODE_BY_PLATFORM = {
+  desktop: "follow" as "follow" | "joystick",
+  mobile: "joystick" as "follow" | "joystick",
+} as const;
+
+export const JOYSTICK_2D = {
+  deadZonePx: 0,
+  gainX: 2.2,
+  gainY: 2.2,
+  maxDeltaXPerEventPx: 500,
+  maxDeltaYPerEventPx: 500,
+  lerpPerSecX: 18,
+  lerpPerSecY: 18,
+} as const;
+
 export const BRAKING = {
   minDropFromStartKmh: 60,
   decelKmhPerSec: 60,
@@ -337,6 +357,7 @@ export const YACHT_SPEED_Y_ANIM = {
   ease: "Sine.easeOut",
 } as const;
 
+// Legacy config from previous joystick iterations. Kept only for history/reference.
 export const POINTER_JOYSTICK = {
   fullThrowDistancePx: 10,
   deadZonePx: 0,
