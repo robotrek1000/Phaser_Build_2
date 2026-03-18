@@ -17,36 +17,6 @@
                 "key": "money-down"
             },
             {
-                "url": "assets/bar_1.png",
-                "type": "image",
-                "key": "bar-1"
-            },
-            {
-                "url": "assets/bar_2.png",
-                "type": "image",
-                "key": "bar-2"
-            },
-            {
-                "url": "assets/bar_3.png",
-                "type": "image",
-                "key": "bar-3"
-            },
-            {
-                "url": "assets/bar_4.png",
-                "type": "image",
-                "key": "bar-4"
-            },
-            {
-                "url": "assets/bar_5.png",
-                "type": "image",
-                "key": "bar-5"
-            },
-            {
-                "url": "assets/briefcase_icon.png",
-                "type": "image",
-                "key": "briefcase-icon"
-            },
-            {
                 "url": "assets/money_up.png",
                 "type": "image",
                 "key": "money-up"
@@ -65,16 +35,6 @@
                 "url": "assets/money_change_down.png",
                 "type": "image",
                 "key": "money-change-down"
-            },
-            {
-                "url": "assets/bar_up.png",
-                "type": "image",
-                "key": "bar-up"
-            },
-            {
-                "url": "assets/bar_down.png",
-                "type": "image",
-                "key": "bar-down"
             },
             {
                 "url": "assets/speed_icon.png",
@@ -167,17 +127,29 @@
                 "key": "start-button"
             },
             {
-                "url": "assets/sprite-256px-25.png",
-                "frameConfig": {
-                    "frameWidth": 512,
-                    "frameHeight": 512,
-                    "startFrame": 0,
-                    "endFrame": 24,
-                    "spacing": 0,
-                    "margin": 0
-                },
-                "type": "spritesheet",
-                "key": "yacht-sheet"
+                "url": "assets/ship_1.png",
+                "type": "image",
+                "key": "ship-1"
+            },
+            {
+                "url": "assets/ship_2.png",
+                "type": "image",
+                "key": "ship-2"
+            },
+            {
+                "url": "assets/ship_3.png",
+                "type": "image",
+                "key": "ship-3"
+            },
+            {
+                "url": "assets/ship_4.png",
+                "type": "image",
+                "key": "ship-4"
+            },
+            {
+                "url": "assets/ship_5.png",
+                "type": "image",
+                "key": "ship-5"
             }
         ]
     },

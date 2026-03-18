@@ -167,6 +167,60 @@ export const HUD_LAYOUT = {
   progressScale: 0.275,
 } as const;
 
+export const ASSETS_BAR_UI = {
+  offsetX: -82,
+  offsetY: -150,
+  anchorFromVisualBounds: true,
+  anchorOffsetX: 12,
+  anchorOffsetY: -10,
+  width: 120,
+  height: 26,
+  outerRadius: 8,
+  borderThickness: 3,
+  borderTopColor: 0xffffff,
+  borderBottomColor: 0x999999,
+  frameFillColor: 0x070202,
+  trackColor: 0x111111,
+  trackPadding: 3,
+  fillColorHigh: 0x3a860f,
+  fillColorMid: 0xc2c203,
+  fillColorLow: 0xab2a14,
+  depth: 55,
+} as const;
+
+export const YACHT_VISUAL_SIZE = {
+  targetHeightPx: 280,
+  hitboxWidthRatioToVisual: 0.24,
+  hitboxHeightRatioToVisual: 0.72,
+  minHitboxWidthPx: 24,
+  minHitboxHeightPx: 100,
+} as const;
+
+export const SHIP_ASSET_STAGES = [
+  { maxPercent: 20, textureKey: "ship-1" },
+  { maxPercent: 40, textureKey: "ship-2" },
+  { maxPercent: 60, textureKey: "ship-3" },
+  { maxPercent: 80, textureKey: "ship-4" },
+  { maxPercent: 100, textureKey: "ship-5" },
+] as const;
+
+export const RED_HIT_INVULNERABILITY = {
+  durationMs: 1_000,
+  overlayColor: 0xff2d2d,
+  overlayAlpha: 0.5,
+  overlayDepth: 70,
+  blinkAlphaMin: 0.1,
+  blinkHalfCycleMs: 80,
+  blinkEase: "Sine.easeInOut",
+} as const;
+
+export const GREEN_HIT_FEEDBACK = {
+  durationMs: 1_000,
+  tintColor: 0x57ff58,
+  blinkHalfCycleMs: 100,
+  blinkEase: "Sine.easeInOut",
+} as const;
+
 export const TIME_HUD = {
   xOffset: 68,
   y: 14,
@@ -435,13 +489,3 @@ export const COLLECT_ANIMATION_TIME_BONUS = {
   shadowAlphaEnd: 0,
 } as const;
 
-export const HUD_FEEDBACK = {
-  scaleFrom: 0,
-  scaleUp: 1,
-  scaleHold: 0.35,
-  appearDurationMs: 200,
-  upDurationMs: 500,
-  holdDurationMs: 2000,
-  downDurationMs: 250,
-  offsetY: -50,
-} as const;

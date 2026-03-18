@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import {
   BRAKING,
+  ASSETS_BAR_UI,
   BUOY_COLLISION,
   BUOY_HITBOX,
   BUOY_SPAWN_LIMITS,
@@ -13,9 +14,9 @@ import {
   DYNAMIC_SWAY,
   FALL_SPEED,
   FREE_CONTROL_2D,
+  GREEN_HIT_FEEDBACK,
   FUEL_SWAY,
   FUEL_VISUAL_SCALE,
-  HUD_FEEDBACK,
   HUD_LAYOUT,
   IMPACT_ANIMATION,
   LANDMARK_LAYOUT,
@@ -25,6 +26,7 @@ import {
   OBSTACLE_SWAY,
   PLAY_AREA,
   PROGRESS_BAR_NEW_KEYS,
+  RED_HIT_INVULNERABILITY,
   RUN_TIMER,
   RUN_START_SPEED,
   SPAWN_BASE_DELAYS,
@@ -35,6 +37,7 @@ import {
   TIME_BONUS_LIMITS,
   TIME_BONUS_SPAWN_MULTIPLIERS,
   TIME_HUD,
+  SHIP_ASSET_STAGES,
   TUNING,
   UI_TEXT,
   WATER_SCROLL,
@@ -42,6 +45,7 @@ import {
   YACHT_SPEED_Y_ANIM,
   YACHT_SWAY,
   YACHT_VISUAL_OFFSET,
+  YACHT_VISUAL_SIZE,
 } from "../config/tuning";
 
 type SuccessReason = "success_island_200" | "success_tavern_400" | "success_harbor_610";
@@ -73,16 +77,13 @@ export default class GameScene extends Phaser.Scene {
   private distanceText?: Phaser.GameObjects.Text;
   private speedIcon?: Phaser.GameObjects.Image;
   private distanceIcon?: Phaser.GameObjects.Image;
-  private fuelBar?: Phaser.GameObjects.Image;
-  private fuelIcon?: Phaser.GameObjects.Image;
+  private assetsBarGraphics?: Phaser.GameObjects.Graphics;
   private progressBar?: Phaser.GameObjects.Image;
   private timeBar?: Phaser.GameObjects.Image;
   private timeText?: Phaser.GameObjects.Text;
   private progressKeys = [...PROGRESS_BAR_NEW_KEYS];
-  private fuelBarKeys = ["bar-1", "bar-2", "bar-3", "bar-4", "bar-5"];
-
   private yachtBody?: Phaser.Physics.Arcade.Sprite;
-  private yachtVisual?: Phaser.GameObjects.Sprite;
+  private yachtVisual?: Phaser.GameObjects.Image;
   private targetX = 0;
   private targetY = 0;
   private playAreaLeft = 0;
@@ -98,6 +99,11 @@ export default class GameScene extends Phaser.Scene {
   private yachtSpeedMotionOutTween?: Phaser.Tweens.Tween;
   private yachtSpeedMotionReturnTween?: Phaser.Tweens.Tween;
   private swayTime = 0;
+  private redInvulActive = false;
+  private redInvulTimer?: Phaser.Time.TimerEvent;
+  private redShipBlinkTween?: Phaser.Tweens.Tween;
+  private greenShipTintTween?: Phaser.Tweens.Tween;
+  private redOverlay?: Phaser.GameObjects.Rectangle;
 
   private obstacles!: Phaser.Physics.Arcade.Group;
   private fuels!: Phaser.Physics.Arcade.Group;
@@ -173,7 +179,6 @@ export default class GameScene extends Phaser.Scene {
 
     this.createWaterBackground(width, height);
     this.createObjectTextures();
-    this.createYachtAnimation();
     this.createHud(width, height);
     this.createYacht(width, height);
     this.setupInput();
@@ -269,7 +274,8 @@ export default class GameScene extends Phaser.Scene {
       this.distanceText.setText(`${Math.floor(this.distanceM)} м`);
     }
 
-    this.updateFuelMeter(this.fuel);
+    this.updateYachtStageTextureByAssets(this.fuel);
+    this.updateAssetsBar(this.fuel);
     this.updateProgressBar(this.progressStage);
     this.updateTimerHud();
   }
@@ -288,19 +294,6 @@ export default class GameScene extends Phaser.Scene {
       graphics.generateTexture("yacht-rect", OBJECT_SIZES.yacht.width, OBJECT_SIZES.yacht.height);
       graphics.destroy();
     }
-  }
-
-  private createYachtAnimation() {
-    if (this.anims.exists("yacht-sail")) {
-      return;
-    }
-
-    this.anims.create({
-      key: "yacht-sail",
-      frames: this.anims.generateFrameNumbers("yacht-sheet", { start: 0, end: 24 }),
-      frameRate: 12,
-      repeat: -1,
-    });
   }
 
   private createHud(width: number, height: number) {
@@ -341,18 +334,6 @@ export default class GameScene extends Phaser.Scene {
     this.speedText.setX(HUD_LAYOUT.speedX + HUD_LAYOUT.iconGap);
     this.distanceText.setX(HUD_LAYOUT.distanceX + HUD_LAYOUT.iconGap);
 
-    const meterX = width - HUD_LAYOUT.meterXOffset;
-    const meterTop = height * HUD_LAYOUT.meterTopRatio;
-    this.fuelBar = this.add.image(meterX, meterTop, "bar-5").setOrigin(0.5, 0);
-    this.fuelBar.setScale(HUD_LAYOUT.meterScale);
-    this.fuelBar.setDepth(50);
-
-    const barHeight = this.fuelBar.displayHeight;
-    const iconY = meterTop + barHeight + HUD_LAYOUT.meterIconGap;
-    this.fuelIcon = this.add.image(meterX, iconY, "briefcase-icon").setOrigin(0.5, 0);
-    this.fuelIcon.setScale(HUD_LAYOUT.meterIconScale);
-    this.fuelIcon.setDepth(50);
-
     const progressX = width * HUD_LAYOUT.progressXRatio;
     this.progressBar = this.add.image(progressX, HUD_LAYOUT.progressY, this.progressKeys[0]).setOrigin(0.5, 0);
     this.progressBar.setScale(HUD_LAYOUT.progressScale);
@@ -373,6 +354,8 @@ export default class GameScene extends Phaser.Scene {
     });
     this.timeText.setOrigin(0.5, 0.5);
     this.timeText.setDepth(51);
+
+    this.createRedHitOverlay(width, height);
   }
 
   private createYacht(width: number, height: number) {
@@ -392,12 +375,53 @@ export default class GameScene extends Phaser.Scene {
     this.yachtBody.setImmovable(true);
     this.yachtBody.setVisible(false);
 
-    this.yachtVisual = this.add.sprite(startX, startY, "yacht-sheet");
+    this.yachtVisual = this.add.image(startX, startY, "ship-5");
     this.yachtVisual.setDepth(5);
-    this.yachtVisual.play("yacht-sail");
+    this.applyYachtVisualSizing();
 
     this.targetX = Phaser.Math.Clamp(startX, this.controlMinX, this.controlMaxX);
     this.targetY = Phaser.Math.Clamp(startY, this.controlMinY, this.controlMaxY);
+
+    this.createAssetsBar();
+    this.updateYachtStageTextureByAssets(this.fuel);
+    this.updateAssetsBar(this.fuel);
+  }
+
+  private applyYachtVisualSizing() {
+    if (!this.yachtVisual) {
+      return;
+    }
+
+    const frameHeight = this.yachtVisual.frame?.realHeight ?? this.yachtVisual.height;
+    if (frameHeight <= 0) {
+      return;
+    }
+
+    const scale = YACHT_VISUAL_SIZE.targetHeightPx / frameHeight;
+    this.yachtVisual.setScale(scale);
+    this.updateYachtBodyHitboxFromVisual();
+  }
+
+  private updateYachtBodyHitboxFromVisual() {
+    if (!this.yachtBody || !this.yachtVisual) {
+      return;
+    }
+
+    const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
+    if (!body) {
+      return;
+    }
+
+    const bodyWidth = Math.max(
+      YACHT_VISUAL_SIZE.minHitboxWidthPx,
+      Math.round(this.yachtVisual.displayWidth * YACHT_VISUAL_SIZE.hitboxWidthRatioToVisual),
+    );
+    const bodyHeight = Math.max(
+      YACHT_VISUAL_SIZE.minHitboxHeightPx,
+      Math.round(this.yachtVisual.displayHeight * YACHT_VISUAL_SIZE.hitboxHeightRatioToVisual),
+    );
+
+    body.setSize(bodyWidth, bodyHeight, true);
   }
 
   private createGroups() {
@@ -418,12 +442,16 @@ export default class GameScene extends Phaser.Scene {
       if (sprite.getData("collecting") || this.isGameOver) {
         return;
       }
+      if (this.redInvulActive) {
+        this.handleYachtVsNonCollectibleBuoyCollision(sprite);
+        return;
+      }
       this.fuel = Math.max(0, this.fuel - TUNING.FUEL_HIT_PENALTY);
-      this.showHudFeedback("bar-down");
       if (this.fuel <= 0) {
         this.finishRunOutOfAssets();
         return;
       }
+      this.triggerRedHitEffects();
       this.handleObstacleHit(sprite);
     });
 
@@ -433,7 +461,7 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
       this.fuel = Math.min(1, this.fuel + TUNING.FUEL_PICKUP_VALUE);
-      this.showHudFeedback("bar-up");
+      this.triggerGreenHitFeedback();
       this.collectFuel(sprite);
     });
 
@@ -447,19 +475,23 @@ export default class GameScene extends Phaser.Scene {
       const stateConfig = DYNAMIC_BUOY_STATES[stateKey];
       if (stateKey === "up") {
         this.fuel = Math.min(1, this.fuel + stateConfig.delta);
-        this.showHudFeedback("bar-up");
+        this.triggerGreenHitFeedback();
         this.collectFuel(sprite);
       } else if (stateKey === "down") {
+        if (this.redInvulActive) {
+          this.handleYachtVsNonCollectibleBuoyCollision(sprite);
+          return;
+        }
         this.fuel = Math.max(0, this.fuel + stateConfig.delta);
-        this.showHudFeedback("bar-down");
         if (this.fuel <= 0) {
           this.finishRunOutOfAssets();
           return;
         }
+        this.triggerRedHitEffects();
         this.stopDynamicBuoyStateTimer(sprite);
         this.handleObstacleHit(sprite);
       } else {
-        this.handleYachtVsEmptyDynamicCollision(sprite);
+        this.handleYachtVsNonCollectibleBuoyCollision(sprite);
       }
     });
 
@@ -539,7 +571,7 @@ export default class GameScene extends Phaser.Scene {
     this.applyBuoyCollisionPush(buoyB, -normalX, -normalY, impulse);
   }
 
-  private handleYachtVsEmptyDynamicCollision(buoy: Phaser.Physics.Arcade.Sprite) {
+  private handleYachtVsNonCollectibleBuoyCollision(buoy: Phaser.Physics.Arcade.Sprite) {
     if (!this.yachtBody || !buoy.active || buoy.getData("collecting") || this.isGameOver) {
       return;
     }
@@ -582,8 +614,10 @@ export default class GameScene extends Phaser.Scene {
     const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
     const centerX = (body ? body.center.x : this.yachtBody.x) + YACHT_HITBOX.centerOffsetX;
     const centerY = (body ? body.center.y : this.yachtBody.y) + YACHT_HITBOX.centerOffsetY;
-    const radiusX = Math.max(YACHT_HITBOX.minRadiusX, OBJECT_SIZES.yacht.width * YACHT_HITBOX.radiusXRatio);
-    const radiusY = Math.max(YACHT_HITBOX.minRadiusY, OBJECT_SIZES.yacht.height * YACHT_HITBOX.radiusYRatio);
+    const baseWidth = body ? body.width : OBJECT_SIZES.yacht.width;
+    const baseHeight = body ? body.height : OBJECT_SIZES.yacht.height;
+    const radiusX = Math.max(YACHT_HITBOX.minRadiusX, baseWidth * YACHT_HITBOX.radiusXRatio);
+    const radiusY = Math.max(YACHT_HITBOX.minRadiusY, baseHeight * YACHT_HITBOX.radiusYRatio);
     return { centerX, centerY, radiusX, radiusY };
   }
 
@@ -756,16 +790,215 @@ export default class GameScene extends Phaser.Scene {
     return Math.max(0, TUNING.SPEED_START_KMH - RUN_START_SPEED.startDropKmh);
   }
 
-  private updateFuelMeter(fuel: number) {
-    if (!this.fuelBar) {
+  private createAssetsBar() {
+    this.assetsBarGraphics?.destroy();
+    this.assetsBarGraphics = this.add.graphics();
+    this.assetsBarGraphics.setDepth(ASSETS_BAR_UI.depth);
+  }
+
+  private getAssetsProgress(fuel: number) {
+    return Phaser.Math.Clamp(fuel, 0, 1);
+  }
+
+  private updateAssetsBar(fuel: number) {
+    if (!this.assetsBarGraphics) {
       return;
     }
-    const segmentsOn = Math.max(1, Math.round(Phaser.Math.Clamp(fuel, 0, 1) * HUD_LAYOUT.meterSegments));
-    const frameIndex = Phaser.Math.Clamp(segmentsOn, 1, this.fuelBarKeys.length);
-    const textureKey = this.fuelBarKeys[frameIndex - 1];
-    if (this.fuelBar.texture.key !== textureKey) {
-      this.fuelBar.setTexture(textureKey);
+
+    const progress = this.getAssetsProgress(fuel);
+    let x: number;
+    let y: number;
+
+    if (ASSETS_BAR_UI.anchorFromVisualBounds && this.yachtVisual) {
+      const bounds = this.yachtVisual.getBounds();
+      x = bounds.x + ASSETS_BAR_UI.anchorOffsetX;
+      y = bounds.y + ASSETS_BAR_UI.anchorOffsetY;
+    } else if (this.yachtBody) {
+      x = this.yachtBody.x + ASSETS_BAR_UI.offsetX;
+      y = this.yachtBody.y + ASSETS_BAR_UI.offsetY;
+    } else if (this.yachtVisual) {
+      const bounds = this.yachtVisual.getBounds();
+      x = bounds.x + ASSETS_BAR_UI.anchorOffsetX;
+      y = bounds.y + ASSETS_BAR_UI.anchorOffsetY;
+    } else {
+      return;
     }
+    const width = ASSETS_BAR_UI.width;
+    const height = ASSETS_BAR_UI.height;
+    const borderThickness = ASSETS_BAR_UI.borderThickness;
+    const trackInset = borderThickness + ASSETS_BAR_UI.trackPadding;
+    const trackX = x + trackInset;
+    const trackY = y + trackInset;
+    const trackWidth = Math.max(1, width - trackInset * 2);
+    const trackHeight = Math.max(1, height - trackInset * 2);
+    const trackRadius = Math.max(1, ASSETS_BAR_UI.outerRadius - trackInset);
+
+    this.assetsBarGraphics.clear();
+
+    this.assetsBarGraphics.fillStyle(ASSETS_BAR_UI.frameFillColor, 1);
+    this.assetsBarGraphics.fillRoundedRect(x, y, width, height, ASSETS_BAR_UI.outerRadius);
+
+    this.assetsBarGraphics.lineStyle(borderThickness, ASSETS_BAR_UI.borderBottomColor, 1);
+    this.assetsBarGraphics.strokeRoundedRect(x, y, width, height, ASSETS_BAR_UI.outerRadius);
+
+    this.assetsBarGraphics.fillStyle(ASSETS_BAR_UI.borderTopColor, 0.35);
+    this.assetsBarGraphics.fillRoundedRect(x, y, width, height * 0.5, ASSETS_BAR_UI.outerRadius);
+
+    this.assetsBarGraphics.fillStyle(ASSETS_BAR_UI.trackColor, 1);
+    this.assetsBarGraphics.fillRoundedRect(trackX, trackY, trackWidth, trackHeight, trackRadius);
+
+    const fillWidth = trackWidth * progress;
+    if (fillWidth <= 0) {
+      return;
+    }
+
+    const fillColor = this.getAssetsBarFillColor(progress);
+    this.assetsBarGraphics.fillStyle(fillColor, 1);
+    if (fillWidth >= trackRadius * 2) {
+      this.assetsBarGraphics.fillRoundedRect(trackX, trackY, fillWidth, trackHeight, trackRadius);
+    } else {
+      this.assetsBarGraphics.fillRect(trackX, trackY, fillWidth, trackHeight);
+    }
+  }
+
+  private getAssetsBarFillColor(progress: number) {
+    const p = Phaser.Math.Clamp(progress, 0, 1);
+    const midColor = Phaser.Display.Color.ValueToColor(ASSETS_BAR_UI.fillColorMid);
+
+    if (p >= 0.5) {
+      const t = (p - 0.5) / 0.5;
+      const highColor = Phaser.Display.Color.ValueToColor(ASSETS_BAR_UI.fillColorHigh);
+      const mixed = Phaser.Display.Color.Interpolate.ColorWithColor(midColor, highColor, 100, Math.round(t * 100));
+      return Phaser.Display.Color.GetColor(mixed.r, mixed.g, mixed.b);
+    }
+
+    const t = p / 0.5;
+    const lowColor = Phaser.Display.Color.ValueToColor(ASSETS_BAR_UI.fillColorLow);
+    const mixed = Phaser.Display.Color.Interpolate.ColorWithColor(lowColor, midColor, 100, Math.round(t * 100));
+    return Phaser.Display.Color.GetColor(mixed.r, mixed.g, mixed.b);
+  }
+
+  private updateYachtStageTextureByAssets(fuel: number) {
+    if (!this.yachtVisual) {
+      return;
+    }
+
+    const progressPercent = this.getAssetsProgress(fuel) * 100;
+    const nextTexture = this.getShipTextureKeyByAssets(progressPercent);
+    if (this.yachtVisual.texture.key !== nextTexture) {
+      this.yachtVisual.setTexture(nextTexture);
+      this.applyYachtVisualSizing();
+    }
+  }
+
+  private getShipTextureKeyByAssets(progressPercent: number) {
+    const percent = Phaser.Math.Clamp(progressPercent, 0, 100);
+    const stage = SHIP_ASSET_STAGES.find((item) => percent <= item.maxPercent);
+    return stage ? stage.textureKey : SHIP_ASSET_STAGES[SHIP_ASSET_STAGES.length - 1].textureKey;
+  }
+
+  private createRedHitOverlay(width: number, height: number) {
+    this.redOverlay?.destroy();
+    this.redOverlay = this.add.rectangle(
+      width * 0.5,
+      height * 0.5,
+      width,
+      height,
+      RED_HIT_INVULNERABILITY.overlayColor,
+      RED_HIT_INVULNERABILITY.overlayAlpha,
+    );
+    this.redOverlay.setScrollFactor(0);
+    this.redOverlay.setDepth(RED_HIT_INVULNERABILITY.overlayDepth);
+    this.redOverlay.setVisible(false);
+    this.redOverlay.setAlpha(0);
+  }
+
+  private triggerRedHitEffects() {
+    this.redInvulActive = true;
+    this.redInvulTimer?.remove(false);
+    this.redInvulTimer = this.time.delayedCall(RED_HIT_INVULNERABILITY.durationMs, () => {
+      this.endRedHitEffects();
+    });
+
+    if (this.redOverlay) {
+      this.redOverlay.setVisible(true);
+      this.redOverlay.setAlpha(RED_HIT_INVULNERABILITY.overlayAlpha);
+    }
+
+    this.redShipBlinkTween?.stop();
+    if (this.yachtVisual) {
+      this.yachtVisual.setAlpha(1);
+      this.redShipBlinkTween = this.tweens.add({
+        targets: this.yachtVisual,
+        alpha: RED_HIT_INVULNERABILITY.blinkAlphaMin,
+        duration: RED_HIT_INVULNERABILITY.blinkHalfCycleMs,
+        ease: RED_HIT_INVULNERABILITY.blinkEase,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+  }
+
+  private endRedHitEffects() {
+    this.redInvulActive = false;
+    this.redInvulTimer?.remove(false);
+    this.redInvulTimer = undefined;
+
+    this.redShipBlinkTween?.stop();
+    this.redShipBlinkTween = undefined;
+    if (this.yachtVisual) {
+      this.yachtVisual.setAlpha(1);
+    }
+
+    if (this.redOverlay) {
+      this.redOverlay.setVisible(false);
+      this.redOverlay.setAlpha(0);
+    }
+  }
+
+  private triggerGreenHitFeedback() {
+    if (!this.yachtVisual) {
+      return;
+    }
+
+    this.greenShipTintTween?.stop();
+    this.greenShipTintTween = undefined;
+
+    const blendState = { t: 0 };
+    const fromColor = new Phaser.Display.Color(255, 255, 255);
+    const toColor = Phaser.Display.Color.ValueToColor(GREEN_HIT_FEEDBACK.tintColor);
+    const halfCycle = Math.max(1, GREEN_HIT_FEEDBACK.blinkHalfCycleMs);
+    const repeats = Math.max(0, Math.round(GREEN_HIT_FEEDBACK.durationMs / (halfCycle * 2)) - 1);
+
+    this.yachtVisual.clearTint();
+    this.greenShipTintTween = this.tweens.add({
+      targets: blendState,
+      t: 1,
+      duration: halfCycle,
+      ease: GREEN_HIT_FEEDBACK.blinkEase,
+      yoyo: true,
+      repeat: repeats,
+      onUpdate: () => {
+        if (!this.yachtVisual) {
+          return;
+        }
+        const mixed = Phaser.Display.Color.Interpolate.ColorWithColor(fromColor, toColor, 100, Math.round(blendState.t * 100));
+        const tint = Phaser.Display.Color.GetColor(mixed.r, mixed.g, mixed.b);
+        this.yachtVisual.setTint(tint);
+      },
+      onComplete: () => {
+        this.greenShipTintTween = undefined;
+        if (this.yachtVisual) {
+          this.yachtVisual.clearTint();
+        }
+      },
+    });
+  }
+
+  private stopGreenHitFeedback() {
+    this.greenShipTintTween?.stop();
+    this.greenShipTintTween = undefined;
+    this.yachtVisual?.clearTint();
   }
 
   private updateProgressBar(progressStage: number) {
@@ -1385,49 +1618,6 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  private showHudFeedback(key: "bar-up" | "bar-down") {
-    if (!this.fuelBar) {
-      return;
-    }
-    const x = this.fuelBar.x;
-    const y = this.fuelBar.y + HUD_FEEDBACK.offsetY;
-    const icon = this.add.image(x, y, key).setOrigin(0.5, 0.5);
-    icon.setDepth(60);
-
-    const baseScale = 1;
-    icon.setScale(baseScale * HUD_FEEDBACK.scaleFrom);
-    this.tweens.add({
-      targets: icon,
-      scale: baseScale * HUD_FEEDBACK.scaleUp,
-      duration: HUD_FEEDBACK.appearDurationMs,
-      ease: "Sine.easeOut",
-      onComplete: () => {
-        this.tweens.add({
-          targets: icon,
-          scale: baseScale * HUD_FEEDBACK.scaleHold,
-          duration: HUD_FEEDBACK.upDurationMs,
-          ease: "Sine.easeOut",
-          onComplete: () => {
-            this.tweens.add({
-              targets: icon,
-              scale: baseScale * HUD_FEEDBACK.scaleHold,
-              duration: HUD_FEEDBACK.holdDurationMs,
-              onComplete: () => {
-                this.tweens.add({
-                  targets: icon,
-                  scale: 0,
-                  duration: HUD_FEEDBACK.downDurationMs,
-                  ease: "Sine.easeIn",
-                  onComplete: () => icon.destroy(),
-                });
-              },
-            });
-          },
-        });
-      },
-    });
-  }
-
   private updateDriftedObjects(deltaSec: number) {
     const timeSec = this.time.now / 1000;
 
@@ -1831,6 +2021,8 @@ export default class GameScene extends Phaser.Scene {
     }
     this.isGameOver = true;
     this.stopSpawnTimers();
+    this.endRedHitEffects();
+    this.stopGreenHitFeedback();
     this.stopAllDynamicBuoyStateTimers();
     this.timeBonuses?.children.each((child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
@@ -1863,6 +2055,8 @@ export default class GameScene extends Phaser.Scene {
     }
     this.isGameOver = true;
     this.stopSpawnTimers();
+    this.endRedHitEffects();
+    this.stopGreenHitFeedback();
     this.stopAllDynamicBuoyStateTimers();
     this.timeBonuses?.children.each((child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
@@ -1884,6 +2078,8 @@ export default class GameScene extends Phaser.Scene {
     this.swayTime = 0;
     this.yMotionOffsetPx = 0;
     this.stopYachtSpeedMotionTweens();
+    this.endRedHitEffects();
+    this.stopGreenHitFeedback();
     this.speedKmh = this.getInitialRunSpeedKmh();
     this.distanceM = 0;
     this.fuel = TUNING.FUEL_START;
@@ -1921,6 +2117,12 @@ export default class GameScene extends Phaser.Scene {
     this.yachtVisual?.destroy();
     this.yachtBody = undefined;
     this.yachtVisual = undefined;
+
+    this.assetsBarGraphics?.destroy();
+    this.assetsBarGraphics = undefined;
+
+    this.redOverlay?.destroy();
+    this.redOverlay = undefined;
 
     this.timeBar?.destroy();
     this.timeText?.destroy();
