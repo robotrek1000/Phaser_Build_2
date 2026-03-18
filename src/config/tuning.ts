@@ -43,6 +43,128 @@ export const LANDMARK_METERS = {
   harbor610: 610,
 } as const;
 
+export const ISLAND_CHECKPOINTS = {
+  firstIslandMeters: 225,
+  secondIslandMeters: 425,
+} as const;
+
+export const ISLAND_APPROACH_SLOWDOWN = {
+  firstIsland: {
+    slowdownStartBeforeMeters: 0,
+    targetSpeedKmh: 45,
+    approachKmhPerSec: 55,
+    releaseRecoverKmhPerSec: 35,
+  },
+  secondIsland: {
+    slowdownStartBeforeMeters: 0,
+    targetSpeedKmh: 45,
+    approachKmhPerSec: 55,
+    releaseRecoverKmhPerSec: 35,
+  },
+} as const;
+
+export const ISLAND_DECISION_MODAL_UI = {
+  layoutScale: {
+    baseWidth: 900,
+    baseHeight: 1600,
+    min: 0.72,
+    max: 1,
+  },
+  overlay: {
+    enabled: true,
+    color: 0x000000,
+    alpha: 0.65,
+    depth: 120,
+  },
+  panel: {
+    centerXRatio: 0.5,
+    centerYRatio: 0.56,
+    width: 620,
+    height: 640,
+    radius: 28,
+    color: 0x141c34,
+    alpha: 0.98,
+    strokeColor: 0x141c34,
+    strokeAlpha: 1,
+    strokeWidth: 2,
+    contentPaddingX: 40,
+    depth: 121,
+  },
+  titleText: {
+    fontFamily: "Arial",
+    fontSize: "34px",
+    fontStyle: "bold",
+    color: "#00c915",
+    align: "center" as "left" | "center" | "right",
+    lineSpacing: 6,
+    offsetY: -190,
+    depth: 122,
+  },
+  questionText: {
+    fontFamily: "Arial",
+    fontSize: "28px",
+    fontStyle: "normal",
+    color: "#ffffff",
+    align: "center" as "left" | "center" | "right",
+    lineSpacing: 0,
+    offsetY: -30,
+    depth: 122,
+  },
+  coinsText: {
+    fontFamily: "Arial",
+    fontSize: "30px",
+    fontStyle: "normal",
+    color: "#f1d760",
+    align: "center" as "left" | "center" | "right",
+    lineSpacing: 0,
+    offsetY: 50,
+    depth: 122,
+  },
+  buttons: {
+    rowOffsetY: 150,
+    width: 220,
+    height: 88,
+    edgeGapPx: 40,
+    radius: 0,
+    color: 0xf1d760,
+    alpha: 1,
+    strokeColor: 0xf1d760,
+    strokeAlpha: 1,
+    strokeWidth: 0,
+    depth: 122,
+    labelText: {
+      fontFamily: "Arial",
+      fontSize: "30px",
+      fontStyle: "normal",
+      color: "#000000",
+      align: "center" as "left" | "center" | "right",
+      depth: 123,
+    },
+    captionText: {
+      fontFamily: "Arial",
+      fontSize: "22px",
+      fontStyle: "normal",
+      color: "#ffffff",
+      align: "center" as "left" | "center" | "right",
+      lineSpacing: 4,
+      offsetY: 84,
+      wrapExtraWidth: 24,
+      depth: 123,
+    },
+  },
+} as const;
+
+export const ISLAND_DECISION_MODAL_TEXT = {
+  firstIslandTitle: "Поздравляем!\nВы достигли 1-го острова!",
+  secondIslandTitle: "Поздравляем!\nВы достигли 2-го острова!",
+  question: "Зафиксировать прибыль?",
+  coinsLabel: "Монеты",
+  yesButton: "Да",
+  noButton: "Нет",
+  yesCaption: "Закончить\nзаплыв",
+  noCaption: "Рискнуть и\nпродолжить",
+} as const;
+
 export const COIN_PENDING_MILESTONES = [
   { meters: 100, coins: 5 },
   { meters: 300, coins: 10 },
@@ -323,8 +445,8 @@ export const FREE_CONTROL_2D = {
 } as const;
 
 export const CONTROL_ROUTING = {
-  platformSource: "manual" as "manual" | "pointerType",
-  manualPlatform: "mobile" as "desktop" | "mobile",
+  platformSource: "pointerType" as "manual" | "pointerType",
+  manualPlatform: "desktop" as "desktop" | "mobile",
 } as const;
 
 export const CONTROL_MODE_BY_PLATFORM = {
@@ -519,4 +641,3 @@ export const COLLECT_ANIMATION_TIME_BONUS = {
   shadowAlphaStart: 1,
   shadowAlphaEnd: 0,
 } as const;
-
