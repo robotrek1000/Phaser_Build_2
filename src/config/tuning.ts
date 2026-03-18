@@ -413,6 +413,28 @@ export const UI_BUTTON = {
   paddingY: 8,
 } as const;
 
+export const RESULT_SCREEN_UI = {
+  titleYRatio: 0.34,
+  distanceYRatio: 0.45,
+  coinsYRatio: 0.53,
+  reasonYRatio: 0.61,
+  lostCoinsYRatio: 0.67,
+  buttonYRatio: 0.8,
+  titleFontSizePx: 54,
+  bodyFontSizePx: 44,
+  smallFontSizePx: 40,
+  buttonFontSizePx: 44,
+  buttonPaddingX: 34,
+  buttonPaddingY: 16,
+  buttonLabel: "ОТЛИЧНО",
+  fontFamily: "Fascinate",
+  titleColor: "#e8f1f2",
+  bodyColor: "#e8f1f2",
+  coinsColor: "#f4d35e",
+  buttonTextColor: "#102027",
+  buttonBackgroundColor: "#f4d35e",
+} as const;
+
 export const INTRO_ONBOARDING_UI = {
   dimAlpha: 0.35,
   windowYRatio: 0.43,

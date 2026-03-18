@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 
-import { UI_BUTTON, UI_TEXT } from "../config/tuning";
+import { RESULT_SCREEN_UI } from "../config/tuning";
 
 type ResultReason = "out_of_assets" | "out_of_time" | "success_island_200" | "success_tavern_400" | "success_harbor_610";
 
@@ -44,45 +44,45 @@ export default class ResultScene extends Phaser.Scene {
       reasonLabel = "Финал: гавань";
     }
 
-    this.add.text(width / 2, height * 0.35, title, {
-      fontFamily: UI_TEXT.hudFontFamily,
-      fontSize: UI_TEXT.resultTitleSize,
-      color: UI_TEXT.resultTitleColor,
+    this.add.text(width / 2, height * RESULT_SCREEN_UI.titleYRatio, title, {
+      fontFamily: RESULT_SCREEN_UI.fontFamily,
+      fontSize: `${RESULT_SCREEN_UI.titleFontSizePx}px`,
+      color: RESULT_SCREEN_UI.titleColor,
     }).setOrigin(0.5, 0.5);
 
-    this.distanceText = this.add.text(width / 2, height * 0.45, `${distanceValue} м`, {
-      fontFamily: UI_TEXT.hudFontFamily,
-      fontSize: UI_TEXT.resultBodySize,
-      color: UI_TEXT.resultBodyColor,
+    this.distanceText = this.add.text(width / 2, height * RESULT_SCREEN_UI.distanceYRatio, `${distanceValue} м`, {
+      fontFamily: RESULT_SCREEN_UI.fontFamily,
+      fontSize: `${RESULT_SCREEN_UI.bodyFontSizePx}px`,
+      color: RESULT_SCREEN_UI.bodyColor,
     }).setOrigin(0.5, 0.5);
 
     const coinsLabel = isSuccess ? `Начислено монет: ${coinsAwarded}` : "Начислено монет: 0";
-    this.coinsText = this.add.text(width / 2, height * 0.52, coinsLabel, {
-      fontFamily: UI_TEXT.hudFontFamily,
-      fontSize: UI_TEXT.resultBodySize,
-      color: UI_TEXT.resultCoinsColor,
+    this.coinsText = this.add.text(width / 2, height * RESULT_SCREEN_UI.coinsYRatio, coinsLabel, {
+      fontFamily: RESULT_SCREEN_UI.fontFamily,
+      fontSize: `${RESULT_SCREEN_UI.bodyFontSizePx}px`,
+      color: RESULT_SCREEN_UI.coinsColor,
     }).setOrigin(0.5, 0.5);
 
-    this.reasonText = this.add.text(width / 2, height * 0.58, reasonLabel, {
-      fontFamily: UI_TEXT.hudFontFamily,
-      fontSize: UI_TEXT.resultSmallSize,
-      color: UI_TEXT.resultBodyColor,
+    this.reasonText = this.add.text(width / 2, height * RESULT_SCREEN_UI.reasonYRatio, reasonLabel, {
+      fontFamily: RESULT_SCREEN_UI.fontFamily,
+      fontSize: `${RESULT_SCREEN_UI.smallFontSizePx}px`,
+      color: RESULT_SCREEN_UI.bodyColor,
     }).setOrigin(0.5, 0.5);
 
     if (!isSuccess && coinsLost > 0) {
-      this.lostCoinsText = this.add.text(width / 2, height * 0.64, `Утеряно монет: ${coinsLost}`, {
-        fontFamily: UI_TEXT.hudFontFamily,
-        fontSize: UI_TEXT.resultSmallSize,
-        color: UI_TEXT.resultBodyColor,
+      this.lostCoinsText = this.add.text(width / 2, height * RESULT_SCREEN_UI.lostCoinsYRatio, `Утеряно монет: ${coinsLost}`, {
+        fontFamily: RESULT_SCREEN_UI.fontFamily,
+        fontSize: `${RESULT_SCREEN_UI.smallFontSizePx}px`,
+        color: RESULT_SCREEN_UI.bodyColor,
       }).setOrigin(0.5, 0.5);
     }
 
-    const okButton = this.add.text(width / 2, height * 0.72, "ОТЛИЧНО", {
-      fontFamily: UI_BUTTON.fontFamily,
-      fontSize: UI_BUTTON.fontSize,
-      color: UI_BUTTON.color,
-      backgroundColor: UI_BUTTON.backgroundColor,
-      padding: { x: UI_BUTTON.paddingX, y: UI_BUTTON.paddingY },
+    const okButton = this.add.text(width / 2, height * RESULT_SCREEN_UI.buttonYRatio, RESULT_SCREEN_UI.buttonLabel, {
+      fontFamily: RESULT_SCREEN_UI.fontFamily,
+      fontSize: `${RESULT_SCREEN_UI.buttonFontSizePx}px`,
+      color: RESULT_SCREEN_UI.buttonTextColor,
+      backgroundColor: RESULT_SCREEN_UI.buttonBackgroundColor,
+      padding: { x: RESULT_SCREEN_UI.buttonPaddingX, y: RESULT_SCREEN_UI.buttonPaddingY },
     }).setOrigin(0.5, 0.5);
 
     okButton.setInteractive({ useHandCursor: true }).on("pointerdown", () => {

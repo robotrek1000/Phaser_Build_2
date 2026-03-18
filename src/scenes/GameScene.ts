@@ -2498,7 +2498,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private stopAllDynamicBuoyStateTimers() {
-    this.dynamicBuoys?.children.each((child) => {
+    this.safeEachGroupChild(this.dynamicBuoys, (child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
       this.stopDynamicBuoyStateTimer(sprite);
     });
@@ -2601,6 +2601,38 @@ export default class GameScene extends Phaser.Scene {
     this.bonusSpawnTimer = undefined;
   }
 
+  private isPhysicsGroupUsable(
+    group: Phaser.Physics.Arcade.Group | undefined
+  ): group is Phaser.Physics.Arcade.Group & {
+    children: Phaser.Structs.Set<Phaser.GameObjects.GameObject>;
+  } {
+    const candidate = group as (Phaser.Physics.Arcade.Group & {
+      children?: Phaser.Structs.Set<Phaser.GameObjects.GameObject>;
+    }) | undefined;
+    return !!candidate?.children;
+  }
+
+  private safeClearPhysicsGroup(
+    group: Phaser.Physics.Arcade.Group | undefined,
+    removeFromScene = true,
+    destroyChild = true
+  ) {
+    if (!this.isPhysicsGroupUsable(group)) {
+      return;
+    }
+    group.clear(removeFromScene, destroyChild);
+  }
+
+  private safeEachGroupChild(
+    group: Phaser.Physics.Arcade.Group | undefined,
+    callback: (child: Phaser.GameObjects.GameObject) => void
+  ) {
+    if (!this.isPhysicsGroupUsable(group)) {
+      return;
+    }
+    group.children.each(callback);
+  }
+
   private finishRunSuccess(reason: SuccessReason) {
     if (this.isGameOver) {
       return;
@@ -2611,7 +2643,7 @@ export default class GameScene extends Phaser.Scene {
     this.endRedHitEffects();
     this.stopGreenHitFeedback();
     this.stopAllDynamicBuoyStateTimers();
-    this.timeBonuses?.children.each((child) => {
+    this.safeEachGroupChild(this.timeBonuses, (child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
       this.destroyTimeBonusShadow(sprite);
     });
@@ -2646,7 +2678,7 @@ export default class GameScene extends Phaser.Scene {
     this.endRedHitEffects();
     this.stopGreenHitFeedback();
     this.stopAllDynamicBuoyStateTimers();
-    this.timeBonuses?.children.each((child) => {
+    this.safeEachGroupChild(this.timeBonuses, (child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
       this.destroyTimeBonusShadow(sprite);
     });
@@ -2691,16 +2723,16 @@ export default class GameScene extends Phaser.Scene {
 
     this.stopSpawnTimers();
 
-    this.obstacles?.clear(true, true);
-    this.fuels?.clear(true, true);
+    this.safeClearPhysicsGroup(this.obstacles, true, true);
+    this.safeClearPhysicsGroup(this.fuels, true, true);
     this.stopAllDynamicBuoyStateTimers();
-    this.dynamicBuoys?.clear(true, true);
-    this.timeBonuses?.children.each((child) => {
+    this.safeClearPhysicsGroup(this.dynamicBuoys, true, true);
+    this.safeEachGroupChild(this.timeBonuses, (child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
       this.destroyTimeBonusShadow(sprite);
     });
-    this.timeBonuses?.clear(true, true);
-    this.landmarks?.clear(true, true);
+    this.safeClearPhysicsGroup(this.timeBonuses, true, true);
+    this.safeClearPhysicsGroup(this.landmarks, true, true);
 
     this.harborGate?.destroy();
     this.harborGate = undefined;
