@@ -328,8 +328,8 @@ export const CONTROL_ROUTING = {
 } as const;
 
 export const CONTROL_MODE_BY_PLATFORM = {
-  desktop: "follow" as "follow" | "joystick",
-  mobile: "follow" as "follow" | "joystick",
+  desktop: "joystick" as "follow" | "joystick",
+  mobile: "joystick" as "follow" | "joystick",
 } as const;
 
 export const FOLLOW_POINTER_ANCHOR = {
