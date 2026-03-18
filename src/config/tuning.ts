@@ -334,7 +334,7 @@ export const CONTROL_MODE_BY_PLATFORM = {
 
 export const FOLLOW_POINTER_ANCHOR = {
   desktop: { enabled: false, offsetX: 0, offsetY: 0 },
-  mobile: { enabled: true, offsetX: 0, offsetY: -180 },
+  mobile: { enabled: true, offsetX: 0, offsetY: -120 },
 } as const;
 
 export const JOYSTICK_2D = {
