@@ -328,13 +328,13 @@ export const CONTROL_ROUTING = {
 } as const;
 
 export const CONTROL_MODE_BY_PLATFORM = {
-  desktop: "joystick" as "follow" | "joystick",
-  mobile: "joystick" as "follow" | "joystick",
+  desktop: "follow" as "follow" | "joystick",
+  mobile: "follow" as "follow" | "joystick",
 } as const;
 
 export const FOLLOW_POINTER_ANCHOR = {
   desktop: { enabled: false, offsetX: 0, offsetY: 0 },
-  mobile: { enabled: true, offsetX: 0, offsetY: -120 },
+  mobile: { enabled: true, offsetX: 0, offsetY: -180 },
 } as const;
 
 export const JOYSTICK_2D = {
