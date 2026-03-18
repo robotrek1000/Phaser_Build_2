@@ -117,14 +117,9 @@
                 "key": "start-bg"
             },
             {
-                "url": "assets/hand.png",
+                "url": "assets/onboarding_window.png",
                 "type": "image",
-                "key": "hand-icon"
-            },
-            {
-                "url": "assets/button_start.png",
-                "type": "image",
-                "key": "start-button"
+                "key": "onboarding-window"
             },
             {
                 "url": "assets/ship_1.png",

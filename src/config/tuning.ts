@@ -413,17 +413,31 @@ export const UI_BUTTON = {
   paddingY: 8,
 } as const;
 
-export const INTRO_LAYOUT = {
-  textYRatio: 0.42,
-  handYRatio: 0.62,
-  buttonYRatio: 0.82,
-  handStartRatio: 0.1,
-  handEndRatio: 0.9,
-  handDurationMs: 2000,
+export const INTRO_ONBOARDING_UI = {
   dimAlpha: 0.35,
-  handScale: 0.5,
-  buttonScale: 0.5,
-  textSize: "40px",
+  windowYRatio: 0.43,
+  windowMaxWidthRatio: 0.9,
+  windowMaxHeightRatio: 0.82,
+  windowMinScale: 0.35,
+  windowMaxScale: 2.2,
+  windowDepth: 10,
+  buttonWidthRatio: 0.56,
+  buttonHeightPx: 122,
+  buttonRadiusPx: 18,
+  buttonOffsetFromWindowPx: 52,
+  buttonBottomPaddingPx: 44,
+  buttonFillColor: 0x1ab6ee,
+  buttonHoverColor: 0x2bc8ff,
+  buttonPressedColor: 0x1292bf,
+  buttonStrokeColor: 0xffffff,
+  buttonStrokeWidthPx: 0,
+  buttonText: "ПОПЛЫЛИ",
+  buttonTextFontFamily: "Fascinate",
+  buttonTextFontSizePx: 72,
+  buttonTextColor: "#ffffff",
+  buttonTextStyle: "normal" as "normal" | "bold",
+  buttonDepth: 20,
+  overlayDepth: 5,
 } as const;
 
 export const YACHT_SWAY = {

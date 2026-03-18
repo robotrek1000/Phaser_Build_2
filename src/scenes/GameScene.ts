@@ -233,6 +233,17 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
+    const platform = this.resolveControlPlatformForPointer(pointer);
+    this.activeControlPlatform = platform;
+    this.activeControlMode = this.resolveControlModeForPlatform(platform);
+    if (this.activeControlMode === "joystick") {
+      this.pointerLastX = pointer.x;
+      this.pointerLastY = pointer.y;
+      this.joystickFrameDeltaX = 0;
+      this.joystickFrameDeltaY = 0;
+      return;
+    }
+
     this.updateTargetPosition(pointer.x, pointer.y);
   };
 
@@ -843,8 +854,12 @@ export default class GameScene extends Phaser.Scene {
       return CONTROL_ROUTING.manualPlatform;
     }
 
-    const pointerType = pointer.pointerType ?? "mouse";
-    return pointerType === "touch" ? "mobile" : "desktop";
+    if (pointer.wasTouch) {
+      return "mobile";
+    }
+
+    const eventPointerType = (pointer.event as { pointerType?: string } | undefined)?.pointerType;
+    return eventPointerType === "touch" ? "mobile" : "desktop";
   }
 
   private resolveControlModeForPlatform(platform: ControlPlatform): ControlMode {
