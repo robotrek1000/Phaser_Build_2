@@ -205,13 +205,18 @@ export const SHIP_ASSET_STAGES = [
 ] as const;
 
 export const RED_HIT_INVULNERABILITY = {
-  durationMs: 1_000,
-  overlayColor: 0xff2d2d,
-  overlayAlpha: 0.5,
-  overlayDepth: 70,
+  durationMs: 1_800,
   blinkAlphaMin: 0.1,
   blinkHalfCycleMs: 80,
   blinkEase: "Sine.easeInOut",
+} as const;
+
+export const RED_HIT_OVERLAY_EFFECT = {
+  enabled: true,
+  durationMs: 500,
+  color: 0xff2d2d,
+  alpha: 0.5,
+  depth: 70,
 } as const;
 
 export const GREEN_HIT_FEEDBACK = {
@@ -324,11 +329,16 @@ export const CONTROL_ROUTING = {
 
 export const CONTROL_MODE_BY_PLATFORM = {
   desktop: "follow" as "follow" | "joystick",
-  mobile: "joystick" as "follow" | "joystick",
+  mobile: "follow" as "follow" | "joystick",
+} as const;
+
+export const FOLLOW_POINTER_ANCHOR = {
+  desktop: { enabled: false, offsetX: 0, offsetY: 0 },
+  mobile: { enabled: true, offsetX: 0, offsetY: -120 },
 } as const;
 
 export const JOYSTICK_2D = {
-  deadZonePx: 0,
+  deadZonePx: 1,
   gainX: 2.2,
   gainY: 2.2,
   maxDeltaXPerEventPx: 500,

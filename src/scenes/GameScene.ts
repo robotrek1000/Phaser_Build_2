@@ -16,6 +16,7 @@ import {
   FREE_CONTROL_2D,
   CONTROL_MODE_BY_PLATFORM,
   CONTROL_ROUTING,
+  FOLLOW_POINTER_ANCHOR,
   GREEN_HIT_FEEDBACK,
   JOYSTICK_2D,
   FUEL_SWAY,
@@ -30,6 +31,7 @@ import {
   PLAY_AREA,
   PROGRESS_BAR_NEW_KEYS,
   RED_HIT_INVULNERABILITY,
+  RED_HIT_OVERLAY_EFFECT,
   RUN_TIMER,
   RUN_START_SPEED,
   SPAWN_BASE_DELAYS,
@@ -112,6 +114,7 @@ export default class GameScene extends Phaser.Scene {
   private swayTime = 0;
   private redInvulActive = false;
   private redInvulTimer?: Phaser.Time.TimerEvent;
+  private redOverlayTimer?: Phaser.Time.TimerEvent;
   private redShipBlinkTween?: Phaser.Tweens.Tween;
   private greenShipTintTween?: Phaser.Tweens.Tween;
   private redOverlay?: Phaser.GameObjects.Rectangle;
@@ -812,8 +815,19 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private updateTargetPosition(pointerX: number, pointerY: number) {
-    this.targetX = Phaser.Math.Clamp(pointerX, this.controlMinX, this.controlMaxX);
-    this.targetY = Phaser.Math.Clamp(pointerY, this.controlMinY, this.controlMaxY);
+    let targetX = pointerX;
+    let targetY = pointerY;
+
+    if (this.activeControlMode === "follow") {
+      const followAnchorConfig = FOLLOW_POINTER_ANCHOR[this.activeControlPlatform];
+      if (followAnchorConfig.enabled) {
+        targetX += followAnchorConfig.offsetX;
+        targetY += followAnchorConfig.offsetY;
+      }
+    }
+
+    this.targetX = Phaser.Math.Clamp(targetX, this.controlMinX, this.controlMaxX);
+    this.targetY = Phaser.Math.Clamp(targetY, this.controlMinY, this.controlMaxY);
   }
 
   private resetPointerControlState() {
@@ -997,11 +1011,11 @@ export default class GameScene extends Phaser.Scene {
       height * 0.5,
       width,
       height,
-      RED_HIT_INVULNERABILITY.overlayColor,
-      RED_HIT_INVULNERABILITY.overlayAlpha,
+      RED_HIT_OVERLAY_EFFECT.color,
+      RED_HIT_OVERLAY_EFFECT.alpha,
     );
     this.redOverlay.setScrollFactor(0);
-    this.redOverlay.setDepth(RED_HIT_INVULNERABILITY.overlayDepth);
+    this.redOverlay.setDepth(RED_HIT_OVERLAY_EFFECT.depth);
     this.redOverlay.setVisible(false);
     this.redOverlay.setAlpha(0);
   }
@@ -1010,13 +1024,10 @@ export default class GameScene extends Phaser.Scene {
     this.redInvulActive = true;
     this.redInvulTimer?.remove(false);
     this.redInvulTimer = this.time.delayedCall(RED_HIT_INVULNERABILITY.durationMs, () => {
-      this.endRedHitEffects();
+      this.endRedInvulnerabilityEffects();
     });
 
-    if (this.redOverlay) {
-      this.redOverlay.setVisible(true);
-      this.redOverlay.setAlpha(RED_HIT_INVULNERABILITY.overlayAlpha);
-    }
+    this.triggerRedOverlayEffect();
 
     this.redShipBlinkTween?.stop();
     if (this.yachtVisual) {
@@ -1032,7 +1043,24 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private endRedHitEffects() {
+  private triggerRedOverlayEffect() {
+    if (!RED_HIT_OVERLAY_EFFECT.enabled) {
+      this.endRedOverlayEffect();
+      return;
+    }
+
+    this.redOverlayTimer?.remove(false);
+    this.redOverlayTimer = this.time.delayedCall(RED_HIT_OVERLAY_EFFECT.durationMs, () => {
+      this.endRedOverlayEffect();
+    });
+
+    if (this.redOverlay) {
+      this.redOverlay.setVisible(true);
+      this.redOverlay.setAlpha(RED_HIT_OVERLAY_EFFECT.alpha);
+    }
+  }
+
+  private endRedInvulnerabilityEffects() {
     this.redInvulActive = false;
     this.redInvulTimer?.remove(false);
     this.redInvulTimer = undefined;
@@ -1042,11 +1070,21 @@ export default class GameScene extends Phaser.Scene {
     if (this.yachtVisual) {
       this.yachtVisual.setAlpha(1);
     }
+  }
+
+  private endRedOverlayEffect() {
+    this.redOverlayTimer?.remove(false);
+    this.redOverlayTimer = undefined;
 
     if (this.redOverlay) {
       this.redOverlay.setVisible(false);
       this.redOverlay.setAlpha(0);
     }
+  }
+
+  private endRedHitEffects() {
+    this.endRedInvulnerabilityEffects();
+    this.endRedOverlayEffect();
   }
 
   private triggerGreenHitFeedback() {
