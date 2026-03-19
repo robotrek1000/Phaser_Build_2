@@ -4,7 +4,7 @@ export const TUNING = {
   FUEL_DRAIN_PER_SEC: 0,
   FUEL_PICKUP_VALUE: 0.25,
   SPEED_PER_100M: 0,
-  FUEL_HIT_PENALTY: 0.2,
+  FUEL_HIT_PENALTY: 0.4,
 } as const;
 
 export const DYNAMIC_BUOY_STATES = {
