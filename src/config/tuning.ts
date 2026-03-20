@@ -31,7 +31,7 @@ export const DYNAMIC_BUOY_STATES = {
 export const DYNAMIC_BUOY_STATE_ORDER = ["up", "no", "down"] as const;
 
 export const RUN_TIMER = {
-  initialMs: 70_000,
+  initialMs: 60_000,
   bonusMs: 10_000,
 } as const;
 
@@ -193,7 +193,7 @@ export const SPAWN_MULTIPLIERS = [
   { minMeters: 700, maxMeters: 800, obstacle: 0.5, fuel: 0.3, dynamic: 0.5 },
   { minMeters: 800, maxMeters: 1000, obstacle: 0.25, fuel: 2.5, dynamic: 0.25 },
   { minMeters: 1000, maxMeters: 1200, obstacle: 0.3, fuel: 2.5, dynamic: 0.3 },
-  { minMeters: 1200, maxMeters: 1250, obstacle: 0.025, fuel: 2.5, dynamic: 0.025 },
+  { minMeters: 1200, maxMeters: 1250, obstacle: 10, fuel: 10, dynamic: 10 },
   { minMeters: 1250, maxMeters: Infinity, obstacle: 10, fuel: 10, dynamic: 10 },
 ] as const;
 
