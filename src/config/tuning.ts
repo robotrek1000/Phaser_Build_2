@@ -10,7 +10,7 @@ export const TUNING = {
 export const DYNAMIC_BUOY_STATES = {
   up: {
     delta: 0.25,
-    durationMs: 2000,
+    durationMs: 1000,
     textureKey: "money-change-up",
     stateId: 1,
   },
