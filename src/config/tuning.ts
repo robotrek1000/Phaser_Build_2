@@ -22,7 +22,7 @@ export const DYNAMIC_BUOY_STATES = {
   },
   down: {
     delta: -0.4,
-    durationMs: 2000,
+    durationMs: 1000,
     textureKey: "money-change-down",
     stateId: 3,
   },
