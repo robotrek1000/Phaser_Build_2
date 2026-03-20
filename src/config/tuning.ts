@@ -181,16 +181,16 @@ export const PROGRESS_BAR_KEYS = [
 ] as const;
 
 export const SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 90, obstacle: 3, fuel: 1.75, dynamic: 10 },
-  { minMeters: 90, maxMeters: 100, obstacle: 0.15, fuel: 1.75, dynamic: 10 },
-  { minMeters: 100, maxMeters: 190, obstacle: 2, fuel: 1.75, dynamic: 10 },
-  { minMeters: 190, maxMeters: 200, obstacle: 2, fuel: 1.75, dynamic: 0.05 },
+  { minMeters: 0, maxMeters: 90, obstacle: 3, fuel: 2, dynamic: 10 },
+  { minMeters: 90, maxMeters: 100, obstacle: 0.15, fuel: 2, dynamic: 10 },
+  { minMeters: 100, maxMeters: 190, obstacle: 2, fuel: 2, dynamic: 10 },
+  { minMeters: 190, maxMeters: 200, obstacle: 2, fuel: 2, dynamic: 0.05 },
   { minMeters: 200, maxMeters: 350, obstacle: 1.75, fuel: 2, dynamic: 1 },
   { minMeters: 350, maxMeters: 400, obstacle: 0.1, fuel: 2, dynamic: 1 },
   { minMeters: 400, maxMeters: 550, obstacle: 1.25, fuel: 2, dynamic: 0.75 },
   { minMeters: 550, maxMeters: 600, obstacle: 1.25, fuel: 2, dynamic: 0.1 },
   { minMeters: 600, maxMeters: 700, obstacle: 1.25, fuel: 2.25, dynamic: 0.75 },
-  { minMeters: 700, maxMeters: 800, obstacle: 0.5, fuel: 0.3, dynamic: 0.5 },
+  { minMeters: 700, maxMeters: 800, obstacle: 0.5, fuel: 2.25, dynamic: 0.5 },
   { minMeters: 800, maxMeters: 1000, obstacle: 0.25, fuel: 2.5, dynamic: 0.25 },
   { minMeters: 1000, maxMeters: 1200, obstacle: 0.3, fuel: 2.5, dynamic: 0.3 },
   { minMeters: 1200, maxMeters: 1250, obstacle: 10, fuel: 10, dynamic: 10 },
