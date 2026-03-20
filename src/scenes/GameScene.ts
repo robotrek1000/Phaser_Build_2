@@ -33,7 +33,7 @@ import {
   OBJECT_SIZES,
   OBSTACLE_SWAY,
   PLAY_AREA,
-  PROGRESS_BAR_NEW_KEYS,
+  PROGRESS_BAR_KEYS,
   RED_HIT_INVULNERABILITY,
   RED_HIT_OVERLAY_EFFECT,
   RUN_TIMER,
@@ -93,7 +93,7 @@ export default class GameScene extends Phaser.Scene {
   private progressBar?: Phaser.GameObjects.Image;
   private timeBar?: Phaser.GameObjects.Image;
   private timeText?: Phaser.GameObjects.Text;
-  private progressKeys = [...PROGRESS_BAR_NEW_KEYS];
+  private progressKeys = [...PROGRESS_BAR_KEYS];
   private yachtBody?: Phaser.Physics.Arcade.Sprite;
   private yachtVisual?: Phaser.GameObjects.Image;
   private targetX = 0;
@@ -324,6 +324,8 @@ export default class GameScene extends Phaser.Scene {
 
     const speedMps = (this.speedKmh * 1000) / 3600;
     this.distanceM += speedMps * dt;
+    this.updatePendingCoins();
+    this.updateCheckpointProgress();
     this.tryOpenIslandDecisionModalByDistance();
     if (this.isIslandModalOpen) {
       return;
@@ -377,8 +379,6 @@ export default class GameScene extends Phaser.Scene {
       this.water.tilePositionY -= delta * scrollSpeed;
     }
 
-    this.updatePendingCoins();
-    this.updateCheckpointProgress();
     this.spawnLandmarksByDistance();
     this.updateSpawnPauseState();
     this.updateLandmarkVelocities();
@@ -466,8 +466,7 @@ export default class GameScene extends Phaser.Scene {
     this.progressBar.setScale(HUD_LAYOUT.progressScale);
     this.progressBar.setDepth(50);
 
-    const progressRightX = progressX + this.progressBar.displayWidth * 0.5;
-    const timeBarX = progressRightX + TIME_HUD.xOffset;
+    const timeBarX = width * TIME_HUD.xRatio;
     this.timeBar = this.add.image(timeBarX, TIME_HUD.y, "time-bar").setOrigin(0.5, 0);
     this.timeBar.setScale(TIME_HUD.scale);
     this.timeBar.setDepth(50);

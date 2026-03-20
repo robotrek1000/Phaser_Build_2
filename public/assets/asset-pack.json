@@ -47,39 +47,24 @@
                 "key": "icon-flag"
             },
             {
-                "url": "assets/progress_bar_new_0.png",
+                "url": "assets/progress_bar_0.png",
                 "type": "image",
-                "key": "progress-bar-new-0"
+                "key": "progress-bar-0"
             },
             {
-                "url": "assets/progress_bar_new_1.png",
+                "url": "assets/progress_bar_1.png",
                 "type": "image",
-                "key": "progress-bar-new-1"
+                "key": "progress-bar-1"
             },
             {
-                "url": "assets/progress_bar_new_2.png",
+                "url": "assets/progress_bar_2.png",
                 "type": "image",
-                "key": "progress-bar-new-2"
+                "key": "progress-bar-2"
             },
             {
-                "url": "assets/progress_bar_new_3.png",
+                "url": "assets/progress_bar_3.png",
                 "type": "image",
-                "key": "progress-bar-new-3"
-            },
-            {
-                "url": "assets/progress_bar_new_4.png",
-                "type": "image",
-                "key": "progress-bar-new-4"
-            },
-            {
-                "url": "assets/progress_bar_new_5.png",
-                "type": "image",
-                "key": "progress-bar-new-5"
-            },
-            {
-                "url": "assets/progress_bar_new_6.png",
-                "type": "image",
-                "key": "progress-bar-new-6"
+                "key": "progress-bar-3"
             },
             {
                 "url": "assets/time_bar.png",

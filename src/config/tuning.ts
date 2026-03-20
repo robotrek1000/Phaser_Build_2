@@ -9,20 +9,20 @@ export const TUNING = {
 
 export const DYNAMIC_BUOY_STATES = {
   up: {
-    delta: 0.2,
-    durationMs: 1000,
+    delta: 0.25,
+    durationMs: 2000,
     textureKey: "money-change-up",
     stateId: 1,
   },
   no: {
     delta: 0,
-    durationMs: 1000,
+    durationMs: 500,
     textureKey: "money-change-no",
     stateId: 2,
   },
   down: {
-    delta: -0.2,
-    durationMs: 1000,
+    delta: -0.4,
+    durationMs: 2000,
     textureKey: "money-change-down",
     stateId: 3,
   },
@@ -35,17 +35,17 @@ export const RUN_TIMER = {
   bonusMs: 10_000,
 } as const;
 
-export const DISTANCE_CHECKPOINTS = [100, 200, 300, 400, 500, 600] as const;
+export const DISTANCE_CHECKPOINTS = [400, 800, 1210] as const;
 
 export const LANDMARK_METERS = {
-  island200: 200,
-  tavern400: 400,
-  harbor610: 610,
+  island200: 400,
+  tavern400: 800,
+  harbor610: 1210,
 } as const;
 
 export const ISLAND_CHECKPOINTS = {
-  firstIslandMeters: 225,
-  secondIslandMeters: 425,
+  firstIslandMeters: 425,
+  secondIslandMeters: 825,
 } as const;
 
 export const ISLAND_APPROACH_SLOWDOWN = {
@@ -166,47 +166,44 @@ export const ISLAND_DECISION_MODAL_TEXT = {
 } as const;
 
 export const COIN_PENDING_MILESTONES = [
-  { meters: 100, coins: 5 },
-  { meters: 300, coins: 10 },
-  { meters: 500, coins: 15 },
+  { meters: 425, coins: 5 },
+  { meters: 825, coins: 10 },
+  { meters: 1210, coins: 15 },
 ] as const;
 
 export const SPAWN_PAUSE_WINDOW_METERS = 20;
 
-export const PROGRESS_BAR_NEW_KEYS = [
-  "progress-bar-new-0",
-  "progress-bar-new-1",
-  "progress-bar-new-2",
-  "progress-bar-new-3",
-  "progress-bar-new-4",
-  "progress-bar-new-5",
-  "progress-bar-new-6",
+export const PROGRESS_BAR_KEYS = [
+  "progress-bar-0",
+  "progress-bar-1",
+  "progress-bar-2",
+  "progress-bar-3",
 ] as const;
 
 export const SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 45, obstacle: 3, fuel: 1.75, dynamic: 10 },
-  { minMeters: 45, maxMeters: 50, obstacle: 0.15, fuel: 1.75, dynamic: 10 },
-  { minMeters: 50, maxMeters: 95, obstacle: 2, fuel: 1.75, dynamic: 10 },
-  { minMeters: 95, maxMeters: 100, obstacle: 2, fuel: 1.75, dynamic: 0.05 },
-  { minMeters: 100, maxMeters: 175, obstacle: 1.75, fuel: 2, dynamic: 1 },
-  { minMeters: 175, maxMeters: 200, obstacle: 0.1, fuel: 2, dynamic: 1 },
-  { minMeters: 200, maxMeters: 275, obstacle: 1.25, fuel: 2, dynamic: 0.75 },
-  { minMeters: 275, maxMeters: 300, obstacle: 1.25, fuel: 2, dynamic: 0.1 },
-  { minMeters: 300, maxMeters: 350, obstacle: 1.25, fuel: 2.25, dynamic: 0.75 },
-  { minMeters: 350, maxMeters: 400, obstacle: 0.5, fuel: 0.3, dynamic: 0.5 },
-  { minMeters: 400, maxMeters: 500, obstacle: 0.25, fuel: 2.5, dynamic: 0.25 },
-  { minMeters: 500, maxMeters: 600, obstacle: 0.3, fuel: 2.5, dynamic: 0.3 },
-  { minMeters: 600, maxMeters: 625, obstacle: 0.025, fuel: 2.5, dynamic: 0.025 },
-  { minMeters: 625, maxMeters: Infinity, obstacle: 10, fuel: 10, dynamic: 10 },
+  { minMeters: 0, maxMeters: 90, obstacle: 3, fuel: 1.75, dynamic: 10 },
+  { minMeters: 90, maxMeters: 100, obstacle: 0.15, fuel: 1.75, dynamic: 10 },
+  { minMeters: 100, maxMeters: 190, obstacle: 2, fuel: 1.75, dynamic: 10 },
+  { minMeters: 190, maxMeters: 200, obstacle: 2, fuel: 1.75, dynamic: 0.05 },
+  { minMeters: 200, maxMeters: 350, obstacle: 1.75, fuel: 2, dynamic: 1 },
+  { minMeters: 350, maxMeters: 400, obstacle: 0.1, fuel: 2, dynamic: 1 },
+  { minMeters: 400, maxMeters: 550, obstacle: 1.25, fuel: 2, dynamic: 0.75 },
+  { minMeters: 550, maxMeters: 600, obstacle: 1.25, fuel: 2, dynamic: 0.1 },
+  { minMeters: 600, maxMeters: 700, obstacle: 1.25, fuel: 2.25, dynamic: 0.75 },
+  { minMeters: 700, maxMeters: 800, obstacle: 0.5, fuel: 0.3, dynamic: 0.5 },
+  { minMeters: 800, maxMeters: 1000, obstacle: 0.25, fuel: 2.5, dynamic: 0.25 },
+  { minMeters: 1000, maxMeters: 1200, obstacle: 0.3, fuel: 2.5, dynamic: 0.3 },
+  { minMeters: 1200, maxMeters: 1250, obstacle: 0.025, fuel: 2.5, dynamic: 0.025 },
+  { minMeters: 1250, maxMeters: Infinity, obstacle: 10, fuel: 10, dynamic: 10 },
 ] as const;
 
 export const TIME_BONUS_SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 100, multiplier: 1.75 },
-  { minMeters: 100, maxMeters: 200, multiplier: 1.75 },
-  { minMeters: 200, maxMeters: 350, multiplier: 1.75 },
-  { minMeters: 350, maxMeters: 400, multiplier: 0.5 },
-  { minMeters: 400, maxMeters: 500, multiplier: 0.25 },
-  { minMeters: 500, maxMeters: Infinity, multiplier: 1.75 },
+  { minMeters: 0, maxMeters: 200, multiplier: 1.75 },
+  { minMeters: 200, maxMeters: 400, multiplier: 1.75 },
+  { minMeters: 400, maxMeters: 700, multiplier: 1.75 },
+  { minMeters: 700, maxMeters: 800, multiplier: 0.5 },
+  { minMeters: 800, maxMeters: 1000, multiplier: 0.25 },
+  { minMeters: 1000, maxMeters: Infinity, multiplier: 1.75 },
 ] as const;
 
 export const SPAWN_BASE_DELAYS = {
@@ -284,9 +281,9 @@ export const HUD_LAYOUT = {
   meterScale: 0.2,
   meterIconGap: 16,
   meterIconScale: 0.15,
-  progressXRatio: 0.525,
-  progressY: 20,
-  progressScale: 0.275,
+  progressXRatio: 0.5,
+  progressY: 12,
+  progressScale: 0.5,
 } as const;
 
 export const ASSETS_BAR_UI = {
@@ -349,7 +346,7 @@ export const GREEN_HIT_FEEDBACK = {
 } as const;
 
 export const TIME_HUD = {
-  xOffset: 68,
+  xRatio: 0.905,
   y: 14,
   scale: 0.4,
   valueYOffsetRatio: 0.68,
