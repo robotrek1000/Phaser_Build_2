@@ -130,6 +130,21 @@
                 "url": "assets/ship_5.png",
                 "type": "image",
                 "key": "ship-5"
+            },
+            {
+                "url": "assets/coin_animation_1.png",
+                "type": "image",
+                "key": "coin-animation-1"
+            },
+            {
+                "url": "assets/coin_animation_2.png",
+                "type": "image",
+                "key": "coin-animation-2"
+            },
+            {
+                "url": "assets/coin_animation_3.png",
+                "type": "image",
+                "key": "coin-animation-3"
             }
         ]
     },

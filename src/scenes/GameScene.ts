@@ -5,6 +5,7 @@ import {
   BUOY_COLLISION,
   BUOY_HITBOX,
   BUOY_SPAWN_LIMITS,
+  COIN_REWARD_ANIMATION,
   COIN_PENDING_MILESTONES,
   COLLECT_ANIMATION_BUOY,
   COLLECT_ANIMATION_TIME_BONUS,
@@ -25,10 +26,6 @@ import {
   IMPACT_ANIMATION,
   LANDMARK_LAYOUT,
   LANDMARK_METERS,
-  ISLAND_CHECKPOINTS,
-  ISLAND_APPROACH_SLOWDOWN,
-  ISLAND_DECISION_MODAL_TEXT,
-  ISLAND_DECISION_MODAL_UI,
   OBJECT_DRIFT,
   OBJECT_SIZES,
   OBSTACLE_SWAY,
@@ -61,7 +58,6 @@ type SuccessReason = "success_island_200" | "success_tavern_400" | "success_harb
 type FailureReason = "out_of_assets" | "out_of_time";
 type ResultReason = FailureReason | SuccessReason;
 type LandmarkType = "island200" | "tavern400" | "harbor610";
-type IslandDecisionType = "island200" | "tavern400";
 type DynamicBuoyStateKey = keyof typeof DYNAMIC_BUOY_STATES;
 type BuoyType = "obstacle" | "fuel" | "dynamic";
 type CollectAnimationType = "buoy" | "timeBonus";
@@ -150,35 +146,20 @@ export default class GameScene extends Phaser.Scene {
   private pendingCoins = 0;
   private progressStage = 0;
   private reachedCoinMilestones = new Set<number>();
+  private coinRewardAnimationQueue: string[] = [];
+  private isCoinRewardAnimationPlaying = false;
+  private coinRewardAnimationSprite?: Phaser.GameObjects.Image;
+  private coinRewardAnimationDelayEvent?: Phaser.Time.TimerEvent;
+  private coinRewardAnimationHoldEvent?: Phaser.Time.TimerEvent;
+  private coinRewardAnimationEnterTween?: Phaser.Tweens.Tween;
+  private coinRewardAnimationExitTween?: Phaser.Tweens.Tween;
   private spawnedLandmarks = {
     island200: false,
     tavern400: false,
     harbor610: false,
   };
-  private islandDecisionShown = {
-    island200: false,
-    tavern400: false,
-  };
-  private isIslandModalOpen = false;
-  private activeIslandDecision: IslandDecisionType | null = null;
-  private islandSlowdownReleaseKmhPerSec?: number;
-  private islandModalOverlay?: Phaser.GameObjects.Rectangle;
-  private islandModalPanel?: Phaser.GameObjects.Graphics;
-  private islandModalTitleText?: Phaser.GameObjects.Text;
-  private islandModalQuestionText?: Phaser.GameObjects.Text;
-  private islandModalCoinsText?: Phaser.GameObjects.Text;
-  private islandModalYesButton?: Phaser.GameObjects.Rectangle;
-  private islandModalNoButton?: Phaser.GameObjects.Rectangle;
-  private islandModalYesLabel?: Phaser.GameObjects.Text;
-  private islandModalNoLabel?: Phaser.GameObjects.Text;
-  private islandModalYesCaption?: Phaser.GameObjects.Text;
-  private islandModalNoCaption?: Phaser.GameObjects.Text;
 
   private readonly onPointerDown = (pointer: Phaser.Input.Pointer) => {
-    if (this.isIslandModalOpen) {
-      return;
-    }
-
     if (this.pointerControlActive && this.pointerControlId !== pointer.id) {
       return;
     }
@@ -207,10 +188,6 @@ export default class GameScene extends Phaser.Scene {
   };
 
   private readonly onPointerUp = (pointer: Phaser.Input.Pointer) => {
-    if (this.isIslandModalOpen) {
-      return;
-    }
-
     if (!this.isPointerControlPointer(pointer)) {
       return;
     }
@@ -220,10 +197,6 @@ export default class GameScene extends Phaser.Scene {
   };
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
-    if (this.isIslandModalOpen) {
-      return;
-    }
-
     if (!this.isPointerControlPointer(pointer)) {
       return;
     }
@@ -276,10 +249,6 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.isIslandModalOpen) {
-      return;
-    }
-
     const dt = delta / 1000;
     this.remainingTimeMs = Math.max(0, this.remainingTimeMs - delta);
     if (this.remainingTimeMs <= 0) {
@@ -304,32 +273,12 @@ export default class GameScene extends Phaser.Scene {
       speedStepKmh = BRAKING.decelKmhPerSec * dt;
     }
 
-    const approachSlowdown = this.getActiveIslandApproachSlowdown();
-    if (approachSlowdown) {
-      speedTargetKmh = Math.min(speedTargetKmh, approachSlowdown.config.targetSpeedKmh);
-      speedStepKmh = Math.max(speedStepKmh, approachSlowdown.config.approachKmhPerSec * dt);
-    }
-
-    if (this.islandSlowdownReleaseKmhPerSec !== undefined && this.pointerControlActive) {
-      speedStepKmh = Math.max(speedStepKmh, this.islandSlowdownReleaseKmhPerSec * dt);
-    }
-
     this.speedKmh = this.moveTowardValue(this.speedKmh, speedTargetKmh, speedStepKmh);
-    if (
-      this.islandSlowdownReleaseKmhPerSec !== undefined &&
-      (!this.pointerControlActive || this.speedKmh >= speedTargetKmh - 0.01)
-    ) {
-      this.islandSlowdownReleaseKmhPerSec = undefined;
-    }
 
     const speedMps = (this.speedKmh * 1000) / 3600;
     this.distanceM += speedMps * dt;
     this.updatePendingCoins();
     this.updateCheckpointProgress();
-    this.tryOpenIslandDecisionModalByDistance();
-    if (this.isIslandModalOpen) {
-      return;
-    }
 
     if (this.pointerControlActive && this.activeControlMode === "joystick") {
       if (this.joystickFrameDeltaX !== 0 || this.joystickFrameDeltaY !== 0) {
@@ -629,20 +578,22 @@ export default class GameScene extends Phaser.Scene {
       this.collectAirBonus(sprite);
     });
 
-    this.physics.add.overlap(this.yachtBody, this.landmarks, (_yacht, landmarkObj) => {
-      const sprite = landmarkObj as Phaser.Physics.Arcade.Sprite;
-      if (this.isGameOver || sprite.getData("collecting")) {
-        return;
-      }
-
-      const landmarkType = sprite.getData("landmarkType") as LandmarkType | undefined;
-      if (landmarkType !== "harbor610") {
-        return;
-      }
-
-      sprite.setData("collecting", true);
-      this.finishRunSuccess("success_harbor_610");
-    });
+    this.physics.add.collider(
+      this.yachtBody,
+      this.landmarks,
+      () => {
+        // Island collision is intentionally a pure physical blocker without extra gameplay side effects.
+      },
+      (_yacht, landmarkObj) => {
+        if (this.isGameOver) {
+          return false;
+        }
+        const sprite = landmarkObj as Phaser.Physics.Arcade.Sprite;
+        const landmarkType = sprite.getData("landmarkType") as LandmarkType | undefined;
+        return landmarkType === "island200" || landmarkType === "tavern400";
+      },
+      this,
+    );
 
     this.physics.add.collider(this.obstacles, this.obstacles, this.handleBuoyCollision, undefined, this);
     this.physics.add.collider(this.fuels, this.fuels, this.handleBuoyCollision, undefined, this);
@@ -1525,12 +1476,12 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private spawnLandmarksByDistance() {
-    if (!this.spawnedLandmarks.island200 && this.distanceM >= this.getIslandLandmarkMeters("island200")) {
+    if (!this.spawnedLandmarks.island200 && this.distanceM >= LANDMARK_METERS.island200) {
       this.spawnedLandmarks.island200 = true;
       this.spawnLandmark("earth-1", "island200", LANDMARK_LAYOUT.island200);
     }
 
-    if (!this.spawnedLandmarks.tavern400 && this.distanceM >= this.getIslandLandmarkMeters("tavern400")) {
+    if (!this.spawnedLandmarks.tavern400 && this.distanceM >= LANDMARK_METERS.tavern400) {
       this.spawnedLandmarks.tavern400 = true;
       this.spawnLandmark("earth-2", "tavern400", LANDMARK_LAYOUT.tavern400);
     }
@@ -1542,387 +1493,102 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private getIslandLandmarkMeters(type: IslandDecisionType) {
-    return type === "island200" ? LANDMARK_METERS.island200 : LANDMARK_METERS.tavern400;
-  }
-
-  private getIslandModalTriggerMeters(type: IslandDecisionType) {
-    return type === "island200" ? ISLAND_CHECKPOINTS.firstIslandMeters : ISLAND_CHECKPOINTS.secondIslandMeters;
-  }
-
-  private getIslandApproachConfig(type: IslandDecisionType) {
-    return type === "island200" ? ISLAND_APPROACH_SLOWDOWN.firstIsland : ISLAND_APPROACH_SLOWDOWN.secondIsland;
-  }
-
-  private getActiveIslandApproachSlowdown() {
-    const firstMeters = this.getIslandLandmarkMeters("island200");
-    if (!this.islandDecisionShown.island200 && this.distanceM < firstMeters) {
-      const config = this.getIslandApproachConfig("island200");
-      if (this.distanceM >= firstMeters - config.slowdownStartBeforeMeters) {
-        return { island: "island200" as IslandDecisionType, config };
-      }
+  private getCoinRewardAnimationKeyByCoins(coins: number) {
+    if (coins >= 15) {
+      return "coin-animation-3";
     }
-
-    const secondMeters = this.getIslandLandmarkMeters("tavern400");
-    if (!this.islandDecisionShown.tavern400 && this.distanceM < secondMeters) {
-      const config = this.getIslandApproachConfig("tavern400");
-      if (this.distanceM >= secondMeters - config.slowdownStartBeforeMeters) {
-        return { island: "tavern400" as IslandDecisionType, config };
-      }
+    if (coins >= 10) {
+      return "coin-animation-2";
     }
-
-    return null;
+    return "coin-animation-1";
   }
 
-  private tryOpenIslandDecisionModalByDistance() {
-    if (this.isIslandModalOpen || this.isGameOver) {
+  private enqueueCoinRewardAnimationByCoins(coins: number) {
+    this.coinRewardAnimationQueue.push(this.getCoinRewardAnimationKeyByCoins(coins));
+    this.playNextCoinRewardAnimation();
+  }
+
+  private playNextCoinRewardAnimation() {
+    if (this.isCoinRewardAnimationPlaying || this.coinRewardAnimationQueue.length === 0 || this.isGameOver) {
       return;
     }
 
-    const firstMeters = this.getIslandModalTriggerMeters("island200");
-    if (!this.islandDecisionShown.island200 && this.distanceM >= firstMeters) {
-      this.openIslandDecisionModal("island200");
-      return;
-    }
-
-    const secondMeters = this.getIslandModalTriggerMeters("tavern400");
-    if (!this.islandDecisionShown.tavern400 && this.distanceM >= secondMeters) {
-      this.openIslandDecisionModal("tavern400");
-    }
-  }
-
-  private openIslandDecisionModal(island: IslandDecisionType) {
-    if (this.isIslandModalOpen || this.isGameOver) {
-      return;
-    }
-
-    this.isIslandModalOpen = true;
-    this.activeIslandDecision = island;
-    this.islandDecisionShown[island] = true;
-    this.resetPointerControlState();
-    this.pauseRuntimeForIslandModal();
-    this.buildIslandDecisionModalUi(island);
-  }
-
-  private closeIslandDecisionModal(continueRun: boolean) {
-    const closedIsland = this.activeIslandDecision;
-    this.isIslandModalOpen = false;
-    this.activeIslandDecision = null;
-    this.destroyIslandDecisionModalUi();
-    this.resumeRuntimeFromIslandModal();
-
-    if (continueRun && closedIsland) {
-      this.islandSlowdownReleaseKmhPerSec = this.getIslandApproachConfig(closedIsland).releaseRecoverKmhPerSec;
-    } else {
-      this.islandSlowdownReleaseKmhPerSec = undefined;
-    }
-  }
-
-  private forceCloseIslandDecisionModal() {
-    this.isIslandModalOpen = false;
-    this.activeIslandDecision = null;
-    this.destroyIslandDecisionModalUi();
-    this.resumeRuntimeFromIslandModal();
-    this.islandSlowdownReleaseKmhPerSec = undefined;
-  }
-
-  private pauseRuntimeForIslandModal() {
-    this.physics.world.pause();
-    this.time.timeScale = 0;
-    this.tweens.pauseAll();
-  }
-
-  private resumeRuntimeFromIslandModal() {
-    this.time.timeScale = 1;
-    this.physics.world.resume();
-    this.tweens.resumeAll();
-  }
-
-  private getIslandDecisionSuccessReason(island: IslandDecisionType): SuccessReason {
-    return island === "island200" ? "success_island_200" : "success_tavern_400";
-  }
-
-  private getIslandDecisionTitle(island: IslandDecisionType) {
-    return island === "island200"
-      ? ISLAND_DECISION_MODAL_TEXT.firstIslandTitle
-      : ISLAND_DECISION_MODAL_TEXT.secondIslandTitle;
-  }
-
-  private handleIslandDecisionYes() {
-    const island = this.activeIslandDecision;
-    if (!island) {
-      return;
-    }
-
-    const successReason = this.getIslandDecisionSuccessReason(island);
-    this.closeIslandDecisionModal(false);
-    this.finishRunSuccess(successReason);
-  }
-
-  private handleIslandDecisionNo() {
-    if (!this.activeIslandDecision) {
-      return;
-    }
-    this.closeIslandDecisionModal(true);
-  }
-
-  private buildIslandDecisionModalUi(island: IslandDecisionType) {
-    this.destroyIslandDecisionModalUi();
-
+    const textureKey = this.coinRewardAnimationQueue[0];
     const { width, height } = this.scale;
-    const layoutScaleConfig = ISLAND_DECISION_MODAL_UI.layoutScale;
-    const uiScale = Phaser.Math.Clamp(
-      Math.min(width / layoutScaleConfig.baseWidth, height / layoutScaleConfig.baseHeight),
-      layoutScaleConfig.min,
-      layoutScaleConfig.max,
-    );
-    const scale = (value: number) => value * uiScale;
-    const scaleInt = (value: number, min = 0) => Math.max(min, Math.round(scale(value)));
-    const scaleFontSize = (value: string) => {
-      const parsed = Number.parseFloat(value);
-      const basePx = Number.isFinite(parsed) ? parsed : 24;
-      return `${Math.max(8, Math.round(basePx * uiScale))}px`;
-    };
+    const x = width * COIN_REWARD_ANIMATION.anchorXRatio;
+    const y = height * COIN_REWARD_ANIMATION.anchorYRatio;
 
-    const overlayConfig = ISLAND_DECISION_MODAL_UI.overlay;
-    const panelConfig = ISLAND_DECISION_MODAL_UI.panel;
-    const titleConfig = ISLAND_DECISION_MODAL_UI.titleText;
-    const questionConfig = ISLAND_DECISION_MODAL_UI.questionText;
-    const coinsConfig = ISLAND_DECISION_MODAL_UI.coinsText;
-    const buttonsConfig = ISLAND_DECISION_MODAL_UI.buttons;
-    const panelCenterX = width * panelConfig.centerXRatio;
-    const panelCenterY = height * panelConfig.centerYRatio;
-    const panelWidth = scale(panelConfig.width);
-    const panelHeight = scale(panelConfig.height);
-    const panelRadius = scale(panelConfig.radius);
-    const panelStrokeWidth = scaleInt(panelConfig.strokeWidth);
-    const panelContentPaddingX = scale(panelConfig.contentPaddingX);
-    const panelTextWrapWidth = Math.max(80, panelWidth - panelContentPaddingX * 2);
-
-    this.islandModalOverlay = this.add.rectangle(
-      width * 0.5,
-      height * 0.5,
-      width,
-      height,
-      overlayConfig.color,
-      overlayConfig.enabled ? overlayConfig.alpha : 0,
-    );
-    this.islandModalOverlay.setScrollFactor(0);
-    this.islandModalOverlay.setDepth(overlayConfig.depth);
-    this.islandModalOverlay.setInteractive({ useHandCursor: false });
-    this.islandModalOverlay.on(
-      "pointerdown",
-      (
-        _pointer: Phaser.Input.Pointer,
-        _localX: number,
-        _localY: number,
-        event: Phaser.Types.Input.EventData,
-      ) => {
-        event.stopPropagation();
-      },
-    );
-
-    this.islandModalPanel = this.add.graphics();
-    this.islandModalPanel.setScrollFactor(0);
-    this.islandModalPanel.setDepth(panelConfig.depth);
-    const panelLeft = panelCenterX - panelWidth * 0.5;
-    const panelTop = panelCenterY - panelHeight * 0.5;
-    this.islandModalPanel.fillStyle(panelConfig.color, panelConfig.alpha);
-    this.islandModalPanel.fillRoundedRect(panelLeft, panelTop, panelWidth, panelHeight, panelRadius);
-    if (panelStrokeWidth > 0) {
-      this.islandModalPanel.lineStyle(panelStrokeWidth, panelConfig.strokeColor, panelConfig.strokeAlpha);
-      this.islandModalPanel.strokeRoundedRect(panelLeft, panelTop, panelWidth, panelHeight, panelRadius);
+    if (!this.coinRewardAnimationSprite) {
+      this.coinRewardAnimationSprite = this.add.image(x, y, textureKey);
+      this.coinRewardAnimationSprite.setScrollFactor(0);
+      this.coinRewardAnimationSprite.setDepth(COIN_REWARD_ANIMATION.depth);
+    } else {
+      this.coinRewardAnimationSprite.setPosition(x, y);
+      this.coinRewardAnimationSprite.setTexture(textureKey);
+      this.coinRewardAnimationSprite.setVisible(true);
     }
 
-    this.islandModalTitleText = this.add
-      .text(panelCenterX, panelCenterY + scale(titleConfig.offsetY), this.getIslandDecisionTitle(island), {
-        fontFamily: titleConfig.fontFamily,
-        fontSize: scaleFontSize(titleConfig.fontSize),
-        fontStyle: titleConfig.fontStyle,
-        color: titleConfig.color,
-        align: titleConfig.align,
-        lineSpacing: scaleInt(titleConfig.lineSpacing),
-        wordWrap: { width: panelTextWrapWidth, useAdvancedWrap: true },
-      })
-      .setOrigin(0.5, 0.5)
-      .setScrollFactor(0)
-      .setDepth(titleConfig.depth);
+    this.isCoinRewardAnimationPlaying = true;
+    this.coinRewardAnimationSprite.setAlpha(COIN_REWARD_ANIMATION.alphaStart);
+    this.coinRewardAnimationSprite.setScale(COIN_REWARD_ANIMATION.scaleStart);
 
-    this.islandModalQuestionText = this.add
-      .text(panelCenterX, panelCenterY + scale(questionConfig.offsetY), ISLAND_DECISION_MODAL_TEXT.question, {
-        fontFamily: questionConfig.fontFamily,
-        fontSize: scaleFontSize(questionConfig.fontSize),
-        fontStyle: questionConfig.fontStyle,
-        color: questionConfig.color,
-        align: questionConfig.align,
-        lineSpacing: scaleInt(questionConfig.lineSpacing),
-        wordWrap: { width: panelTextWrapWidth, useAdvancedWrap: true },
-      })
-      .setOrigin(0.5, 0.5)
-      .setScrollFactor(0)
-      .setDepth(questionConfig.depth);
-
-    this.islandModalCoinsText = this.add
-      .text(
-        panelCenterX,
-        panelCenterY + scale(coinsConfig.offsetY),
-        `${ISLAND_DECISION_MODAL_TEXT.coinsLabel}: ${this.pendingCoins}`,
-        {
-          fontFamily: coinsConfig.fontFamily,
-          fontSize: scaleFontSize(coinsConfig.fontSize),
-          fontStyle: coinsConfig.fontStyle,
-          color: coinsConfig.color,
-          align: coinsConfig.align,
-          lineSpacing: scaleInt(coinsConfig.lineSpacing),
-          wordWrap: { width: panelTextWrapWidth, useAdvancedWrap: true },
+    this.coinRewardAnimationDelayEvent?.remove(false);
+    this.coinRewardAnimationHoldEvent?.remove(false);
+    this.coinRewardAnimationEnterTween?.stop();
+    this.coinRewardAnimationExitTween?.stop();
+    this.coinRewardAnimationDelayEvent = this.time.delayedCall(COIN_REWARD_ANIMATION.startDelayMs, () => {
+      if (!this.coinRewardAnimationSprite || this.isGameOver) {
+        return;
+      }
+      this.coinRewardAnimationEnterTween = this.tweens.add({
+        targets: this.coinRewardAnimationSprite,
+        alpha: COIN_REWARD_ANIMATION.alphaPeak,
+        scale: COIN_REWARD_ANIMATION.scalePeak,
+        duration: COIN_REWARD_ANIMATION.enterDurationMs,
+        ease: COIN_REWARD_ANIMATION.ease,
+        onComplete: () => {
+          this.coinRewardAnimationEnterTween = undefined;
+          this.coinRewardAnimationHoldEvent = this.time.delayedCall(COIN_REWARD_ANIMATION.holdMs, () => {
+            if (!this.coinRewardAnimationSprite) {
+              return;
+            }
+            this.coinRewardAnimationExitTween = this.tweens.add({
+              targets: this.coinRewardAnimationSprite,
+              alpha: COIN_REWARD_ANIMATION.alphaEnd,
+              scale: COIN_REWARD_ANIMATION.scaleEnd,
+              duration: COIN_REWARD_ANIMATION.exitDurationMs,
+              ease: COIN_REWARD_ANIMATION.ease,
+              onComplete: () => {
+                if (this.coinRewardAnimationSprite) {
+                  this.coinRewardAnimationSprite.setVisible(false);
+                }
+                this.coinRewardAnimationQueue.shift();
+                this.coinRewardAnimationExitTween = undefined;
+                this.coinRewardAnimationHoldEvent = undefined;
+                this.coinRewardAnimationDelayEvent = undefined;
+                this.isCoinRewardAnimationPlaying = false;
+                this.playNextCoinRewardAnimation();
+              },
+            });
+          });
         },
-      )
-      .setOrigin(0.5, 0.5)
-      .setScrollFactor(0)
-      .setDepth(coinsConfig.depth);
-
-    const buttonWidth = scale(buttonsConfig.width);
-    const buttonHeight = scale(buttonsConfig.height);
-    const buttonCenterDistance = buttonWidth + scale(buttonsConfig.edgeGapPx);
-    const buttonsY = panelCenterY + scale(buttonsConfig.rowOffsetY);
-    const yesX = panelCenterX - buttonCenterDistance * 0.5;
-    const noX = panelCenterX + buttonCenterDistance * 0.5;
-
-    this.islandModalYesButton = this.add.rectangle(
-      yesX,
-      buttonsY,
-      buttonWidth,
-      buttonHeight,
-      buttonsConfig.color,
-      buttonsConfig.alpha,
-    );
-    this.islandModalYesButton.setScrollFactor(0);
-    this.islandModalYesButton.setDepth(buttonsConfig.depth);
-    this.islandModalYesButton.setInteractive({ useHandCursor: true });
-    this.islandModalYesButton.on(
-      "pointerdown",
-      (
-        _pointer: Phaser.Input.Pointer,
-        _localX: number,
-        _localY: number,
-        event: Phaser.Types.Input.EventData,
-      ) => {
-        event.stopPropagation();
-        this.handleIslandDecisionYes();
-      },
-    );
-
-    this.islandModalNoButton = this.add.rectangle(
-      noX,
-      buttonsY,
-      buttonWidth,
-      buttonHeight,
-      buttonsConfig.color,
-      buttonsConfig.alpha,
-    );
-    this.islandModalNoButton.setScrollFactor(0);
-    this.islandModalNoButton.setDepth(buttonsConfig.depth);
-    this.islandModalNoButton.setInteractive({ useHandCursor: true });
-    this.islandModalNoButton.on(
-      "pointerdown",
-      (
-        _pointer: Phaser.Input.Pointer,
-        _localX: number,
-        _localY: number,
-        event: Phaser.Types.Input.EventData,
-      ) => {
-        event.stopPropagation();
-        this.handleIslandDecisionNo();
-      },
-    );
-
-    const buttonStrokeWidth = scaleInt(buttonsConfig.strokeWidth);
-    if (buttonStrokeWidth > 0) {
-      this.islandModalYesButton.setStrokeStyle(buttonStrokeWidth, buttonsConfig.strokeColor, buttonsConfig.strokeAlpha);
-      this.islandModalNoButton.setStrokeStyle(buttonStrokeWidth, buttonsConfig.strokeColor, buttonsConfig.strokeAlpha);
-    }
-
-    this.islandModalYesLabel = this.add
-      .text(yesX, buttonsY, ISLAND_DECISION_MODAL_TEXT.yesButton, {
-        fontFamily: buttonsConfig.labelText.fontFamily,
-        fontSize: scaleFontSize(buttonsConfig.labelText.fontSize),
-        fontStyle: buttonsConfig.labelText.fontStyle,
-        color: buttonsConfig.labelText.color,
-        align: buttonsConfig.labelText.align,
-        wordWrap: { width: Math.max(40, buttonWidth - scale(16)), useAdvancedWrap: true },
-      })
-      .setOrigin(0.5, 0.5)
-      .setScrollFactor(0)
-      .setDepth(buttonsConfig.labelText.depth);
-
-    this.islandModalNoLabel = this.add
-      .text(noX, buttonsY, ISLAND_DECISION_MODAL_TEXT.noButton, {
-        fontFamily: buttonsConfig.labelText.fontFamily,
-        fontSize: scaleFontSize(buttonsConfig.labelText.fontSize),
-        fontStyle: buttonsConfig.labelText.fontStyle,
-        color: buttonsConfig.labelText.color,
-        align: buttonsConfig.labelText.align,
-        wordWrap: { width: Math.max(40, buttonWidth - scale(16)), useAdvancedWrap: true },
-      })
-      .setOrigin(0.5, 0.5)
-      .setScrollFactor(0)
-      .setDepth(buttonsConfig.labelText.depth);
-
-    const captionWrapWidth = Math.max(60, buttonWidth + scale(buttonsConfig.captionText.wrapExtraWidth));
-
-    this.islandModalYesCaption = this.add
-      .text(yesX, buttonsY + scale(buttonsConfig.captionText.offsetY), ISLAND_DECISION_MODAL_TEXT.yesCaption, {
-        fontFamily: buttonsConfig.captionText.fontFamily,
-        fontSize: scaleFontSize(buttonsConfig.captionText.fontSize),
-        fontStyle: buttonsConfig.captionText.fontStyle,
-        color: buttonsConfig.captionText.color,
-        align: buttonsConfig.captionText.align,
-        lineSpacing: scaleInt(buttonsConfig.captionText.lineSpacing),
-        wordWrap: { width: captionWrapWidth, useAdvancedWrap: true },
-      })
-      .setOrigin(0.5, 0.5)
-      .setScrollFactor(0)
-      .setDepth(buttonsConfig.captionText.depth);
-
-    this.islandModalNoCaption = this.add
-      .text(noX, buttonsY + scale(buttonsConfig.captionText.offsetY), ISLAND_DECISION_MODAL_TEXT.noCaption, {
-        fontFamily: buttonsConfig.captionText.fontFamily,
-        fontSize: scaleFontSize(buttonsConfig.captionText.fontSize),
-        fontStyle: buttonsConfig.captionText.fontStyle,
-        color: buttonsConfig.captionText.color,
-        align: buttonsConfig.captionText.align,
-        lineSpacing: scaleInt(buttonsConfig.captionText.lineSpacing),
-        wordWrap: { width: captionWrapWidth, useAdvancedWrap: true },
-      })
-      .setOrigin(0.5, 0.5)
-      .setScrollFactor(0)
-      .setDepth(buttonsConfig.captionText.depth);
+      });
+    });
   }
 
-  private destroyIslandDecisionModalUi() {
-    this.islandModalOverlay?.destroy();
-    this.islandModalPanel?.destroy();
-    this.islandModalTitleText?.destroy();
-    this.islandModalQuestionText?.destroy();
-    this.islandModalCoinsText?.destroy();
-    this.islandModalYesButton?.destroy();
-    this.islandModalNoButton?.destroy();
-    this.islandModalYesLabel?.destroy();
-    this.islandModalNoLabel?.destroy();
-    this.islandModalYesCaption?.destroy();
-    this.islandModalNoCaption?.destroy();
-
-    this.islandModalOverlay = undefined;
-    this.islandModalPanel = undefined;
-    this.islandModalTitleText = undefined;
-    this.islandModalQuestionText = undefined;
-    this.islandModalCoinsText = undefined;
-    this.islandModalYesButton = undefined;
-    this.islandModalNoButton = undefined;
-    this.islandModalYesLabel = undefined;
-    this.islandModalNoLabel = undefined;
-    this.islandModalYesCaption = undefined;
-    this.islandModalNoCaption = undefined;
+  private stopCoinRewardAnimations() {
+    this.coinRewardAnimationDelayEvent?.remove(false);
+    this.coinRewardAnimationDelayEvent = undefined;
+    this.coinRewardAnimationHoldEvent?.remove(false);
+    this.coinRewardAnimationHoldEvent = undefined;
+    this.coinRewardAnimationEnterTween?.stop();
+    this.coinRewardAnimationEnterTween = undefined;
+    this.coinRewardAnimationExitTween?.stop();
+    this.coinRewardAnimationExitTween = undefined;
+    this.coinRewardAnimationQueue = [];
+    this.isCoinRewardAnimationPlaying = false;
+    this.coinRewardAnimationSprite?.destroy();
+    this.coinRewardAnimationSprite = undefined;
   }
 
   private spawnLandmark(textureKey: string, type: LandmarkType, config: LandmarkConfig) {
@@ -1987,6 +1653,7 @@ export default class GameScene extends Phaser.Scene {
       if (!this.reachedCoinMilestones.has(milestone.meters) && this.distanceM >= milestone.meters) {
         this.reachedCoinMilestones.add(milestone.meters);
         this.pendingCoins += milestone.coins;
+        this.enqueueCoinRewardAnimationByCoins(milestone.coins);
       }
     }
   }
@@ -2636,9 +2303,9 @@ export default class GameScene extends Phaser.Scene {
     if (this.isGameOver) {
       return;
     }
-    this.forceCloseIslandDecisionModal();
     this.isGameOver = true;
     this.stopSpawnTimers();
+    this.stopCoinRewardAnimations();
     this.endRedHitEffects();
     this.stopGreenHitFeedback();
     this.stopAllDynamicBuoyStateTimers();
@@ -2671,9 +2338,9 @@ export default class GameScene extends Phaser.Scene {
     if (this.isGameOver) {
       return;
     }
-    this.forceCloseIslandDecisionModal();
     this.isGameOver = true;
     this.stopSpawnTimers();
+    this.stopCoinRewardAnimations();
     this.endRedHitEffects();
     this.stopGreenHitFeedback();
     this.stopAllDynamicBuoyStateTimers();
@@ -2684,15 +2351,15 @@ export default class GameScene extends Phaser.Scene {
 
     this.scene.start("Result", {
       distanceM: this.distanceM,
-      coinsAwarded: 0,
-      coinsLost: this.pendingCoins,
+      coinsAwarded: this.pendingCoins,
+      coinsLost: 0,
       reason: reason as ResultReason,
     });
   }
 
   private resetState() {
     this.isGameOver = false;
-    this.forceCloseIslandDecisionModal();
+    this.stopCoinRewardAnimations();
     this.resetPointerControlState();
     this.isSpawnPauseActive = false;
     this.swayTime = 0;
@@ -2716,9 +2383,6 @@ export default class GameScene extends Phaser.Scene {
     this.spawnedLandmarks.island200 = false;
     this.spawnedLandmarks.tavern400 = false;
     this.spawnedLandmarks.harbor610 = false;
-    this.islandDecisionShown.island200 = false;
-    this.islandDecisionShown.tavern400 = false;
-    this.islandSlowdownReleaseKmhPerSec = undefined;
 
     this.stopSpawnTimers();
 

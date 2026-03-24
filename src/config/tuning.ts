@@ -35,12 +35,12 @@ export const RUN_TIMER = {
   bonusMs: 10_000,
 } as const;
 
-export const DISTANCE_CHECKPOINTS = [400, 800, 1210] as const;
+export const DISTANCE_CHECKPOINTS = [400, 800, 1200] as const;
 
 export const LANDMARK_METERS = {
   island200: 400,
   tavern400: 800,
-  harbor610: 1210,
+  harbor610: 1250,
 } as const;
 
 export const ISLAND_CHECKPOINTS = {
@@ -168,8 +168,25 @@ export const ISLAND_DECISION_MODAL_TEXT = {
 export const COIN_PENDING_MILESTONES = [
   { meters: 425, coins: 5 },
   { meters: 825, coins: 10 },
-  { meters: 1210, coins: 15 },
+  { meters: 1200, coins: 15 },
 ] as const;
+
+export const COIN_REWARD_ANIMATION = {
+  startDelayMs: 120,
+  enterDurationMs: 320,
+  holdMs: 360,
+  exitDurationMs: 260,
+  ease: "Sine.easeOut",
+  anchorXRatio: 0.5,
+  anchorYRatio: 0.35,
+  depth: 140,
+  scaleStart: 0.72,
+  scalePeak: 1,
+  scaleEnd: 1.08,
+  alphaStart: 0,
+  alphaPeak: 1,
+  alphaEnd: 0,
+} as const;
 
 export const SPAWN_PAUSE_WINDOW_METERS = 20;
 
@@ -504,8 +521,8 @@ export const JOYSTICK_2D = {
 
 export const BRAKING = {
   minDropFromStartKmh: -30,
-  decelKmhPerSec: 30,
-  recoverKmhPerSec: 60,
+  decelKmhPerSec: 45,
+  recoverKmhPerSec: 15,
 } as const;
 
 export const RUN_START_SPEED = {
