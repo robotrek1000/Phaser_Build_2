@@ -1,22 +1,22 @@
 export const TUNING = {
   SPEED_START_KMH: 60,
-  FUEL_START: 1,
+  FUEL_START: 0.0001,
   FUEL_DRAIN_PER_SEC: 0,
-  FUEL_PICKUP_VALUE: 0.25,
+  FUEL_PICKUP_VALUE: 0.1,
   SPEED_PER_100M: 0,
   FUEL_HIT_PENALTY: 0.4,
 } as const;
 
 export const DYNAMIC_BUOY_STATES = {
   up: {
-    delta: 0.25,
+    delta: 0.1,
     durationMs: 1000,
     textureKey: "money-change-up",
     stateId: 1,
   },
   no: {
     delta: 0,
-    durationMs: 500,
+    durationMs: 0,
     textureKey: "money-change-no",
     stateId: 2,
   },
@@ -31,7 +31,7 @@ export const DYNAMIC_BUOY_STATES = {
 export const DYNAMIC_BUOY_STATE_ORDER = ["up", "no", "down"] as const;
 
 export const RUN_TIMER = {
-  initialMs: 60_000,
+  initialMs: 40_000,
   bonusMs: 10_000,
 } as const;
 
@@ -503,13 +503,13 @@ export const JOYSTICK_2D = {
 } as const;
 
 export const BRAKING = {
-  minDropFromStartKmh: 60,
+  minDropFromStartKmh: 30,
   decelKmhPerSec: 60,
   recoverKmhPerSec: 30,
 } as const;
 
 export const RUN_START_SPEED = {
-  startDropKmh: 60,
+  startDropKmh: 30,
 } as const;
 
 export const YACHT_SPEED_Y_ANIM = {
