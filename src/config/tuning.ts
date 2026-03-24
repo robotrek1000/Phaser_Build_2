@@ -513,12 +513,12 @@ export const RUN_START_SPEED = {
 } as const;
 
 export const YACHT_SPEED_Y_ANIM = {
-  accelOffsetPx: 80,
-  accelDurationMs: 360,
-  accelReturnMs: 180,
-  brakeOffsetPx: -80,
-  brakeDurationMs: 180,
-  brakeReturnMs: 360,
+  accelOffsetPx: -80,
+  accelDurationMs: 180,
+  accelReturnMs: 360,
+  brakeOffsetPx: 80,
+  brakeDurationMs: 360,
+  brakeReturnMs: 180,
   ease: "Sine.easeOut",
 } as const;
 
