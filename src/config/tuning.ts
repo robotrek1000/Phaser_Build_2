@@ -1,5 +1,5 @@
 export const TUNING = {
-  SPEED_START_KMH: 60,
+  SPEED_START_KMH: 30,
   FUEL_START: 0.0001,
   FUEL_DRAIN_PER_SEC: 0,
   FUEL_PICKUP_VALUE: 0.1,
@@ -181,10 +181,10 @@ export const PROGRESS_BAR_KEYS = [
 ] as const;
 
 export const SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 90, obstacle: 3, fuel: 2, dynamic: 10 },
-  { minMeters: 90, maxMeters: 100, obstacle: 0.15, fuel: 2, dynamic: 10 },
-  { minMeters: 100, maxMeters: 190, obstacle: 2, fuel: 2, dynamic: 10 },
-  { minMeters: 190, maxMeters: 200, obstacle: 2, fuel: 2, dynamic: 0.05 },
+  { minMeters: 0, maxMeters: 90, obstacle: 2, fuel: 0.75, dynamic: 10 },
+  { minMeters: 90, maxMeters: 100, obstacle: 2, fuel: 0.25, dynamic: 10 },
+  { minMeters: 100, maxMeters: 190, obstacle: 2, fuel: 1.5, dynamic: 10 },
+  { minMeters: 190, maxMeters: 200, obstacle: 2, fuel: 1, dynamic: 0.05 },
   { minMeters: 200, maxMeters: 350, obstacle: 1.75, fuel: 2, dynamic: 1 },
   { minMeters: 350, maxMeters: 400, obstacle: 0.1, fuel: 2, dynamic: 1 },
   { minMeters: 400, maxMeters: 550, obstacle: 1.25, fuel: 2, dynamic: 0.75 },
@@ -503,13 +503,13 @@ export const JOYSTICK_2D = {
 } as const;
 
 export const BRAKING = {
-  minDropFromStartKmh: 30,
-  decelKmhPerSec: 60,
-  recoverKmhPerSec: 30,
+  minDropFromStartKmh: -30,
+  decelKmhPerSec: 30,
+  recoverKmhPerSec: 60,
 } as const;
 
 export const RUN_START_SPEED = {
-  startDropKmh: 30,
+  startDropKmh: -30,
 } as const;
 
 export const YACHT_SPEED_Y_ANIM = {
