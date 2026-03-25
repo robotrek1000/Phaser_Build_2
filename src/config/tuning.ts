@@ -43,128 +43,6 @@ export const LANDMARK_METERS = {
   harbor610: 1250,
 } as const;
 
-export const ISLAND_CHECKPOINTS = {
-  firstIslandMeters: 425,
-  secondIslandMeters: 825,
-} as const;
-
-export const ISLAND_APPROACH_SLOWDOWN = {
-  firstIsland: {
-    slowdownStartBeforeMeters: 0,
-    targetSpeedKmh: 45,
-    approachKmhPerSec: 55,
-    releaseRecoverKmhPerSec: 35,
-  },
-  secondIsland: {
-    slowdownStartBeforeMeters: 0,
-    targetSpeedKmh: 45,
-    approachKmhPerSec: 55,
-    releaseRecoverKmhPerSec: 35,
-  },
-} as const;
-
-export const ISLAND_DECISION_MODAL_UI = {
-  layoutScale: {
-    baseWidth: 900,
-    baseHeight: 1600,
-    min: 0.72,
-    max: 1,
-  },
-  overlay: {
-    enabled: true,
-    color: 0x000000,
-    alpha: 0.65,
-    depth: 120,
-  },
-  panel: {
-    centerXRatio: 0.5,
-    centerYRatio: 0.56,
-    width: 620,
-    height: 640,
-    radius: 28,
-    color: 0x141c34,
-    alpha: 0.98,
-    strokeColor: 0x141c34,
-    strokeAlpha: 1,
-    strokeWidth: 2,
-    contentPaddingX: 40,
-    depth: 121,
-  },
-  titleText: {
-    fontFamily: "Arial",
-    fontSize: "34px",
-    fontStyle: "bold",
-    color: "#00c915",
-    align: "center" as "left" | "center" | "right",
-    lineSpacing: 6,
-    offsetY: -190,
-    depth: 122,
-  },
-  questionText: {
-    fontFamily: "Arial",
-    fontSize: "28px",
-    fontStyle: "normal",
-    color: "#ffffff",
-    align: "center" as "left" | "center" | "right",
-    lineSpacing: 0,
-    offsetY: -30,
-    depth: 122,
-  },
-  coinsText: {
-    fontFamily: "Arial",
-    fontSize: "30px",
-    fontStyle: "normal",
-    color: "#f1d760",
-    align: "center" as "left" | "center" | "right",
-    lineSpacing: 0,
-    offsetY: 50,
-    depth: 122,
-  },
-  buttons: {
-    rowOffsetY: 150,
-    width: 220,
-    height: 88,
-    edgeGapPx: 40,
-    radius: 0,
-    color: 0xf1d760,
-    alpha: 1,
-    strokeColor: 0xf1d760,
-    strokeAlpha: 1,
-    strokeWidth: 0,
-    depth: 122,
-    labelText: {
-      fontFamily: "Arial",
-      fontSize: "30px",
-      fontStyle: "normal",
-      color: "#000000",
-      align: "center" as "left" | "center" | "right",
-      depth: 123,
-    },
-    captionText: {
-      fontFamily: "Arial",
-      fontSize: "22px",
-      fontStyle: "normal",
-      color: "#ffffff",
-      align: "center" as "left" | "center" | "right",
-      lineSpacing: 4,
-      offsetY: 84,
-      wrapExtraWidth: 24,
-      depth: 123,
-    },
-  },
-} as const;
-
-export const ISLAND_DECISION_MODAL_TEXT = {
-  firstIslandTitle: "Поздравляем!\nВы достигли 1-го острова!",
-  secondIslandTitle: "Поздравляем!\nВы достигли 2-го острова!",
-  question: "Зафиксировать прибыль?",
-  coinsLabel: "Монеты",
-  yesButton: "Да",
-  noButton: "Нет",
-  yesCaption: "Закончить\nзаплыв",
-  noCaption: "Рискнуть и\nпродолжить",
-} as const;
-
 export const COIN_PENDING_MILESTONES = [
   { meters: 425, coins: 5 },
   { meters: 825, coins: 10 },
@@ -418,15 +296,6 @@ export const UI_TEXT = {
   resultCoinsColor: "#f4d35e",
 } as const;
 
-export const UI_BUTTON = {
-  fontFamily: "Arial",
-  fontSize: "22px",
-  color: "#102027",
-  backgroundColor: "#f4d35e",
-  paddingX: 16,
-  paddingY: 8,
-} as const;
-
 export const RESULT_SCREEN_UI = {
   titleYRatio: 0.34,
   distanceYRatio: 0.45,
@@ -481,10 +350,6 @@ export const YACHT_SWAY = {
   frequencyHz: 2.2,
 } as const;
 
-export const YACHT_CONTROL = {
-  controlLerpSpeed: 32,
-} as const;
-
 export const FREE_CONTROL_2D = {
   positionLerpPerSecX: 14,
   positionLerpPerSecY: 14,
@@ -537,16 +402,6 @@ export const YACHT_SPEED_Y_ANIM = {
   brakeDurationMs: 180,
   brakeReturnMs: 360,
   ease: "Sine.easeOut",
-} as const;
-
-// Legacy config from previous joystick iterations. Kept only for history/reference.
-export const POINTER_JOYSTICK = {
-  fullThrowDistancePx: 10,
-  deadZonePx: 0,
-  moveSpeedPxPerSec: 1800,
-  useDeflectionMagnitude: true,
-  deflectionExponent: 1,
-  maxNormalizedInput: 1,
 } as const;
 
 export const YACHT_VISUAL_OFFSET = {

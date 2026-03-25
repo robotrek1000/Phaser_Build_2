@@ -54,7 +54,7 @@ import {
   YACHT_VISUAL_SIZE,
 } from "../config/tuning";
 
-type SuccessReason = "success_island_200" | "success_tavern_400" | "success_harbor_610";
+type SuccessReason = "success_harbor_610";
 type FailureReason = "out_of_assets" | "out_of_time";
 type ResultReason = FailureReason | SuccessReason;
 type LandmarkType = "island200" | "tavern400" | "harbor610";

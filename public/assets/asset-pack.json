@@ -2,11 +2,6 @@
     "section1": {
         "files": [
             {
-                "url": "assets/FufuSuperDino.png",
-                "type": "image",
-                "key": "FufuSuperDino"
-            },
-            {
                 "url": "assets/background_sea_2.png",
                 "type": "image",
                 "key": "sea-bg"

@@ -2,7 +2,7 @@ import Phaser from "phaser";
 
 import { RESULT_SCREEN_UI } from "../config/tuning";
 
-type ResultReason = "out_of_assets" | "out_of_time" | "success_island_200" | "success_tavern_400" | "success_harbor_610";
+type ResultReason = "out_of_assets" | "out_of_time" | "success_harbor_610";
 
 type ResultPayload = {
   distanceM?: number;
@@ -30,16 +30,12 @@ export default class ResultScene extends Phaser.Scene {
     const coinsAwarded = data?.coinsAwarded ?? 0;
     const coinsLost = data?.coinsLost ?? 0;
     const reason = data?.reason ?? "out_of_assets";
-    const isSuccess = reason === "success_island_200" || reason === "success_tavern_400" || reason === "success_harbor_610";
+    const isSuccess = reason === "success_harbor_610";
 
     const title = isSuccess ? "Уровень пройден" : "Результат";
     let reasonLabel = "Активы закончились";
     if (reason === "out_of_time") {
       reasonLabel = "Время вышло";
-    } else if (reason === "success_island_200") {
-      reasonLabel = "Финиш: необитаемый остров";
-    } else if (reason === "success_tavern_400") {
-      reasonLabel = "Финиш: остров с таверной";
     } else if (reason === "success_harbor_610") {
       reasonLabel = "Финал: гавань";
     }
@@ -56,7 +52,7 @@ export default class ResultScene extends Phaser.Scene {
       color: RESULT_SCREEN_UI.bodyColor,
     }).setOrigin(0.5, 0.5);
 
-    const coinsLabel = isSuccess ? `Начислено монет: ${coinsAwarded}` : "Начислено монет: 0";
+    const coinsLabel = `Начислено монет: ${coinsAwarded}`;
     this.coinsText = this.add.text(width / 2, height * RESULT_SCREEN_UI.coinsYRatio, coinsLabel, {
       fontFamily: RESULT_SCREEN_UI.fontFamily,
       fontSize: `${RESULT_SCREEN_UI.bodyFontSizePx}px`,
