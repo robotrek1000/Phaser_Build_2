@@ -14,12 +14,7 @@ import {
   DYNAMIC_BUOY_STATES,
   DYNAMIC_SWAY,
   FALL_SPEED,
-  FREE_CONTROL_2D,
-  CONTROL_MODE_BY_PLATFORM,
-  CONTROL_ROUTING,
-  FOLLOW_POINTER_ANCHOR,
   GREEN_HIT_FEEDBACK,
-  JOYSTICK_2D,
   FUEL_SWAY,
   FUEL_VISUAL_SCALE,
   HUD_LAYOUT,
@@ -33,6 +28,8 @@ import {
   PROGRESS_BAR_KEYS,
   RED_HIT_INVULNERABILITY,
   RED_HIT_OVERLAY_EFFECT,
+  RELATIVE_TOUCH_CONTROL,
+  RELATIVE_TOUCH_ROUTING,
   RUN_TIMER,
   RUN_START_SPEED,
   SPAWN_BASE_DELAYS,
@@ -62,7 +59,6 @@ type DynamicBuoyStateKey = keyof typeof DYNAMIC_BUOY_STATES;
 type BuoyType = "obstacle" | "fuel" | "dynamic";
 type CollectAnimationType = "buoy" | "timeBonus";
 type ControlPlatform = "desktop" | "mobile";
-type ControlMode = "follow" | "joystick";
 
 type LandmarkConfig = {
   xRatio: number;
@@ -102,12 +98,13 @@ export default class GameScene extends Phaser.Scene {
   private controlMaxY = 0;
   private pointerControlActive = false;
   private pointerControlId?: number;
-  private activeControlPlatform: ControlPlatform = CONTROL_ROUTING.manualPlatform;
-  private activeControlMode: ControlMode = CONTROL_MODE_BY_PLATFORM[CONTROL_ROUTING.manualPlatform];
+  private activeControlPlatform: ControlPlatform = RELATIVE_TOUCH_ROUTING.manualPlatform;
   private pointerLastX = 0;
   private pointerLastY = 0;
-  private joystickFrameDeltaX = 0;
-  private joystickFrameDeltaY = 0;
+  private pointerFrameDeltaX = 0;
+  private pointerFrameDeltaY = 0;
+  private desiredTargetX = 0;
+  private desiredTargetY = 0;
   private hasPointerControlInput = false;
   private yMotionOffsetPx = 0;
   private yachtSpeedMotionOutTween?: Phaser.Tweens.Tween;
@@ -164,23 +161,17 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
+    const platform = this.resolveControlPlatformForPointer(pointer);
     const wasInactive = !this.pointerControlActive;
     this.pointerControlActive = true;
     this.pointerControlId = pointer.id;
     this.hasPointerControlInput = true;
-
-    const platform = this.resolveControlPlatformForPointer(pointer);
     this.activeControlPlatform = platform;
-    this.activeControlMode = this.resolveControlModeForPlatform(platform);
-
-    if (this.activeControlMode === "joystick") {
-      this.pointerLastX = pointer.x;
-      this.pointerLastY = pointer.y;
-      this.joystickFrameDeltaX = 0;
-      this.joystickFrameDeltaY = 0;
-    } else {
-      this.updateTargetPosition(pointer.x, pointer.y);
-    }
+    this.updateControlBoundsForPlatform(platform);
+    this.pointerLastX = pointer.x;
+    this.pointerLastY = pointer.y;
+    this.pointerFrameDeltaX = 0;
+    this.pointerFrameDeltaY = 0;
 
     if (wasInactive) {
       this.playYachtSpeedMotion("accel");
@@ -197,27 +188,31 @@ export default class GameScene extends Phaser.Scene {
   };
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
-    if (!this.isPointerControlPointer(pointer)) {
-      return;
-    }
-
-    if (this.activeControlMode === "joystick") {
-      this.updateJoystickFrameDelta(pointer);
-      return;
-    }
-
     const platform = this.resolveControlPlatformForPointer(pointer);
-    this.activeControlPlatform = platform;
-    this.activeControlMode = this.resolveControlModeForPlatform(platform);
-    if (this.activeControlMode === "joystick") {
+    const controlProfile = this.getControlProfileForPlatform(platform);
+    if (!this.isPointerControlPointer(pointer)) {
+      if (this.pointerControlActive || controlProfile.requirePointerDown) {
+        return;
+      }
+
+      this.pointerControlActive = true;
+      this.pointerControlId = pointer.id;
+      this.hasPointerControlInput = true;
+      this.activeControlPlatform = platform;
+      this.updateControlBoundsForPlatform(platform);
       this.pointerLastX = pointer.x;
       this.pointerLastY = pointer.y;
-      this.joystickFrameDeltaX = 0;
-      this.joystickFrameDeltaY = 0;
+      this.pointerFrameDeltaX = 0;
+      this.pointerFrameDeltaY = 0;
+      this.playYachtSpeedMotion("accel");
       return;
     }
 
-    this.updateTargetPosition(pointer.x, pointer.y);
+    if (platform !== this.activeControlPlatform) {
+      this.activeControlPlatform = platform;
+      this.updateControlBoundsForPlatform(platform);
+    }
+    this.updatePointerFrameDelta(pointer);
   };
 
   constructor() {
@@ -280,38 +275,35 @@ export default class GameScene extends Phaser.Scene {
     this.updatePendingCoins();
     this.updateCheckpointProgress();
 
-    if (this.pointerControlActive && this.activeControlMode === "joystick") {
-      if (this.joystickFrameDeltaX !== 0 || this.joystickFrameDeltaY !== 0) {
-        this.targetX = Phaser.Math.Clamp(
-          this.targetX + this.joystickFrameDeltaX * JOYSTICK_2D.gainX,
-          this.controlMinX,
-          this.controlMaxX,
-        );
-        this.targetY = Phaser.Math.Clamp(
-          this.targetY + this.joystickFrameDeltaY * JOYSTICK_2D.gainY,
-          this.controlMinY,
-          this.controlMaxY,
-        );
-      }
-
-      this.joystickFrameDeltaX = 0;
-      this.joystickFrameDeltaY = 0;
+    const controlProfile = this.getControlProfileForPlatform(this.activeControlPlatform);
+    if (this.pointerControlActive && (this.pointerFrameDeltaX !== 0 || this.pointerFrameDeltaY !== 0)) {
+      this.desiredTargetX = Phaser.Math.Clamp(
+        this.desiredTargetX + this.pointerFrameDeltaX * controlProfile.gainX,
+        this.controlMinX,
+        this.controlMaxX,
+      );
+      this.desiredTargetY = Phaser.Math.Clamp(
+        this.desiredTargetY + this.pointerFrameDeltaY * controlProfile.gainY,
+        this.controlMinY,
+        this.controlMaxY,
+      );
     }
+    this.pointerFrameDeltaX = 0;
+    this.pointerFrameDeltaY = 0;
+
+    const targetLerpTx = Phaser.Math.Clamp(controlProfile.targetLerpPerSecX * dt, 0, 1);
+    const targetLerpTy = Phaser.Math.Clamp(controlProfile.targetLerpPerSecY * dt, 0, 1);
+    this.targetX = this.getSmoothedAxisValue(this.targetX, this.desiredTargetX, targetLerpTx, controlProfile.snapDistancePx);
+    this.targetY = this.getSmoothedAxisValue(this.targetY, this.desiredTargetY, targetLerpTy, controlProfile.snapDistancePx);
 
     if (this.yachtBody) {
-      const lerpPerSecX =
-        this.pointerControlActive && this.activeControlMode === "joystick"
-          ? JOYSTICK_2D.lerpPerSecX
-          : FREE_CONTROL_2D.positionLerpPerSecX;
-      const lerpPerSecY =
-        this.pointerControlActive && this.activeControlMode === "joystick"
-          ? JOYSTICK_2D.lerpPerSecY
-          : FREE_CONTROL_2D.positionLerpPerSecY;
-      const lerpTgx = Phaser.Math.Clamp(lerpPerSecX * dt, 0, 1);
-      const lerpTgy = Phaser.Math.Clamp(lerpPerSecY * dt, 0, 1);
+      const bodyLerpTx = Phaser.Math.Clamp(controlProfile.bodyLerpPerSecX * dt, 0, 1);
+      const bodyLerpTy = Phaser.Math.Clamp(controlProfile.bodyLerpPerSecY * dt, 0, 1);
+      const bodyTargetY = this.targetY + this.yMotionOffsetPx;
 
-      this.yachtBody.setX(Phaser.Math.Linear(this.yachtBody.x, this.targetX, lerpTgx));
-      this.yachtBody.setY(Phaser.Math.Linear(this.yachtBody.y, this.targetY + this.yMotionOffsetPx, lerpTgy));
+      const nextBodyX = this.getSmoothedAxisValue(this.yachtBody.x, this.targetX, bodyLerpTx, controlProfile.snapDistancePx);
+      const nextBodyY = this.getSmoothedAxisValue(this.yachtBody.y, bodyTargetY, bodyLerpTy, controlProfile.snapDistancePx);
+      this.yachtBody.setPosition(nextBodyX, nextBodyY);
     }
     this.updateSpawnTimersForDistanceRange();
     this.updateActiveBuoyAndAirFallSpeeds(dt);
@@ -437,10 +429,7 @@ export default class GameScene extends Phaser.Scene {
     this.playAreaLeft = Math.round(width * PLAY_AREA.leftPaddingRatio);
     this.playAreaRight = Math.round(width * PLAY_AREA.rightPaddingRatio);
 
-    this.controlMinX = FREE_CONTROL_2D.minXPaddingPx;
-    this.controlMaxX = width - FREE_CONTROL_2D.maxXPaddingPx;
-    this.controlMinY = FREE_CONTROL_2D.minYPaddingPx;
-    this.controlMaxY = height - FREE_CONTROL_2D.maxYPaddingPx;
+    this.updateControlBoundsForPlatform(this.activeControlPlatform);
 
     const startX = Math.round(width * 0.5);
     const startY = Math.round(height * 0.8);
@@ -456,6 +445,8 @@ export default class GameScene extends Phaser.Scene {
 
     this.targetX = Phaser.Math.Clamp(startX, this.controlMinX, this.controlMaxX);
     this.targetY = Phaser.Math.Clamp(startY, this.controlMinY, this.controlMaxY);
+    this.desiredTargetX = this.targetX;
+    this.desiredTargetY = this.targetY;
 
     this.createAssetsBar();
     this.updateYachtStageTextureByAssets(this.fuel);
@@ -800,8 +791,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private resolveControlPlatformForPointer(pointer: Phaser.Input.Pointer): ControlPlatform {
-    if (CONTROL_ROUTING.platformSource === "manual") {
-      return CONTROL_ROUTING.manualPlatform;
+    if (RELATIVE_TOUCH_ROUTING.platformSource === "manual") {
+      return RELATIVE_TOUCH_ROUTING.manualPlatform;
     }
 
     if (pointer.wasTouch) {
@@ -812,58 +803,79 @@ export default class GameScene extends Phaser.Scene {
     return eventPointerType === "touch" ? "mobile" : "desktop";
   }
 
-  private resolveControlModeForPlatform(platform: ControlPlatform): ControlMode {
-    return CONTROL_MODE_BY_PLATFORM[platform];
+  private getControlProfileForPlatform(platform: ControlPlatform) {
+    return RELATIVE_TOUCH_CONTROL[platform];
   }
 
-  private updateJoystickFrameDelta(pointer: Phaser.Input.Pointer) {
+  private updateControlBoundsForPlatform(platform: ControlPlatform) {
+    const controlProfile = this.getControlProfileForPlatform(platform);
+    const { width, height } = this.scale;
+    this.controlMinX = controlProfile.minXPaddingPx;
+    this.controlMaxX = width - controlProfile.maxXPaddingPx;
+    this.controlMinY = controlProfile.minYPaddingPx;
+    this.controlMaxY = height - controlProfile.maxYPaddingPx;
+    this.desiredTargetX = Phaser.Math.Clamp(this.desiredTargetX, this.controlMinX, this.controlMaxX);
+    this.desiredTargetY = Phaser.Math.Clamp(this.desiredTargetY, this.controlMinY, this.controlMaxY);
+    this.targetX = Phaser.Math.Clamp(this.targetX, this.controlMinX, this.controlMaxX);
+    this.targetY = Phaser.Math.Clamp(this.targetY, this.controlMinY, this.controlMaxY);
+  }
+
+  private updatePointerFrameDelta(pointer: Phaser.Input.Pointer) {
     const deltaXRaw = pointer.x - this.pointerLastX;
     const deltaYRaw = pointer.y - this.pointerLastY;
     this.pointerLastX = pointer.x;
     this.pointerLastY = pointer.y;
+    this.applyPointerFrameDelta(deltaXRaw, deltaYRaw);
+  }
 
-    const deltaX = Phaser.Math.Clamp(deltaXRaw, -JOYSTICK_2D.maxDeltaXPerEventPx, JOYSTICK_2D.maxDeltaXPerEventPx);
-    const deltaY = Phaser.Math.Clamp(deltaYRaw, -JOYSTICK_2D.maxDeltaYPerEventPx, JOYSTICK_2D.maxDeltaYPerEventPx);
+  private applyPointerFrameDelta(deltaXRaw: number, deltaYRaw: number) {
+    const controlProfile = this.getControlProfileForPlatform(this.activeControlPlatform);
+    const deltaX = Phaser.Math.Clamp(
+      deltaXRaw,
+      -controlProfile.maxDeltaXPerEventPx,
+      controlProfile.maxDeltaXPerEventPx,
+    );
+    const deltaY = Phaser.Math.Clamp(
+      deltaYRaw,
+      -controlProfile.maxDeltaYPerEventPx,
+      controlProfile.maxDeltaYPerEventPx,
+    );
     const magnitude = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-    if (magnitude < JOYSTICK_2D.deadZonePx) {
-      this.joystickFrameDeltaX = 0;
-      this.joystickFrameDeltaY = 0;
+    if (magnitude < controlProfile.deadZonePx) {
       return;
     }
 
-    this.joystickFrameDeltaX = deltaX;
-    this.joystickFrameDeltaY = deltaY;
+    this.pointerFrameDeltaX += deltaX;
+    this.pointerFrameDeltaY += deltaY;
   }
 
-  private updateTargetPosition(pointerX: number, pointerY: number) {
-    let targetX = pointerX;
-    let targetY = pointerY;
-
-    if (this.activeControlMode === "follow") {
-      const followAnchorConfig = FOLLOW_POINTER_ANCHOR[this.activeControlPlatform];
-      if (followAnchorConfig.enabled) {
-        targetX += followAnchorConfig.offsetX;
-        targetY += followAnchorConfig.offsetY;
-      }
+  private getSmoothedAxisValue(
+    current: number,
+    target: number,
+    lerpT: number,
+    snapDistancePx: number,
+  ) {
+    if (Math.abs(target - current) <= snapDistancePx) {
+      return target;
     }
-
-    this.targetX = Phaser.Math.Clamp(targetX, this.controlMinX, this.controlMaxX);
-    this.targetY = Phaser.Math.Clamp(targetY, this.controlMinY, this.controlMaxY);
+    return Phaser.Math.Linear(current, target, lerpT);
   }
 
   private resetPointerControlState() {
     this.pointerControlActive = false;
     this.pointerControlId = undefined;
-    this.activeControlPlatform = CONTROL_ROUTING.manualPlatform;
-    this.activeControlMode = CONTROL_MODE_BY_PLATFORM[this.activeControlPlatform];
+    this.activeControlPlatform = RELATIVE_TOUCH_ROUTING.manualPlatform;
+    this.updateControlBoundsForPlatform(this.activeControlPlatform);
     this.pointerLastX = 0;
     this.pointerLastY = 0;
-    this.joystickFrameDeltaX = 0;
-    this.joystickFrameDeltaY = 0;
+    this.pointerFrameDeltaX = 0;
+    this.pointerFrameDeltaY = 0;
     if (this.yachtBody) {
       this.targetX = this.yachtBody.x;
       this.targetY = this.yachtBody.y - this.yMotionOffsetPx;
+      this.desiredTargetX = this.targetX;
+      this.desiredTargetY = this.targetY;
     }
   }
 

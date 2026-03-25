@@ -350,38 +350,46 @@ export const YACHT_SWAY = {
   frequencyHz: 2.2,
 } as const;
 
-export const FREE_CONTROL_2D = {
-  positionLerpPerSecX: 14,
-  positionLerpPerSecY: 14,
-  minXPaddingPx: 12,
-  maxXPaddingPx: 12,
-  minYPaddingPx: 12,
-  maxYPaddingPx: 12,
-} as const;
-
-export const CONTROL_ROUTING = {
+export const RELATIVE_TOUCH_ROUTING = {
   platformSource: "pointerType" as "manual" | "pointerType",
   manualPlatform: "desktop" as "desktop" | "mobile",
 } as const;
 
-export const CONTROL_MODE_BY_PLATFORM = {
-  desktop: "follow" as "follow" | "joystick",
-  mobile: "follow" as "follow" | "joystick",
-} as const;
-
-export const FOLLOW_POINTER_ANCHOR = {
-  desktop: { enabled: false, offsetX: 0, offsetY: 0 },
-  mobile: { enabled: true, offsetX: 0, offsetY: -180 },
-} as const;
-
-export const JOYSTICK_2D = {
-  deadZonePx: 1,
-  gainX: 2.2,
-  gainY: 2.2,
-  maxDeltaXPerEventPx: 500,
-  maxDeltaYPerEventPx: 500,
-  lerpPerSecX: 18,
-  lerpPerSecY: 18,
+export const RELATIVE_TOUCH_CONTROL = {
+  desktop: {
+    requirePointerDown: true,
+    gainX: 1,
+    gainY: 1,
+    deadZonePx: 0,
+    maxDeltaXPerEventPx: 120,
+    maxDeltaYPerEventPx: 120,
+    targetLerpPerSecX: 60,
+    targetLerpPerSecY: 60,
+    bodyLerpPerSecX: 18,
+    bodyLerpPerSecY: 18,
+    snapDistancePx: 0,
+    minXPaddingPx: 12,
+    maxXPaddingPx: 12,
+    minYPaddingPx: 12,
+    maxYPaddingPx: 12,
+  },
+  mobile: {
+    requirePointerDown: true,
+    gainX: 1,
+    gainY: 1,
+    deadZonePx: 0,
+    maxDeltaXPerEventPx: 120,
+    maxDeltaYPerEventPx: 120,
+    targetLerpPerSecX: 60,
+    targetLerpPerSecY: 60,
+    bodyLerpPerSecX: 18,
+    bodyLerpPerSecY: 18,
+    snapDistancePx: 1,
+    minXPaddingPx: 12,
+    maxXPaddingPx: 12,
+    minYPaddingPx: 12,
+    maxYPaddingPx: 12,
+  },
 } as const;
 
 export const BRAKING = {
