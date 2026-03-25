@@ -1,5 +1,5 @@
 export const TUNING = {
-  SPEED_START_KMH: 30,
+  SPEED_START_KMH: 60,
   FUEL_START: 0.0001,
   FUEL_DRAIN_PER_SEC: 0,
   FUEL_PICKUP_VALUE: 0.1,
@@ -520,22 +520,22 @@ export const JOYSTICK_2D = {
 } as const;
 
 export const BRAKING = {
-  minDropFromStartKmh: -30,
-  decelKmhPerSec: 45,
-  recoverKmhPerSec: 15,
+  minDropFromStartKmh: 40,
+  decelKmhPerSec: 40,
+  recoverKmhPerSec: 10,
 } as const;
 
 export const RUN_START_SPEED = {
-  startDropKmh: -30,
+  startDropKmh: 40,
 } as const;
 
 export const YACHT_SPEED_Y_ANIM = {
-  accelOffsetPx: -80,
-  accelDurationMs: 180,
-  accelReturnMs: 360,
-  brakeOffsetPx: 80,
-  brakeDurationMs: 360,
-  brakeReturnMs: 180,
+  accelOffsetPx: 80,
+  accelDurationMs: 360,
+  accelReturnMs: 180,
+  brakeOffsetPx: -80,
+  brakeDurationMs: 180,
+  brakeReturnMs: 360,
   ease: "Sine.easeOut",
 } as const;
 
