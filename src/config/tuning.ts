@@ -384,7 +384,7 @@ export const RELATIVE_TOUCH_CONTROL = {
     targetLerpPerSecY: 60,
     bodyLerpPerSecX: 18,
     bodyLerpPerSecY: 18,
-    snapDistancePx: 0,
+    snapDistancePx: 1,
     minXPaddingPx: 12,
     maxXPaddingPx: 12,
     minYPaddingPx: 12,
