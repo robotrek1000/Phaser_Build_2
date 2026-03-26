@@ -2,7 +2,7 @@ export const TUNING = {
   SPEED_START_KMH: 60,
   FUEL_START: 0.0001,
   FUEL_DRAIN_PER_SEC: 0,
-  FUEL_PICKUP_VALUE: 0.1,
+  FUEL_PICKUP_VALUE: 0.01,
   SPEED_PER_100M: 0,
   FUEL_HIT_PENALTY: 0.4,
 } as const;
@@ -76,18 +76,18 @@ export const PROGRESS_BAR_KEYS = [
 ] as const;
 
 export const SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 90, obstacle: 2, fuel: 0.75, dynamic: 10 },
-  { minMeters: 90, maxMeters: 100, obstacle: 2, fuel: 0.25, dynamic: 10 },
-  { minMeters: 100, maxMeters: 190, obstacle: 2, fuel: 1.5, dynamic: 10 },
-  { minMeters: 190, maxMeters: 200, obstacle: 2, fuel: 1, dynamic: 0.05 },
-  { minMeters: 200, maxMeters: 350, obstacle: 1.75, fuel: 2, dynamic: 1 },
-  { minMeters: 350, maxMeters: 400, obstacle: 0.75, fuel: 2, dynamic: 1 },
-  { minMeters: 400, maxMeters: 550, obstacle: 1.25, fuel: 2, dynamic: 0.75 },
-  { minMeters: 550, maxMeters: 600, obstacle: 1.25, fuel: 2, dynamic: 0.1 },
-  { minMeters: 600, maxMeters: 700, obstacle: 1.25, fuel: 2.25, dynamic: 0.75 },
-  { minMeters: 700, maxMeters: 800, obstacle: 1, fuel: 2.25, dynamic: 0.5 },
-  { minMeters: 800, maxMeters: 1000, obstacle: 0.75, fuel: 2.5, dynamic: 0.25 },
-  { minMeters: 1000, maxMeters: 1200, obstacle: 0.5, fuel: 2.5, dynamic: 0.3 },
+  { minMeters: 0, maxMeters: 90, obstacle: 2, fuel: 0.1, dynamic: 10 },
+  { minMeters: 90, maxMeters: 100, obstacle: 2, fuel: 0.1, dynamic: 10 },
+  { minMeters: 100, maxMeters: 190, obstacle: 2, fuel: 0.1, dynamic: 10 },
+  { minMeters: 190, maxMeters: 200, obstacle: 2, fuel: 0.1, dynamic: 10 },
+  { minMeters: 200, maxMeters: 350, obstacle: 1.75, fuel: 0.1, dynamic: 10 },
+  { minMeters: 350, maxMeters: 400, obstacle: 0.75, fuel: 0.1, dynamic: 10 },
+  { minMeters: 400, maxMeters: 550, obstacle: 1.25, fuel: 0.1, dynamic: 10 },
+  { minMeters: 550, maxMeters: 600, obstacle: 1.25, fuel: 0.1, dynamic: 10 },
+  { minMeters: 600, maxMeters: 700, obstacle: 1.25, fuel: 0.1, dynamic: 10 },
+  { minMeters: 700, maxMeters: 800, obstacle: 1, fuel: 0.1, dynamic: 10 },
+  { minMeters: 800, maxMeters: 1000, obstacle: 0.75, fuel: 0.1, dynamic: 10 },
+  { minMeters: 1000, maxMeters: 1200, obstacle: 0.5, fuel: 0.1, dynamic: 10 },
   { minMeters: 1200, maxMeters: 1250, obstacle: 10, fuel: 10, dynamic: 10 },
   { minMeters: 1250, maxMeters: Infinity, obstacle: 10, fuel: 10, dynamic: 10 },
 ] as const;
@@ -142,7 +142,7 @@ export const PLAY_AREA = {
 export const OBJECT_SIZES = {
   yacht: { width: 45, height: 200 },
   obstacle: { width: 84, height: 120 },
-  fuel: { width: 84, height: 120 },
+  fuel: { width: 59, height: 95 },
   dynamic: { width: 84, height: 120 },
 } as const;
 
