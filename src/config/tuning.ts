@@ -424,7 +424,7 @@ export const OBJECT_DRIFT = {
     phaseMax: Math.PI * 2,
   },
   fuel: {
-    amplitudePx: 25,
+    amplitudePx: 0,
     frequencyHz: 1,
     phaseMin: 0,
     phaseMax: Math.PI * 2,
