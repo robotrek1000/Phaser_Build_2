@@ -76,7 +76,7 @@ export const PROGRESS_BAR_KEYS = [
 ] as const;
 
 export const SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 90, obstacle: 2, fuel: 0.1, dynamic: 10 },
+  { minMeters: 0, maxMeters: 90, obstacle: 10, fuel: 0.1, dynamic: 10 },
   { minMeters: 90, maxMeters: 100, obstacle: 2, fuel: 0.1, dynamic: 10 },
   { minMeters: 100, maxMeters: 190, obstacle: 2, fuel: 0.1, dynamic: 10 },
   { minMeters: 190, maxMeters: 200, obstacle: 2, fuel: 0.1, dynamic: 10 },
