@@ -7,14 +7,14 @@
                 "key": "sea-bg"
             },
             {
-                "url": "assets/money_down.png",
-                "type": "image",
-                "key": "money-down"
-            },
-            {
                 "url": "assets/money_up.png",
                 "type": "image",
                 "key": "money-up"
+            },
+            {
+                "url": "assets/money_down.png",
+                "type": "image",
+                "key": "money-down"
             },
             {
                 "url": "assets/money_change_up.png",
@@ -90,6 +90,41 @@
                 "url": "assets/earth_3.png",
                 "type": "image",
                 "key": "earth-3"
+            },
+            {
+                "url": "assets/obstacle_move_mine.png",
+                "type": "image",
+                "key": "obstacle-mine"
+            },
+            {
+                "url": "assets/obstacle_move_pirate.png",
+                "type": "image",
+                "key": "obstacle-pirate"
+            },
+            {
+                "url": "assets/obstacle_move_tornado.png",
+                "type": "image",
+                "key": "obstacle-tornado"
+            },
+            {
+                "url": "assets/obstacle_whirlpool.png",
+                "type": "image",
+                "key": "obstacle-whirlpool"
+            },
+            {
+                "url": "assets/obstacle_static_rock_1.png",
+                "type": "image",
+                "key": "obstacle-rock-1"
+            },
+            {
+                "url": "assets/obstacle_static_rock_2.png",
+                "type": "image",
+                "key": "obstacle-rock-2"
+            },
+            {
+                "url": "assets/obstacle_static_rock_3.png",
+                "type": "image",
+                "key": "obstacle-rock-3"
             },
             {
                 "url": "assets/start_background.png",

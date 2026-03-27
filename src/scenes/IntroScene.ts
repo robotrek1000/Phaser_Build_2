@@ -81,6 +81,15 @@ export default class IntroScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     let isPressed = false;
+    let isStartingGame = false;
+    const startGame = () => {
+      if (isStartingGame) {
+        return;
+      }
+      isStartingGame = true;
+      this.scene.start("Game");
+    };
+
     buttonHitZone.on("pointerover", () => {
       if (!isPressed) {
         drawButton(INTRO_ONBOARDING_UI.buttonHoverColor);
@@ -93,10 +102,11 @@ export default class IntroScene extends Phaser.Scene {
     buttonHitZone.on("pointerdown", () => {
       isPressed = true;
       drawButton(INTRO_ONBOARDING_UI.buttonPressedColor);
+      startGame();
     });
     buttonHitZone.on("pointerup", () => {
       drawButton(INTRO_ONBOARDING_UI.buttonHoverColor);
-      this.scene.start("Game");
+      startGame();
     });
   }
 }

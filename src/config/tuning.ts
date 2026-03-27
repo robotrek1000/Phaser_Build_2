@@ -1,34 +1,10 @@
 export const TUNING = {
   SPEED_START_KMH: 60,
-  FUEL_START: 0.0001,
+  FUEL_START: 1,
   FUEL_DRAIN_PER_SEC: 0,
-  FUEL_PICKUP_VALUE: 0.01,
+  FUEL_PICKUP_VALUE: 0.1,
   SPEED_PER_100M: 0,
-  FUEL_HIT_PENALTY: 0.4,
 } as const;
-
-export const DYNAMIC_BUOY_STATES = {
-  up: {
-    delta: 0.1,
-    durationMs: 1000,
-    textureKey: "money-change-up",
-    stateId: 1,
-  },
-  no: {
-    delta: 0,
-    durationMs: 0,
-    textureKey: "money-change-no",
-    stateId: 2,
-  },
-  down: {
-    delta: -0.4,
-    durationMs: 1000,
-    textureKey: "money-change-down",
-    stateId: 3,
-  },
-} as const;
-
-export const DYNAMIC_BUOY_STATE_ORDER = ["up", "no", "down"] as const;
 
 export const RUN_TIMER = {
   initialMs: 40_000,
@@ -38,9 +14,9 @@ export const RUN_TIMER = {
 export const DISTANCE_CHECKPOINTS = [400, 800, 1200] as const;
 
 export const LANDMARK_METERS = {
-  island200: 400,
-  tavern400: 800,
-  harbor610: 1250,
+  island1: 400,
+  island2: 800,
+  harbor: 1250,
 } as const;
 
 export const COIN_PENDING_MILESTONES = [
@@ -66,62 +42,12 @@ export const COIN_REWARD_ANIMATION = {
   alphaEnd: 0,
 } as const;
 
-export const SPAWN_PAUSE_WINDOW_METERS = 20;
-
 export const PROGRESS_BAR_KEYS = [
   "progress-bar-0",
   "progress-bar-1",
   "progress-bar-2",
   "progress-bar-3",
 ] as const;
-
-export const SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 90, obstacle: 10, fuel: 0.1, dynamic: 10 },
-  { minMeters: 90, maxMeters: 100, obstacle: 2, fuel: 0.1, dynamic: 10 },
-  { minMeters: 100, maxMeters: 190, obstacle: 2, fuel: 0.1, dynamic: 10 },
-  { minMeters: 190, maxMeters: 200, obstacle: 2, fuel: 0.1, dynamic: 10 },
-  { minMeters: 200, maxMeters: 350, obstacle: 1.75, fuel: 0.1, dynamic: 10 },
-  { minMeters: 350, maxMeters: 400, obstacle: 0.75, fuel: 0.1, dynamic: 10 },
-  { minMeters: 400, maxMeters: 550, obstacle: 1.25, fuel: 0.1, dynamic: 10 },
-  { minMeters: 550, maxMeters: 600, obstacle: 1.25, fuel: 0.1, dynamic: 10 },
-  { minMeters: 600, maxMeters: 700, obstacle: 1.25, fuel: 0.1, dynamic: 10 },
-  { minMeters: 700, maxMeters: 800, obstacle: 1, fuel: 0.1, dynamic: 10 },
-  { minMeters: 800, maxMeters: 1000, obstacle: 0.75, fuel: 0.1, dynamic: 10 },
-  { minMeters: 1000, maxMeters: 1200, obstacle: 0.5, fuel: 0.1, dynamic: 10 },
-  { minMeters: 1200, maxMeters: 1250, obstacle: 10, fuel: 10, dynamic: 10 },
-  { minMeters: 1250, maxMeters: Infinity, obstacle: 10, fuel: 10, dynamic: 10 },
-] as const;
-
-export const TIME_BONUS_SPAWN_MULTIPLIERS = [
-  { minMeters: 0, maxMeters: 200, multiplier: 1.75 },
-  { minMeters: 200, maxMeters: 400, multiplier: 1.75 },
-  { minMeters: 400, maxMeters: 700, multiplier: 1.75 },
-  { minMeters: 700, maxMeters: 800, multiplier: 0.5 },
-  { minMeters: 800, maxMeters: 1000, multiplier: 0.25 },
-  { minMeters: 1000, maxMeters: Infinity, multiplier: 1.75 },
-] as const;
-
-export const SPAWN_BASE_DELAYS = {
-  obstacleMinMs: 1000,
-  obstacleMaxMs: 1800,
-  fuelMinMs: 2200,
-  fuelMaxMs: 3800,
-  dynamicMinMs: 2200,
-  dynamicMaxMs: 3800,
-} as const;
-
-export const BUOY_SPAWN_LIMITS = {
-  maxActiveTotal: 10,
-} as const;
-
-export const TIME_BONUS_LIMITS = {
-  maxActiveTotal: 1,
-} as const;
-
-export const SPEED_VARIANCE = {
-  minMultiplier: 1,
-  maxMultiplier: 1.5,
-} as const;
 
 export const FALL_SPEED = {
   base: 0,
@@ -141,9 +67,7 @@ export const PLAY_AREA = {
 
 export const OBJECT_SIZES = {
   yacht: { width: 45, height: 200 },
-  obstacle: { width: 84, height: 120 },
-  fuel: { width: 59, height: 95 },
-  dynamic: { width: 84, height: 120 },
+  moneyUp: { width: 84, height: 120 },
 } as const;
 
 export const YACHT_HITBOX = {
@@ -152,12 +76,18 @@ export const YACHT_HITBOX = {
   centerOffsetX: 0,
   centerOffsetY: 16,
   contactPaddingPx: 6,
-  dynamicBuoyRadiusRatio: 0.5,
   minRadiusX: 10,
   minRadiusY: 18,
 } as const;
 
-export const FUEL_VISUAL_SCALE = 1;
+export const YACHT_SOLID_COLLISION = {
+  radiusXRatio: 0.45,
+  radiusYRatio: 0.34,
+  centerOffsetX: 0,
+  centerOffsetY: 18,
+  minRadiusX: 10,
+  minRadiusY: 20,
+} as const;
 
 export const HUD_LAYOUT = {
   speedX: 75,
@@ -170,12 +100,6 @@ export const HUD_LAYOUT = {
   speedIconYOffset: 10,
   distanceIconYOffset: 30,
   iconGap: 0,
-  meterXOffset: 48,
-  meterTopRatio: 0.25,
-  meterSegments: 5,
-  meterScale: 0.2,
-  meterIconGap: 16,
-  meterIconScale: 0.15,
   progressXRatio: 0.5,
   progressY: 12,
   progressScale: 0.5,
@@ -200,6 +124,159 @@ export const ASSETS_BAR_UI = {
   fillColorMid: 0xc2c203,
   fillColorLow: 0xab2a14,
   depth: 55,
+} as const;
+
+export const ASSET_SHIELD_CONFIG = {
+  enable: true,
+  activation: {
+    manualOnly: true,
+    fuelReadyThreshold: 0,
+    allowManualStop: true,
+  },
+  runtime: {
+    durationMs: 5_000,
+    timerEnabled: false,
+    drainEnabled: true,
+    drainPerSec: 0.05,
+    autoStopOnFuelEmpty: true,
+    autoStopOnFuelBelowReadyThreshold: false,
+  },
+  refresh: {
+    resetOnMoneyUp: true,
+    resetOnDynamicUp: true,
+    stacking: false,
+  },
+  invulnerability: {
+    enabled: true,
+    affectedHazards: ["moneyDown", "dynamicDown", "mine", "pirate", "whirlpool"] as const,
+    contactPushEnabled: true,
+    contactPushByType: {
+      moneyDown: {
+        impulsePxPerSec: 560,
+        separationPx: 14,
+        verticalImpulseFactor: 0.3,
+        maxVerticalPushPxPerSec: 180,
+        cooldownMs: 120,
+      },
+      dynamicDown: {
+        impulsePxPerSec: 560,
+        separationPx: 14,
+        verticalImpulseFactor: 0.3,
+        maxVerticalPushPxPerSec: 180,
+        cooldownMs: 120,
+      },
+      mine: {
+        impulsePxPerSec: 520,
+        separationPx: 14,
+        verticalImpulseFactor: 0.32,
+        maxVerticalPushPxPerSec: 180,
+        cooldownMs: 140,
+      },
+      pirate: {
+        impulsePxPerSec: 760,
+        separationPx: 18,
+        verticalImpulseFactor: 0.4,
+        maxVerticalPushPxPerSec: 260,
+        cooldownMs: 160,
+      },
+      whirlpool: {
+        impulsePxPerSec: 420,
+        separationPx: 10,
+        verticalImpulseFactor: 0.2,
+        maxVerticalPushPxPerSec: 140,
+        cooldownMs: 140,
+      },
+    },
+  },
+  magnet: {
+    attractEnabled: true,
+    repelEnabled: true,
+    attractRadiusPx: 400,
+    attractForcePxPerSec: 5000,
+    attractFalloffPower: 0.05,
+    repelRadiusPx: 400,
+    repelForcePxPerSec: 10000,
+    repelFalloffPower: 0.5,
+    maxPushSpeedPxPerSec: 5000,
+  },
+  visual: {
+    radiusPx: 250,
+    thicknessPx: 70,
+    innerColor: 0x78e3ff,
+    outerColor: 0x8b4dff,
+    innerAlpha: 0.08,
+    outerAlpha: 0.95,
+    alpha: 0.78,
+    gradientSteps: 16,
+    yOffsetPx: 0,
+    depth: 4,
+    appear: {
+      durationMs: 1_000,
+      startScale: 0.72,
+      endScale: 1,
+    },
+    disappear: {
+      durationMs: 260,
+      endScale: 0.9,
+    },
+    bezier: {
+      x1: 1,
+      y1: 0.01,
+      x2: 1,
+      y2: 1,
+    },
+  },
+  fadeOut: {
+    enabled: true,
+    cutoffAlpha: 0.25,
+    hardDropToZeroBelowCutoff: true,
+  },
+  shipBlink: {
+    enabled: true,
+    tintColor: 0xad6cff,
+    blinkAlphaMin: 0.58,
+    blinkHalfCycleMs: 90,
+    blinkEase: "Sine.easeInOut",
+    tintStrength: 0.72,
+  },
+  button: {
+    radiusPx: 56,
+    marginLeftPx: 22,
+    marginBottomPx: 22,
+    strokeWidthPx: 4,
+    strokeColor: 0x111111,
+    depth: 95,
+    textFontFamily: "Fascinate",
+    textFontSizePx: 52,
+    disabled: {
+      label: "Щит",
+      fillColor: 0xb4b4b4,
+      textColor: "#141414",
+      scale: 1,
+    },
+    ready: {
+      label: "Жми",
+      fillColor: 0x19ba14,
+      textColor: "#ffffff",
+      scale: 1.06,
+    },
+    active: {
+      label: "Стоп",
+      fillColor: 0xe70f0f,
+      textColor: "#ffffff",
+      scale: 1.08,
+    },
+    stateTransitionDurationMs: 200,
+    stateTransitionEase: "Sine.easeOut",
+    tapRejectedPulseScale: 0.92,
+    tapRejectedPulseDurationMs: 120,
+  },
+  tapGesture: {
+    maxTapDurationMs: 240,
+    maxTapMovePx: 18,
+    tapDebounceMs: 110,
+    tapCooldownMs: 90,
+  },
 } as const;
 
 export const YACHT_VISUAL_SIZE = {
@@ -248,35 +325,6 @@ export const TIME_HUD = {
   valueFontFamily: "Fascinate",
   valueFontSize: "42px",
   valueColor: "#000000",
-} as const;
-
-export const LANDMARK_LAYOUT = {
-  spawnY: -260,
-  island200: {
-    xRatio: 0.84,
-    width: 320,
-    height: 358,
-    hitboxScaleX: 0.72,
-    hitboxScaleY: 0.52,
-  },
-  tavern400: {
-    xRatio: 0.2,
-    width: 430,
-    height: 406,
-    hitboxScaleX: 0.7,
-    hitboxScaleY: 0.52,
-  },
-  harbor610: {
-    xRatio: 0.5,
-    width: 760,
-    height: 748,
-    hitboxScaleX: 0.9,
-    hitboxScaleY: 0.45,
-  },
-  harborGate: {
-    height: 140,
-    yOffset: 40,
-  },
 } as const;
 
 export const UI_TEXT = {
@@ -416,35 +464,357 @@ export const YACHT_VISUAL_OFFSET = {
   y: 32,
 } as const;
 
-export const OBJECT_DRIFT = {
-  obstacle: {
-    amplitudePx: 100,
-    frequencyHz: 2,
-    phaseMin: 0,
-    phaseMax: Math.PI * 2,
+export const SEGMENT_SPAWN = {
+  objectSpawnY: -280,
+  cleanupYExtra: 140,
+  scheduleLookaheadMeters: 8,
+} as const;
+
+export const SEGMENT_POOL_RULES = {
+  poolSizeMeters: 100,
+  poolCount: 12,
+  finalStartMeters: 1200,
+  finalEndMeters: 1250,
+} as const;
+
+export const HAZARD_COLLISION = {
+  pairCooldownMs: 120,
+  impulsePxPerSec: 500,
+  impulseRandomMin: 0.85,
+  impulseRandomMax: 1.15,
+  separationPx: 6,
+  verticalImpulseFactor: 0.45,
+  maxVerticalPushPxPerSec: 180,
+  pushDampingPerSec: 4.8,
+  maxPushOffsetPx: 280,
+  minFallSpeedFactor: 0.55,
+} as const;
+
+export const IMPACT_ANIMATION = {
+  spinDurationMs: 600,
+  scaleUp: 1.3,
+  scaleUpPortion: 0.4,
+  scaleDownPortion: 0.6,
+  spinScaleMin: 0,
+} as const;
+
+export const HAZARD_DAMAGE = {
+  mine: 0.24,
+  moneyDown: 0.4,
+  dynamicDown: 0.4,
+  pirate: 0.35,
+  whirlpool: 0.24,
+} as const;
+
+export const MONEY_DOWN_CONFIG = {
+  textureKey: "money-down",
+  width: 84,
+  height: 120,
+  depth: 14,
+  speedYMultiplier: 1,
+  driftAmplitudePx: 100,
+  driftFrequencyHz: 2,
+  driftPhaseMin: 0,
+  driftPhaseMax: Math.PI * 2,
+  swayAmplitudeDeg: 4,
+  swayFrequencyHz: 1.1,
+  hitbox: {
+    radiusXRatio: 0.34,
+    radiusYRatio: 0.24,
+    centerXRatio: 0.5,
+    centerYRatio: 0.63,
   },
-  fuel: {
-    amplitudePx: 0,
-    frequencyHz: 1,
-    phaseMin: 0,
-    phaseMax: Math.PI * 2,
+  collisionCooldownMs: 220,
+  applyImpactAnimation: true,
+  destroyOnContact: true,
+} as const;
+
+export const DYNAMIC_BUOY_STATES = {
+  up: {
+    textureKey: "money-change-up",
+    dwellMs: 1_000,
+    fuelDelta: 0.1,
   },
-  dynamic: {
-    amplitudePx: 50,
-    frequencyHz: 1.5,
+  down: {
+    textureKey: "money-change-down",
+    dwellMs: 1_000,
+    fuelPenalty: 0.4,
+  },
+  no: {
+    textureKey: "money-change-no",
+  },
+} as const;
+
+export const DYNAMIC_BUOY_CONFIG = {
+  width: 84,
+  height: 120,
+  depth: 14,
+  speedYMultiplier: 0.7,
+  driftAmplitudePx: 50,
+  driftFrequencyHz: 1.5,
+  driftPhaseMin: 0,
+  driftPhaseMax: Math.PI * 2,
+  swayAmplitudeDeg: 4,
+  swayFrequencyHz: 1.1,
+  hitbox: {
+    radiusXRatio: 0.34,
+    radiusYRatio: 0.24,
+    centerXRatio: 0.5,
+    centerYRatio: 0.63,
+  },
+  collisionCooldownMs: 220,
+  applyImpactAnimation: true,
+  destroyOnContact: true,
+} as const;
+
+export const DYNAMIC_BUOY_BLINK = {
+  flashCountDefault: 3,
+  totalDurationMs: 580,
+  preHoldMs: 40,
+  postHoldMs: 40,
+  flashOnMs: 70,
+  flashOffMs: 70,
+  scaleToTotalDuration: true,
+  easing: "Sine.easeInOut",
+  lockCollisionToSourceState: true,
+  stateTextureAlignment: {
+    up: {
+      displayWidth: 84,
+      displayHeight: 120,
+      offsetX: 0,
+      offsetY: 0,
+      scaleX: 1,
+      scaleY: 1,
+    },
+    no: {
+      displayWidth: 84,
+      displayHeight: 120,
+      offsetX: 0,
+      offsetY: 0,
+      scaleX: 1,
+      scaleY: 1,
+    },
+    down: {
+      displayWidth: 84,
+      displayHeight: 120,
+      offsetX: 0,
+      offsetY: 0,
+      scaleX: 1,
+      scaleY: 1,
+    },
+  },
+} as const;
+
+export const MINE_CONFIG = {
+  textureKey: "obstacle-mine",
+  width: 112,
+  height: 104,
+  depth: 14,
+  speedYMultiplier: 1.04,
+  driftAmplitudePx: 24,
+  driftFrequencyHz: 1.25,
+  driftPhaseMin: 0,
+  driftPhaseMax: Math.PI * 2,
+  swayAmplitudeDeg: 7,
+  swayFrequencyHz: 1.15,
+  hitbox: {
+    radiusXRatio: 0.42,
+    radiusYRatio: 0.34,
+    centerXRatio: 0.5,
+    centerYRatio: 0.63,
+  },
+  collisionCooldownMs: 220,
+  applyImpactAnimation: true,
+} as const;
+
+export const PIRATE_CONFIG = {
+  textureKey: "obstacle-pirate",
+  width: 112,
+  height: 246,
+  depth: 15,
+  speedYMultiplier: 1.2,
+  driftAmplitudePx: 74,
+  driftFrequencyHz: 0.9,
+  driftPhaseMin: 0,
+  driftPhaseMax: Math.PI * 2,
+  swayAmplitudeDeg: 4,
+  swayFrequencyHz: 0.8,
+  turnNoseToVelocity: true,
+  noseRotationOffsetDeg: 90,
+  flipY: true,
+  hitbox: {
+    radiusXRatio: 0.27,
+    radiusYRatio: 0.42,
+    centerXRatio: 0.5,
+    centerYRatio: 0.55,
+  },
+  collisionCooldownMs: 260,
+  applyImpactAnimation: false,
+  yachtPush: {
+    impulsePxPerSec: 760,
+    impulseRandomMin: 0.95,
+    impulseRandomMax: 1.3,
+    verticalImpulseFactor: 0.42,
+    maxVerticalPushPxPerSec: 260,
+    separationPx: 18,
+  },
+} as const;
+
+export const TORNADO_CONFIG = {
+  textureKey: "obstacle-tornado",
+  width: 116,
+  height: 128,
+  depth: 16,
+  speedYMultiplier: 1.15,
+  wander: {
+    targetVxAbsMin: 120,
+    targetVxAbsMax: 260,
+    targetVyMin: -140,
+    targetVyMax: 210,
+    turnIntervalMinMs: 320,
+    turnIntervalMaxMs: 760,
+    turnLerpPerSec: 2.6,
+  },
+  pulse: {
+    scaleAmplitude: 0.1,
+    frequencyHz: 2.2,
+  },
+  hitbox: {
+    radiusXRatio: 0.25,
+    radiusYRatio: 0.34,
+    centerXRatio: 0.5,
+    centerYRatio: 0.66,
+  },
+  collisionCooldownMs: 240,
+  applyImpactAnimation: true,
+  cleanupXPaddingPx: 240,
+} as const;
+
+export const WHIRLPOOL_CONFIG = {
+  textureKey: "obstacle-whirlpool",
+  width: 150,
+  height: 114,
+  depth: 12,
+  speedYMultiplier: 1,
+  driftAmplitudePx: 0,
+  driftFrequencyHz: 1.2,
+  driftPhaseMin: 0,
+  driftPhaseMax: Math.PI * 2,
+  swayAmplitudeDeg: 0,
+  swayFrequencyHz: 0,
+  hitbox: {
+    radiusXRatio: 0.28,
+    radiusYRatio: 0.22,
+    centerXRatio: 0.5,
+    centerYRatio: 0.58,
+  },
+  collisionCooldownMs: 260,
+  applyImpactAnimation: false,
+  destroyOnContact: false,
+  blocking: false,
+  pulse: {
+    baseScale: 1,
+    amplitude: 0.08,
+    frequencyHz: 1.8,
     phaseMin: 0,
     phaseMax: Math.PI * 2,
+    minScale: 0.9,
+    maxScale: 1.1,
+  },
+} as const;
+
+export const ROCK_CONFIG = {
+  common: {
+    depth: 15,
+    speedYMultiplier: 1,
+    collisionCooldownMs: 220,
+    allowPartialSpawn: true,
+    partialSpawnMaxOffsetPx: 120,
+    applyImpactAnimation: false,
+  },
+  rock1: {
+    textureKey: "obstacle-rock-1",
+    width: 290,
+    height: 356,
+    ellipse: {
+      radiusXRatio: 0.42,
+      radiusYRatio: 0.1,
+      centerXRatio: 0.5,
+      centerYRatio: 0.9,
+    },
+  },
+  rock2: {
+    textureKey: "obstacle-rock-2",
+    width: 324,
+    height: 270,
+    ellipse: {
+      radiusXRatio: 0.44,
+      radiusYRatio: 0.1,
+      centerXRatio: 0.5,
+      centerYRatio: 0.88,
+    },
+  },
+  rock3: {
+    textureKey: "obstacle-rock-3",
+    width: 280,
+    height: 226,
+    ellipse: {
+      radiusXRatio: 0.46,
+      radiusYRatio: 0.09,
+      centerXRatio: 0.5,
+      centerYRatio: 0.87,
+    },
+  },
+} as const;
+
+export const LANDMARK_CONFIG = {
+  island1: {
+    textureKey: "earth-1",
+    width: 320,
+    height: 358,
+    depth: 15,
+    ellipse: {
+      radiusXRatio: 0.36,
+      radiusYRatio: 0.12,
+      centerXRatio: 0.52,
+      centerYRatio: 0.88,
+    },
+  },
+  island2: {
+    textureKey: "earth-2",
+    width: 430,
+    height: 406,
+    depth: 15,
+    ellipse: {
+      radiusXRatio: 0.35,
+      radiusYRatio: 0.12,
+      centerXRatio: 0.49,
+      centerYRatio: 0.87,
+    },
+  },
+  harbor: {
+    textureKey: "earth-3",
+    width: 760,
+    height: 748,
+    depth: 15,
+    ellipse: {
+      radiusXRatio: 0.44,
+      radiusYRatio: 0.14,
+      centerXRatio: 0.5,
+      centerYRatio: 0.86,
+    },
+  },
+  gate: {
+    height: 140,
+    yOffset: 40,
+    depth: 14,
   },
 } as const;
 
 export const TIME_BONUS = {
   textureKey: "time-bonus",
   shadowTextureKey: "time-bonus-shadow",
-  spawnDelayMinMs: 2200,
-  spawnDelayMaxMs: 3800,
-  spawnDelayMultiplier: 2,
   spawnYOffset: -120,
-  spawnSideOffset: 70,
   size: 80,
   shadowWidth: 100,
   shadowHeight: 32,
@@ -456,69 +826,20 @@ export const TIME_BONUS = {
   zigzagRightBoundOffset: 24,
   depth: 20,
   shadowDepth: 8,
-  yBobAmplitudePx: 100,
-  yBobFrequencyHz: 5,
+  yBobAmplitudePx: 26,
+  yBobFrequencyHz: 1.8,
   yBobPhaseMin: 0,
   yBobPhaseMax: Math.PI * 2,
   shadowBobScale: {
     baseScaleX: 0.25,
     baseScaleY: 0.25,
-    responseX: 0.05,
-    responseY: 0.05,
+    responseX: 0.08,
+    responseY: 0.08,
     minScaleX: 0.1,
     maxScaleX: 1,
     minScaleY: 0.1,
     maxScaleY: 1,
   },
-} as const;
-
-export const BUOY_COLLISION = {
-  impulsePxPerSec: 500,
-  impulseRandomMin: 0.85,
-  impulseRandomMax: 1.15,
-  separationPx: 6,
-  pushDampingPerSec: 4.5,
-  maxPushOffsetPx: 220,
-  verticalImpulseFactor: 0.45,
-  maxVerticalPushPxPerSec: 180,
-  minFallSpeedFactor: 0.6,
-  pairCooldownMs: 80,
-} as const;
-
-export const BUOY_HITBOX = {
-  globalScale: 10,
-  obstacle: { radiusRatio: 0.5, centerXRatio: 0.5, centerYRatio: 0.63 },
-  fuel: { radiusRatio: 0.5, centerXRatio: 0.5, centerYRatio: 0.63 },
-  dynamic: { radiusRatio: 0.5, centerXRatio: 0.5, centerYRatio: 0.63 },
-} as const;
-
-export const FUEL_SWAY = {
-  amplitudeDeg: 4,
-  frequencyHz: 1.1,
-  phaseMin: 0,
-  phaseMax: Math.PI * 2,
-} as const;
-
-export const DYNAMIC_SWAY = {
-  amplitudeDeg: 4,
-  frequencyHz: 1.1,
-  phaseMin: 0,
-  phaseMax: Math.PI * 2,
-} as const;
-
-export const OBSTACLE_SWAY = {
-  amplitudeDeg: 4,
-  frequencyHz: 1.1,
-  phaseMin: 0,
-  phaseMax: Math.PI * 2,
-} as const;
-
-export const IMPACT_ANIMATION = {
-  spinDurationMs: 600,
-  scaleUp: 1.3,
-  scaleUpPortion: 0.4,
-  scaleDownPortion: 0.6,
-  spinScaleMin: 0,
 } as const;
 
 export const COLLECT_ANIMATION_BUOY = {
