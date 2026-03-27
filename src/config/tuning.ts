@@ -190,7 +190,7 @@ export const ASSET_SHIELD_CONFIG = {
         cooldownMs: 160,
       },
       whirlpool: {
-        impulsePxPerSec: 420,
+        impulsePxPerSec: 0,
         separationPx: 10,
         verticalImpulseFactor: 0.2,
         maxVerticalPushPxPerSec: 140,
