@@ -368,7 +368,7 @@ export const FINAL_SEGMENT_1200_1250: SegmentTemplate = {
   lengthMeters: 50,
   weight: 1,
   objects: [
-    { type: "harbor", meterOffset: 8, xRatio: 0.5 },
-    { type: "harborGate", meterOffset: 20, xRatio: 0.5 },
+    { type: "harbor", meterOffset: 50, xRatio: 0.5 },
+    { type: "harborGate", meterOffset: 50, xRatio: 0.5 },
   ],
 };

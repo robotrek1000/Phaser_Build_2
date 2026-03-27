@@ -1,8 +1,8 @@
 export const TUNING = {
   SPEED_START_KMH: 60,
-  FUEL_START: 1,
+  FUEL_START: 0.0001,
   FUEL_DRAIN_PER_SEC: 0,
-  FUEL_PICKUP_VALUE: 0.1,
+  FUEL_PICKUP_VALUE: 0.2,
   SPEED_PER_100M: 0,
 } as const;
 
@@ -89,6 +89,15 @@ export const YACHT_SOLID_COLLISION = {
   minRadiusY: 20,
 } as const;
 
+export const YACHT_SOLID_BLOCKERS = {
+  rock1: true,
+  rock2: true,
+  rock3: true,
+  island1: true,
+  island2: true,
+  harbor: false,
+} as const;
+
 export const HUD_LAYOUT = {
   speedX: 75,
   speedY: 18,
@@ -130,20 +139,21 @@ export const ASSET_SHIELD_CONFIG = {
   enable: true,
   activation: {
     manualOnly: true,
-    fuelReadyThreshold: 0,
+    fuelReadyThreshold: 1,
     allowManualStop: true,
   },
   runtime: {
     durationMs: 5_000,
     timerEnabled: false,
     drainEnabled: true,
-    drainPerSec: 0.05,
+    drainPerSec: 0.1,
+    minFuelWhileActive: 0.001,
     autoStopOnFuelEmpty: true,
     autoStopOnFuelBelowReadyThreshold: false,
   },
   refresh: {
-    resetOnMoneyUp: true,
-    resetOnDynamicUp: true,
+    resetOnMoneyUp: false,
+    resetOnDynamicUp: false,
     stacking: false,
   },
   invulnerability: {
@@ -191,11 +201,11 @@ export const ASSET_SHIELD_CONFIG = {
   magnet: {
     attractEnabled: true,
     repelEnabled: true,
-    attractRadiusPx: 400,
-    attractForcePxPerSec: 5000,
+    attractRadiusPx: 250,
+    attractForcePxPerSec: 10000,
     attractFalloffPower: 0.05,
     repelRadiusPx: 400,
-    repelForcePxPerSec: 10000,
+    repelForcePxPerSec: 15000,
     repelFalloffPower: 0.5,
     maxPushSpeedPxPerSec: 5000,
   },
@@ -490,6 +500,41 @@ export const HAZARD_COLLISION = {
   minFallSpeedFactor: 0.55,
 } as const;
 
+export const BUOY_COLLISION_LAYER = {
+  enabled: true,
+  allowCollectingObjects: false,
+  pairs: {
+    hazardToHazard: true,
+    hazardToMoneyUp: true,
+    moneyUpToMoneyUp: true,
+    hazardToSolids: true,
+    moneyUpToSolids: true,
+  },
+  participants: {
+    moneyUp: true,
+    moneyDown: true,
+    dynamicBuoy: true,
+    mine: true,
+    pirate: true,
+    whirlpool: true,
+  },
+  allowNonBlockingHazards: {
+    moneyDown: false,
+    dynamicBuoy: false,
+    mine: false,
+    pirate: false,
+    whirlpool: true,
+  },
+  solids: {
+    rock1: true,
+    rock2: true,
+    rock3: true,
+    island1: true,
+    island2: true,
+    harbor: true,
+  },
+} as const;
+
 export const IMPACT_ANIMATION = {
   spinDurationMs: 600,
   scaleUp: 1.3,
@@ -533,7 +578,7 @@ export const DYNAMIC_BUOY_STATES = {
   up: {
     textureKey: "money-change-up",
     dwellMs: 1_000,
-    fuelDelta: 0.1,
+    fuelDelta: 0.2,
   },
   down: {
     textureKey: "money-change-down",
@@ -572,8 +617,8 @@ export const DYNAMIC_BUOY_BLINK = {
   totalDurationMs: 580,
   preHoldMs: 40,
   postHoldMs: 40,
-  flashOnMs: 70,
-  flashOffMs: 70,
+  flashOnMs: 60,
+  flashOffMs: 60,
   scaleToTotalDuration: true,
   easing: "Sine.easeInOut",
   lockCollisionToSourceState: true,
@@ -625,6 +670,22 @@ export const MINE_CONFIG = {
   },
   collisionCooldownMs: 220,
   applyImpactAnimation: true,
+  magnet: {
+    enabled: true,
+    attractEnabled: true,
+    attractRadiusPx: 600,
+    attractForcePxPerSec: 1_000,
+    attractFalloffPower: 0.05,
+    maxPushSpeedPxPerSec: 5_000,
+    minDistancePx: 12,
+    centerOffsetX: 0,
+    centerOffsetY: 0,
+    axisFactorX: 1,
+    axisFactorY: 1,
+    updateCooldownMs: 0,
+    impulseScaleWhenShieldActive: 1,
+    allowWhileCollecting: false,
+  },
 } as const;
 
 export const PIRATE_CONFIG = {
@@ -643,8 +704,8 @@ export const PIRATE_CONFIG = {
   noseRotationOffsetDeg: 90,
   flipY: true,
   hitbox: {
-    radiusXRatio: 0.27,
-    radiusYRatio: 0.42,
+    radiusXRatio: 0.4,
+    radiusYRatio: 0.8,
     centerXRatio: 0.5,
     centerYRatio: 0.55,
   },
@@ -714,12 +775,12 @@ export const WHIRLPOOL_CONFIG = {
   blocking: false,
   pulse: {
     baseScale: 1,
-    amplitude: 0.08,
+    amplitude: 0.5,
     frequencyHz: 1.8,
     phaseMin: 0,
     phaseMax: Math.PI * 2,
-    minScale: 0.9,
-    maxScale: 1.1,
+    minScale: 0.5,
+    maxScale: 2,
   },
 } as const;
 
@@ -805,8 +866,9 @@ export const LANDMARK_CONFIG = {
     },
   },
   gate: {
+    anchorCenterYRatio: 0.26,
     height: 140,
-    yOffset: 40,
+    widthPaddingPx: 0,
     depth: 14,
   },
 } as const;

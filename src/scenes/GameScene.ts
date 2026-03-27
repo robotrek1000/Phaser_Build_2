@@ -3,6 +3,7 @@ import {
   ASSET_SHIELD_CONFIG,
   ASSETS_BAR_UI,
   BRAKING,
+  BUOY_COLLISION_LAYER,
   COIN_PENDING_MILESTONES,
   COIN_REWARD_ANIMATION,
   COLLECT_ANIMATION_BUOY,
@@ -40,6 +41,7 @@ import {
   WATER_SCROLL,
   WHIRLPOOL_CONFIG,
   YACHT_SOLID_COLLISION,
+  YACHT_SOLID_BLOCKERS,
   YACHT_SPEED_Y_ANIM,
   YACHT_SWAY,
   YACHT_VISUAL_OFFSET,
@@ -64,6 +66,7 @@ type DynamicBuoyGameplayState = "up" | "down";
 type DynamicBuoyVisualState = DynamicBuoyGameplayState | "no";
 type ShieldButtonState = "disabled" | "ready" | "active";
 type ShieldHazardKey = (typeof ASSET_SHIELD_CONFIG.invulnerability.affectedHazards)[number];
+type BuoyCollisionActorType = "moneyUp" | HazardType;
 
 type EllipseHitbox = {
   radiusXRatio: number;
@@ -195,6 +198,7 @@ export default class GameScene extends Phaser.Scene {
   private scheduledObjectCursor = 0;
 
   private collisionPairLastHit = new Map<string, number>();
+  private buoyCollisionPairLastHit = new Map<string, number>();
   private collisionIdCounter = 0;
   private solidDamageLastHit = new Map<number, number>();
 
@@ -336,6 +340,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.processSegmentSchedule();
     this.updateShieldRuntime(delta, dt);
+    this.applyMineMagnetForces(dt);
     this.updateActiveObjectSpeeds(dt);
     this.updateHazardMotion(dt);
     this.updateMoneyUps(dt);
@@ -829,16 +834,23 @@ export default class GameScene extends Phaser.Scene {
       this.collectAirBonus(sprite);
     });
 
-    this.physics.add.collider(this.yachtBody, this.solids, (_yacht, solidObj) => {
-      const sprite = solidObj as Phaser.Physics.Arcade.Sprite;
-      this.handleSolidColliderContact(sprite);
-    });
+    this.physics.add.collider(
+      this.yachtBody,
+      this.solids,
+      (_yacht, solidObj) => {
+        const sprite = solidObj as Phaser.Physics.Arcade.Sprite;
+        this.handleSolidColliderContact(sprite);
+      },
+      (_yacht, solidObj) => !this.isGameOver && this.canYachtBeBlockedBySolid(solidObj as Phaser.Physics.Arcade.Sprite),
+      this,
+    );
 
     this.physics.add.collider(
       this.hazards,
       this.hazards,
       (objA, objB) => this.handleBuoyCollision(objA as Phaser.Physics.Arcade.Sprite, objB as Phaser.Physics.Arcade.Sprite),
       (objA, objB) =>
+        BUOY_COLLISION_LAYER.pairs.hazardToHazard &&
         this.canUseBuoyCollisionPush(objA as Phaser.Physics.Arcade.Sprite) &&
         this.canUseBuoyCollisionPush(objB as Phaser.Physics.Arcade.Sprite),
     );
@@ -848,6 +860,7 @@ export default class GameScene extends Phaser.Scene {
       this.moneyUps,
       (objA, objB) => this.handleBuoyCollision(objA as Phaser.Physics.Arcade.Sprite, objB as Phaser.Physics.Arcade.Sprite),
       (objA, objB) =>
+        BUOY_COLLISION_LAYER.pairs.hazardToMoneyUp &&
         this.canUseBuoyCollisionPush(objA as Phaser.Physics.Arcade.Sprite) &&
         this.canUseBuoyCollisionPush(objB as Phaser.Physics.Arcade.Sprite),
     );
@@ -857,6 +870,7 @@ export default class GameScene extends Phaser.Scene {
       this.moneyUps,
       (objA, objB) => this.handleBuoyCollision(objA as Phaser.Physics.Arcade.Sprite, objB as Phaser.Physics.Arcade.Sprite),
       (objA, objB) =>
+        BUOY_COLLISION_LAYER.pairs.moneyUpToMoneyUp &&
         this.canUseBuoyCollisionPush(objA as Phaser.Physics.Arcade.Sprite) &&
         this.canUseBuoyCollisionPush(objB as Phaser.Physics.Arcade.Sprite),
     );
@@ -865,14 +879,18 @@ export default class GameScene extends Phaser.Scene {
       this.hazards,
       this.solids,
       undefined,
-      (objA) => this.canBlockAgainstSolids(objA as Phaser.Physics.Arcade.Sprite),
+      (objA, solidObj) =>
+        BUOY_COLLISION_LAYER.pairs.hazardToSolids &&
+        this.canBlockAgainstSolids(objA as Phaser.Physics.Arcade.Sprite, solidObj as Phaser.Physics.Arcade.Sprite),
     );
 
     this.physics.add.collider(
       this.moneyUps,
       this.solids,
       undefined,
-      (objA) => this.canBlockAgainstSolids(objA as Phaser.Physics.Arcade.Sprite),
+      (objA, solidObj) =>
+        BUOY_COLLISION_LAYER.pairs.moneyUpToSolids &&
+        this.canBlockAgainstSolids(objA as Phaser.Physics.Arcade.Sprite, solidObj as Phaser.Physics.Arcade.Sprite),
     );
   }
 
@@ -942,15 +960,22 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private processSegmentSchedule() {
-    const spawnThresholdMeter = this.distanceM + SEGMENT_SPAWN.scheduleLookaheadMeters;
     while (this.scheduledObjectCursor < this.scheduledObjects.length) {
       const scheduled = this.scheduledObjects[this.scheduledObjectCursor];
+      const spawnThresholdMeter = this.getSpawnThresholdForScheduledType(scheduled.type);
       if (scheduled.spawnMeter > spawnThresholdMeter) {
         break;
       }
       this.spawnScheduledObject(scheduled);
       this.scheduledObjectCursor += 1;
     }
+  }
+
+  private getSpawnThresholdForScheduledType(type: SegmentObjectType) {
+    if (type === "harbor" || type === "harborGate") {
+      return this.distanceM;
+    }
+    return this.distanceM + SEGMENT_SPAWN.scheduleLookaheadMeters;
   }
 
   private spawnScheduledObject(item: ScheduledSegmentObject) {
@@ -1028,6 +1053,7 @@ export default class GameScene extends Phaser.Scene {
     sprite.setData("applyImpactAnimation", MINE_CONFIG.applyImpactAnimation);
     sprite.setData("destroyOnContact", MINE_CONFIG.applyImpactAnimation);
     sprite.setData("blocking", true);
+    sprite.setData("mineMagnetLastTickAt", Number.NEGATIVE_INFINITY);
   }
 
   private spawnPirate(x: number) {
@@ -1299,8 +1325,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private spawnHarborGate(x: number) {
-    const gateWidth = this.playAreaRight - this.playAreaLeft;
-    const gateY = SEGMENT_SPAWN.objectSpawnY + LANDMARK_CONFIG.gate.yOffset;
+    const baseGateWidth = this.playAreaRight - this.playAreaLeft;
+    const gateWidth = Math.max(24, baseGateWidth - LANDMARK_CONFIG.gate.widthPaddingPx * 2);
+    const gateAnchor = Phaser.Math.Clamp(LANDMARK_CONFIG.gate.anchorCenterYRatio, 0, 1);
+    const gateY = SEGMENT_SPAWN.objectSpawnY + LANDMARK_CONFIG.harbor.height * (gateAnchor - 0.5);
 
     this.harborGate?.destroy();
 
@@ -1620,41 +1648,101 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private canUseBuoyCollisionPush(sprite: Phaser.Physics.Arcade.Sprite) {
-    if (!sprite.active || sprite.getData("collecting")) {
+    if (!BUOY_COLLISION_LAYER.enabled || !sprite.active) {
       return false;
     }
+    const isCollecting = !!sprite.getData("collecting");
+    if (!BUOY_COLLISION_LAYER.allowCollectingObjects && isCollecting) {
+      return false;
+    }
+
+    const actorType = this.getBuoyCollisionActorType(sprite);
+    if (!this.isBuoyCollisionActorEnabled(actorType)) {
+      return false;
+    }
+
+    const hazardType = actorType === "moneyUp" ? undefined : actorType;
     const blocking = sprite.getData("blocking") as boolean | undefined;
-    if (blocking === false) {
-      return false;
+    if (blocking === false && hazardType) {
+      const allowNonBlocking = BUOY_COLLISION_LAYER.allowNonBlockingHazards[hazardType] ?? false;
+      if (!allowNonBlocking) {
+        return false;
+      }
     }
-    const hazardType = sprite.getData("hazardType") as HazardType | undefined;
-    return hazardType !== "whirlpool";
+    return true;
   }
 
-  private canBlockAgainstSolids(sprite: Phaser.Physics.Arcade.Sprite) {
-    if (!sprite.active || sprite.getData("collecting")) {
+  private canBlockAgainstSolids(sprite: Phaser.Physics.Arcade.Sprite, solidSprite: Phaser.Physics.Arcade.Sprite) {
+    if (!BUOY_COLLISION_LAYER.enabled || !sprite.active || !solidSprite.active) {
       return false;
     }
+    const isCollecting = !!sprite.getData("collecting");
+    if (!BUOY_COLLISION_LAYER.allowCollectingObjects && isCollecting) {
+      return false;
+    }
+
+    const actorType = this.getBuoyCollisionActorType(sprite);
+    if (!this.isBuoyCollisionActorEnabled(actorType)) {
+      return false;
+    }
+
+    const hazardType = actorType === "moneyUp" ? undefined : actorType;
     const blocking = sprite.getData("blocking") as boolean | undefined;
-    if (blocking === false) {
+    if (blocking === false && hazardType) {
+      const allowNonBlocking = BUOY_COLLISION_LAYER.allowNonBlockingHazards[hazardType] ?? false;
+      if (!allowNonBlocking) {
+        return false;
+      }
+    }
+
+    const solidType = solidSprite.getData("solidType") as SolidType | undefined;
+    if (!solidType) {
       return false;
     }
+    return BUOY_COLLISION_LAYER.solids[solidType] ?? false;
+  }
+
+  private canYachtBeBlockedBySolid(solidSprite: Phaser.Physics.Arcade.Sprite) {
+    if (!solidSprite.active) {
+      return false;
+    }
+    const solidType = solidSprite.getData("solidType") as SolidType | undefined;
+    if (!solidType) {
+      return false;
+    }
+    return YACHT_SOLID_BLOCKERS[solidType] ?? true;
+  }
+
+  private getBuoyCollisionActorType(sprite: Phaser.Physics.Arcade.Sprite): BuoyCollisionActorType {
     const hazardType = sprite.getData("hazardType") as HazardType | undefined;
-    return hazardType !== "whirlpool";
+    if (hazardType) {
+      return hazardType;
+    }
+    return "moneyUp";
+  }
+
+  private isBuoyCollisionActorEnabled(actorType: BuoyCollisionActorType) {
+    if (actorType === "moneyUp") {
+      return BUOY_COLLISION_LAYER.participants.moneyUp;
+    }
+    return BUOY_COLLISION_LAYER.participants[actorType] ?? false;
   }
 
   private handleBuoyCollision(spriteA: Phaser.Physics.Arcade.Sprite, spriteB: Phaser.Physics.Arcade.Sprite) {
+    if (!BUOY_COLLISION_LAYER.enabled) {
+      return;
+    }
     if (!this.canUseBuoyCollisionPush(spriteA) || !this.canUseBuoyCollisionPush(spriteB)) {
       return;
     }
 
-    const pairKey = this.getCollisionPairKey(spriteA, spriteB);
+    const pairKey = this.getBuoyCollisionPairKey(spriteA, spriteB);
     const nowMs = this.time.now;
-    const lastHitAt = this.collisionPairLastHit.get(pairKey) ?? Number.NEGATIVE_INFINITY;
+    const lastHitAt = this.buoyCollisionPairLastHit.get(pairKey) ?? Number.NEGATIVE_INFINITY;
     if (nowMs - lastHitAt < HAZARD_COLLISION.pairCooldownMs) {
       return;
     }
-    this.collisionPairLastHit.set(pairKey, nowMs);
+    this.buoyCollisionPairLastHit.set(pairKey, nowMs);
 
     const bodyA = spriteA.body as Phaser.Physics.Arcade.Body | undefined;
     const bodyB = spriteB.body as Phaser.Physics.Arcade.Body | undefined;
@@ -1683,6 +1771,12 @@ export default class GameScene extends Phaser.Scene {
 
     this.applyBuoyCollisionPush(spriteA, normalX, normalY, impulse);
     this.applyBuoyCollisionPush(spriteB, -normalX, -normalY, impulse);
+  }
+
+  private getBuoyCollisionPairKey(a: Phaser.Physics.Arcade.Sprite, b: Phaser.Physics.Arcade.Sprite) {
+    const aId = this.ensureObjectCollisionId(a);
+    const bId = this.ensureObjectCollisionId(b);
+    return aId < bId ? `${aId}:${bId}` : `${bId}:${aId}`;
   }
 
   private applyBuoyCollisionPush(sprite: Phaser.Physics.Arcade.Sprite, normalX: number, normalY: number, impulse: number) {
@@ -2073,6 +2167,10 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
+      if (!this.canYachtBeBlockedBySolid(sprite)) {
+        return;
+      }
+
       const ellipse = sprite.getData("solidEllipse") as EllipseHitbox | undefined;
       if (!ellipse) {
         return;
@@ -2454,6 +2552,15 @@ export default class GameScene extends Phaser.Scene {
         }
       });
     }
+
+    if (this.buoyCollisionPairLastHit.size > 512) {
+      const cutoff = this.time.now - 2000;
+      this.buoyCollisionPairLastHit.forEach((value, key) => {
+        if (value < cutoff) {
+          this.buoyCollisionPairLastHit.delete(key);
+        }
+      });
+    }
   }
 
   private startPointerControlWithPointer(pointer: Phaser.Input.Pointer) {
@@ -2629,7 +2736,14 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (ASSET_SHIELD_CONFIG.runtime.drainEnabled) {
-      this.fuel = Math.max(0, this.fuel - ASSET_SHIELD_CONFIG.runtime.drainPerSec * deltaSec);
+      const minFuelWhileActive = Phaser.Math.Clamp(ASSET_SHIELD_CONFIG.runtime.minFuelWhileActive, 0, 1);
+      const nextFuel = this.fuel - ASSET_SHIELD_CONFIG.runtime.drainPerSec * deltaSec;
+      if (nextFuel <= minFuelWhileActive) {
+        this.fuel = this.fuel > minFuelWhileActive ? minFuelWhileActive : Math.max(0, this.fuel);
+        this.deactivateShield("fuel");
+        return;
+      }
+      this.fuel = Math.max(0, nextFuel);
     }
 
     if (ASSET_SHIELD_CONFIG.runtime.autoStopOnFuelEmpty && this.fuel <= 0) {
@@ -2646,6 +2760,78 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.applyShieldMagnetForces(deltaSec);
+  }
+
+  private applyMineMagnetForces(deltaSec: number) {
+    if (!MINE_CONFIG.magnet.enabled || !MINE_CONFIG.magnet.attractEnabled || !this.yachtBody) {
+      return;
+    }
+
+    const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
+    const anchorX = (body ? body.center.x : this.yachtBody.x) + MINE_CONFIG.magnet.centerOffsetX;
+    const anchorY = (body ? body.center.y : this.yachtBody.y) + MINE_CONFIG.magnet.centerOffsetY;
+
+    this.hazards.children.each((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      if (!sprite.active) {
+        return;
+      }
+      if (!MINE_CONFIG.magnet.allowWhileCollecting && sprite.getData("collecting")) {
+        return;
+      }
+      const hazardType = sprite.getData("hazardType") as HazardType | undefined;
+      if (hazardType !== "mine") {
+        return;
+      }
+
+      if (MINE_CONFIG.magnet.updateCooldownMs > 0) {
+        const lastTick = (sprite.getData("mineMagnetLastTickAt") as number | undefined) ?? Number.NEGATIVE_INFINITY;
+        if (this.time.now - lastTick < MINE_CONFIG.magnet.updateCooldownMs) {
+          return;
+        }
+        sprite.setData("mineMagnetLastTickAt", this.time.now);
+      }
+
+      const mineBody = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+      const centerX = mineBody ? mineBody.center.x : sprite.x;
+      const centerY = mineBody ? mineBody.center.y : sprite.y;
+      const dx = centerX - anchorX;
+      const dy = centerY - anchorY;
+      const distance = Math.hypot(dx, dy);
+      if (distance <= MINE_CONFIG.magnet.minDistancePx || distance > MINE_CONFIG.magnet.attractRadiusPx) {
+        return;
+      }
+
+      const normalizedDistance = Phaser.Math.Clamp(distance / MINE_CONFIG.magnet.attractRadiusPx, 0, 1);
+      const falloff = Math.pow(
+        Math.max(0, 1 - normalizedDistance),
+        Math.max(0.05, MINE_CONFIG.magnet.attractFalloffPower),
+      );
+      const shieldScale = this.shieldActive ? MINE_CONFIG.magnet.impulseScaleWhenShieldActive : 1;
+      const impulse = MINE_CONFIG.magnet.attractForcePxPerSec * falloff * deltaSec * shieldScale;
+      if (impulse <= 0) {
+        return;
+      }
+
+      const nx = -dx / distance;
+      const ny = -dy / distance;
+      const pushVx = (sprite.getData("pushVx") as number | undefined) ?? 0;
+      const pushVy = (sprite.getData("pushVy") as number | undefined) ?? 0;
+      const maxPush = Math.max(10, MINE_CONFIG.magnet.maxPushSpeedPxPerSec);
+      const nextPushVx = Phaser.Math.Clamp(
+        pushVx + nx * impulse * MINE_CONFIG.magnet.axisFactorX,
+        -maxPush,
+        maxPush,
+      );
+      const nextPushVy = Phaser.Math.Clamp(
+        pushVy + ny * impulse * MINE_CONFIG.magnet.axisFactorY,
+        -maxPush,
+        maxPush,
+      );
+
+      sprite.setData("pushVx", nextPushVx);
+      sprite.setData("pushVy", nextPushVy);
+    });
   }
 
   private applyShieldMagnetForces(deltaSec: number) {
@@ -3391,6 +3577,7 @@ export default class GameScene extends Phaser.Scene {
     this.scheduledObjectCursor = 0;
 
     this.collisionPairLastHit.clear();
+    this.buoyCollisionPairLastHit.clear();
     this.solidDamageLastHit.clear();
     this.collisionIdCounter = 0;
 
