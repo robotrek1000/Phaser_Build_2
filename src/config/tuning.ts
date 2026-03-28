@@ -7,7 +7,7 @@ export const TUNING = {
 } as const;
 
 export const RUN_TIMER = {
-  initialMs: 40_000,
+  initialMs: 60_000,
   bonusMs: 10_000,
 } as const;
 
