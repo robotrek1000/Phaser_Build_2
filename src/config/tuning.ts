@@ -662,8 +662,9 @@ export const TOP_PROGRESS_BAR_CONFIG = {
   markerShipFlipY: true,
   markerYOffsetPx: -2,
   flagKey: "flag-new",
-  flagScale: 0.09,
-  flagOffsetX: 0,
+  flagScale: 0.12,
+  flagOffsetX: 5,
+  flagOffsetY: -5,
   depth: 52,
 } as const;
 

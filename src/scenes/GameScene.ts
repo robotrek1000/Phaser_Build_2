@@ -469,7 +469,11 @@ export default class GameScene extends Phaser.Scene {
       .setFlipY(progressCfg.markerShipFlipY)
       .setDepth(progressCfg.depth + 2);
     this.topProgressFlag = this.add
-      .image(progressX + progressCfg.width / 2 + progressCfg.flagOffsetX, progressY + progressCfg.height / 2, progressCfg.flagKey)
+      .image(
+        progressX + progressCfg.width / 2 + progressCfg.flagOffsetX,
+        progressY + progressCfg.height / 2 + progressCfg.flagOffsetY,
+        progressCfg.flagKey,
+      )
       .setScale(progressCfg.flagScale)
       .setDepth(progressCfg.depth + 2);
 
@@ -3698,7 +3702,7 @@ export default class GameScene extends Phaser.Scene {
       );
     }
     if (this.topProgressFlag) {
-      this.topProgressFlag.setPosition(x + cfg.width / 2 + cfg.flagOffsetX, y + cfg.height / 2);
+      this.topProgressFlag.setPosition(x + cfg.width / 2 + cfg.flagOffsetX, y + cfg.height / 2 + cfg.flagOffsetY);
     }
   }
 
