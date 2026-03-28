@@ -344,6 +344,22 @@ export const GREEN_HIT_FEEDBACK = {
   blinkEase: "Sine.easeInOut",
 } as const;
 
+export const RED_BUOY_HIT_FEEDBACK = {
+  enabled: true,
+  durationMs: 1_000,
+  tintColor: 0xff3a3a,
+  fromColor: 0xffffff,
+  blinkHalfCycleMs: 100,
+  blinkEase: "Sine.easeInOut",
+  yoyo: true,
+  repeatMode: "fitDuration" as "fitDuration" | "fixed",
+  repeatCount: 4,
+  clearTintOnStart: true,
+  clearTintOnComplete: true,
+  suppressWhenShieldBlinkActive: true,
+  interruptExistingTintTween: true,
+} as const;
+
 export const TIME_UI_CONFIG = {
   xRatio: 0.905,
   y: 12,

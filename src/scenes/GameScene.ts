@@ -25,6 +25,7 @@ import {
   PIRATE_CONFIG,
   PLAY_AREA,
   RED_HIT_INVULNERABILITY,
+  RED_BUOY_HIT_FEEDBACK,
   RED_HIT_OVERLAY_EFFECT,
   RELATIVE_TOUCH_CONTROL,
   RELATIVE_TOUCH_ROUTING,
@@ -162,6 +163,7 @@ export default class GameScene extends Phaser.Scene {
   private redOverlayTimer?: Phaser.Time.TimerEvent;
   private redShipBlinkTween?: Phaser.Tweens.Tween;
   private greenShipTintTween?: Phaser.Tweens.Tween;
+  private redBuoyShipTintTween?: Phaser.Tweens.Tween;
   private redOverlay?: Phaser.GameObjects.Rectangle;
   private shieldShipBlinkTween?: Phaser.Tweens.Tween;
 
@@ -1643,6 +1645,7 @@ export default class GameScene extends Phaser.Scene {
 
     if (hazardType === "moneyDown") {
       this.applyFuelDamage(HAZARD_DAMAGE.moneyDown, false);
+      this.triggerRedBuoyHitFeedback();
     } else {
       this.finishRunFailure("hit_hazard");
       return;
@@ -1676,6 +1679,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.applyFuelDamage(DYNAMIC_BUOY_STATES.down.fuelPenalty, false);
+    this.triggerRedBuoyHitFeedback();
 
     const applyImpact = (sprite.getData("applyImpactAnimation") as boolean | undefined) ?? true;
     const destroyOnContact = (sprite.getData("destroyOnContact") as boolean | undefined) ?? applyImpact;
@@ -3555,30 +3559,84 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private triggerGreenHitFeedback() {
+    this.startYachtTintBlink(
+      GREEN_HIT_FEEDBACK,
+      () => this.greenShipTintTween,
+      (tween) => {
+        this.greenShipTintTween = tween;
+      },
+    );
+  }
+
+  private triggerRedBuoyHitFeedback() {
+    this.startYachtTintBlink(
+      RED_BUOY_HIT_FEEDBACK,
+      () => this.redBuoyShipTintTween,
+      (tween) => {
+        this.redBuoyShipTintTween = tween;
+      },
+    );
+  }
+
+  private startYachtTintBlink(
+    config: {
+      enabled?: boolean;
+      durationMs: number;
+      tintColor: number;
+      fromColor?: number;
+      blinkHalfCycleMs: number;
+      blinkEase: string;
+      yoyo?: boolean;
+      repeatMode?: "fitDuration" | "fixed";
+      repeatCount?: number;
+      clearTintOnStart?: boolean;
+      clearTintOnComplete?: boolean;
+      suppressWhenShieldBlinkActive?: boolean;
+      interruptExistingTintTween?: boolean;
+    },
+    getTween: () => Phaser.Tweens.Tween | undefined,
+    setTween: (tween: Phaser.Tweens.Tween | undefined) => void,
+  ) {
     if (!this.yachtVisual) {
       return;
     }
 
-    if (this.shieldActive && ASSET_SHIELD_CONFIG.shipBlink.enabled) {
+    if (config.enabled === false) {
       return;
     }
 
-    this.greenShipTintTween?.stop();
-    this.greenShipTintTween = undefined;
+    if (config.suppressWhenShieldBlinkActive && this.shieldActive && ASSET_SHIELD_CONFIG.shipBlink.enabled) {
+      return;
+    }
+
+    if (config.interruptExistingTintTween !== false) {
+      getTween()?.stop();
+      setTween(undefined);
+    } else if (getTween()) {
+      return;
+    }
 
     const blendState = { t: 0 };
-    const fromColor = new Phaser.Display.Color(255, 255, 255);
-    const toColor = Phaser.Display.Color.ValueToColor(GREEN_HIT_FEEDBACK.tintColor);
-    const halfCycle = Math.max(1, GREEN_HIT_FEEDBACK.blinkHalfCycleMs);
-    const repeats = Math.max(0, Math.round(GREEN_HIT_FEEDBACK.durationMs / (halfCycle * 2)) - 1);
+    const fromColor = Phaser.Display.Color.ValueToColor(config.fromColor ?? 0xffffff);
+    const toColor = Phaser.Display.Color.ValueToColor(config.tintColor);
+    const halfCycle = Math.max(1, config.blinkHalfCycleMs);
+    const yoyo = config.yoyo !== false;
+    const repeatMode = config.repeatMode ?? "fitDuration";
+    const repeats =
+      repeatMode === "fixed"
+        ? Math.max(0, config.repeatCount ?? 0)
+        : Math.max(0, Math.round(config.durationMs / (halfCycle * 2)) - 1);
 
-    this.yachtVisual.clearTint();
-    this.greenShipTintTween = this.tweens.add({
+    if (config.clearTintOnStart !== false) {
+      this.yachtVisual.clearTint();
+    }
+
+    const tween = this.tweens.add({
       targets: blendState,
       t: 1,
       duration: halfCycle,
-      ease: GREEN_HIT_FEEDBACK.blinkEase,
-      yoyo: true,
+      ease: config.blinkEase,
+      yoyo,
       repeat: repeats,
       onUpdate: () => {
         if (!this.yachtVisual) {
@@ -3589,17 +3647,20 @@ export default class GameScene extends Phaser.Scene {
         this.yachtVisual.setTint(tint);
       },
       onComplete: () => {
-        this.greenShipTintTween = undefined;
-        if (this.yachtVisual) {
+        setTween(undefined);
+        if (this.yachtVisual && config.clearTintOnComplete !== false) {
           this.yachtVisual.clearTint();
         }
       },
     });
+    setTween(tween);
   }
 
   private stopGreenHitFeedback() {
     this.greenShipTintTween?.stop();
     this.greenShipTintTween = undefined;
+    this.redBuoyShipTintTween?.stop();
+    this.redBuoyShipTintTween = undefined;
     this.yachtVisual?.clearTint();
   }
 
