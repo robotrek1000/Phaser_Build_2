@@ -71,7 +71,18 @@ type DynamicBuoyGameplayState = "up" | "down";
 type DynamicBuoyVisualState = DynamicBuoyGameplayState | "no";
 type ShieldButtonState = "disabled" | "ready" | "active";
 type ShieldHazardKey = (typeof ASSET_SHIELD_CONFIG.invulnerability.affectedHazards)[number];
+type ShieldPickupMagnetTargetKey = "coin" | "timeBonus" | "speedBonus";
 type BuoyCollisionActorType = "moneyUp" | HazardType;
+type ShieldPickupMagnetResolvedConfig = {
+  enabled: boolean;
+  radiusPx: number;
+  forcePxPerSec: number;
+  falloffPower: number;
+  minDistancePx: number;
+  maxPullSpeedPxPerSec: number;
+  axisFactorX: number;
+  axisFactorY: number;
+};
 
 type EllipseHitbox = {
   radiusXRatio: number;
@@ -1459,6 +1470,7 @@ export default class GameScene extends Phaser.Scene {
     bonus.setData("yBobFrequency", config.yBobFrequencyHz);
     bonus.setData("yBobPhase", Phaser.Math.FloatBetween(config.yBobPhaseMin, config.yBobPhaseMax));
     bonus.setData("yBobOffsetPrev", 0);
+    bonus.setData("shieldPickupMagnetLastAt", Number.NEGATIVE_INFINITY);
 
     const shadow = this.add.image(bonus.x, bonus.y + config.shadowYOffset, config.shadowTextureKey);
     shadow.setDisplaySize(config.shadowWidth, config.shadowHeight);
@@ -1508,6 +1520,7 @@ export default class GameScene extends Phaser.Scene {
     coin.setData("yBobPhase", Phaser.Math.FloatBetween(COIN_CONFIG.yBobPhaseMin, COIN_CONFIG.yBobPhaseMax));
     coin.setData("yBobOffsetPrev", 0);
     coin.setData("isCoin", true);
+    coin.setData("shieldPickupMagnetLastAt", Number.NEGATIVE_INFINITY);
 
     const shadow = this.add.image(coin.x, coin.y + COIN_CONFIG.shadowYOffset, COIN_CONFIG.shadowTextureKey);
     shadow.setDisplaySize(COIN_CONFIG.shadowWidth, COIN_CONFIG.shadowHeight);
@@ -2918,6 +2931,7 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.applyShieldMagnetForces(deltaSec);
+    this.applyShieldPickupMagnetForces(deltaSec);
   }
 
   private applyMineMagnetForces(deltaSec: number) {
@@ -3070,6 +3084,125 @@ export default class GameScene extends Phaser.Scene {
         );
       }
     });
+  }
+
+  private applyShieldPickupMagnetForces(deltaSec: number) {
+    if (!this.yachtBody) {
+      return;
+    }
+
+    const pickupMagnetCfg = ASSET_SHIELD_CONFIG.pickupMagnet;
+    if (!ASSET_SHIELD_CONFIG.enable || !this.shieldActive || !pickupMagnetCfg.enabled) {
+      return;
+    }
+
+    const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
+    const originX = (body ? body.center.x : this.yachtBody.x) + pickupMagnetCfg.anchorOffsetX;
+    const originY = (body ? body.center.y : this.yachtBody.y) + pickupMagnetCfg.anchorOffsetY;
+
+    const coinCfg = this.resolvePickupMagnetTargetConfig("coin");
+    if (coinCfg.enabled) {
+      this.coins.children.each((child) => {
+        const sprite = child as Phaser.Physics.Arcade.Sprite;
+        this.applyShieldPickupMagnetToSprite(sprite, originX, originY, coinCfg, deltaSec);
+      });
+    }
+
+    const timeBonusCfg = this.resolvePickupMagnetTargetConfig("timeBonus");
+    const speedBonusCfg = this.resolvePickupMagnetTargetConfig("speedBonus");
+    this.timeBonuses.children.each((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
+      const targetCfg = bonusType === "speed" ? speedBonusCfg : timeBonusCfg;
+      if (!targetCfg.enabled) {
+        return;
+      }
+      this.applyShieldPickupMagnetToSprite(sprite, originX, originY, targetCfg, deltaSec);
+    });
+  }
+
+  private resolvePickupMagnetTargetConfig(targetKey: ShieldPickupMagnetTargetKey): ShieldPickupMagnetResolvedConfig {
+    const pickupMagnetCfg = ASSET_SHIELD_CONFIG.pickupMagnet;
+    const commonCfg = pickupMagnetCfg.common;
+    const targetCfg = pickupMagnetCfg.targets[targetKey];
+    return {
+      enabled: targetCfg.enabled,
+      radiusPx: targetCfg.radiusPx ?? commonCfg.radiusPx,
+      forcePxPerSec: targetCfg.forcePxPerSec ?? commonCfg.forcePxPerSec,
+      falloffPower: targetCfg.falloffPower ?? commonCfg.falloffPower,
+      minDistancePx: targetCfg.minDistancePx ?? commonCfg.minDistancePx,
+      maxPullSpeedPxPerSec: targetCfg.maxPullSpeedPxPerSec ?? commonCfg.maxPullSpeedPxPerSec,
+      axisFactorX: targetCfg.axisFactorX ?? commonCfg.axisFactorX,
+      axisFactorY: targetCfg.axisFactorY ?? commonCfg.axisFactorY,
+    };
+  }
+
+  private applyShieldPickupMagnetToSprite(
+    sprite: Phaser.Physics.Arcade.Sprite,
+    originX: number,
+    originY: number,
+    targetCfg: ShieldPickupMagnetResolvedConfig,
+    deltaSec: number,
+  ) {
+    if (!sprite.active) {
+      return;
+    }
+
+    const pickupMagnetCfg = ASSET_SHIELD_CONFIG.pickupMagnet;
+    if (!pickupMagnetCfg.allowWhileCollecting && sprite.getData("collecting")) {
+      return;
+    }
+
+    if (pickupMagnetCfg.updateCooldownMs > 0) {
+      const now = this.time.now;
+      const lastAt = (sprite.getData("shieldPickupMagnetLastAt") as number | undefined) ?? Number.NEGATIVE_INFINITY;
+      if (now - lastAt < pickupMagnetCfg.updateCooldownMs) {
+        return;
+      }
+      sprite.setData("shieldPickupMagnetLastAt", now);
+    }
+
+    const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+    const centerX = body ? body.center.x : sprite.x;
+    const centerY = body ? body.center.y : sprite.y;
+    const dx = centerX - originX;
+    const dy = centerY - originY;
+    const distance = Math.hypot(dx, dy);
+    const radiusPx = Math.max(0, targetCfg.radiusPx);
+    const minDistancePx = Math.max(0, targetCfg.minDistancePx);
+    if (distance <= Math.max(1, minDistancePx) || distance > radiusPx) {
+      return;
+    }
+
+    const falloffBase = 1 - distance / radiusPx;
+    const falloff = Math.pow(Math.max(0, falloffBase), Math.max(0.05, targetCfg.falloffPower));
+    const impulse = targetCfg.forcePxPerSec * falloff * deltaSec;
+    if (impulse <= 0) {
+      return;
+    }
+
+    const maxStep = Math.max(0, targetCfg.maxPullSpeedPxPerSec) * deltaSec;
+    const step = maxStep > 0 ? Math.min(impulse, maxStep) : impulse;
+    if (step <= 0) {
+      return;
+    }
+
+    const nx = -dx / distance;
+    const ny = -dy / distance;
+    let nextX = sprite.x + nx * step * targetCfg.axisFactorX;
+    let nextY = sprite.y + ny * step * targetCfg.axisFactorY;
+
+    if (pickupMagnetCfg.common.clampToPlayAreaX) {
+      const clampPaddingX = Math.max(0, pickupMagnetCfg.common.clampPaddingX);
+      nextX = Phaser.Math.Clamp(nextX, this.playAreaLeft - clampPaddingX, this.playAreaRight + clampPaddingX);
+    }
+
+    if (pickupMagnetCfg.common.clampToViewportY) {
+      const clampPaddingY = Math.max(0, pickupMagnetCfg.common.clampPaddingY);
+      nextY = Phaser.Math.Clamp(nextY, -clampPaddingY, this.scale.height + clampPaddingY);
+    }
+
+    sprite.setPosition(nextX, nextY);
   }
 
   private applyShieldMagnetForceToSprite(
