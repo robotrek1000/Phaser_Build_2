@@ -2095,6 +2095,9 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.solidDamageLastHit.set(id, this.time.now);
+    if (this.shieldActive) {
+      return;
+    }
     this.applyObstacleSlowdown();
     if (!this.redInvulActive) {
       this.triggerRedHitEffects();
