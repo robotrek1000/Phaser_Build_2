@@ -1,14 +1,22 @@
 export const TUNING = {
-  SPEED_START_KMH: 60,
-  FUEL_START: 0.0001,
+  SPEED_START_KMH: 30,
+  FUEL_START: 0,
   FUEL_DRAIN_PER_SEC: 0,
-  FUEL_PICKUP_VALUE: 0.2,
-  SPEED_PER_100M: 0,
+  FUEL_PICKUP_VALUE: 0.1,
+  SPEED_PER_100M: 5,
 } as const;
 
 export const RUN_TIMER = {
   initialMs: 40_000,
   bonusMs: 10_000,
+} as const;
+
+export const RUN_SPEED_RAMP = {
+  startKmh: 30,
+  everyMeters: 100,
+  addKmhPerStep: 5,
+  maxKmh: 80,
+  maxAtMeters: 1000,
 } as const;
 
 export const DISTANCE_CHECKPOINTS = [400, 800, 1200] as const;
@@ -80,6 +88,14 @@ export const YACHT_HITBOX = {
   minRadiusY: 18,
 } as const;
 
+export const YACHT_HAZARD_HITBOX = {
+  widthRatioToVisual: 0.36,
+  heightRatioToVisual: 0.76,
+  minWidthPx: 30,
+  minHeightPx: 110,
+  offsetY: 12,
+} as const;
+
 export const YACHT_SOLID_COLLISION = {
   radiusXRatio: 0.45,
   radiusYRatio: 0.34,
@@ -93,8 +109,8 @@ export const YACHT_SOLID_BLOCKERS = {
   rock1: true,
   rock2: true,
   rock3: true,
-  island1: true,
-  island2: true,
+  island1: false,
+  island2: false,
   harbor: false,
 } as const;
 
@@ -138,16 +154,16 @@ export const ASSETS_BAR_UI = {
 export const ASSET_SHIELD_CONFIG = {
   enable: true,
   activation: {
-    manualOnly: true,
+    manualOnly: false,
     fuelReadyThreshold: 1,
-    allowManualStop: true,
+    allowManualStop: false,
   },
   runtime: {
     durationMs: 5_000,
     timerEnabled: false,
     drainEnabled: true,
     drainPerSec: 0.1,
-    minFuelWhileActive: 0.001,
+    minFuelWhileActive: 0,
     autoStopOnFuelEmpty: true,
     autoStopOnFuelBelowReadyThreshold: false,
   },
@@ -250,6 +266,7 @@ export const ASSET_SHIELD_CONFIG = {
     tintStrength: 0.72,
   },
   button: {
+    hidden: true,
     radiusPx: 56,
     marginLeftPx: 22,
     marginBottomPx: 22,
@@ -327,14 +344,23 @@ export const GREEN_HIT_FEEDBACK = {
   blinkEase: "Sine.easeInOut",
 } as const;
 
-export const TIME_HUD = {
+export const TIME_UI_CONFIG = {
   xRatio: 0.905,
-  y: 14,
-  scale: 0.4,
-  valueYOffsetRatio: 0.68,
+  y: 12,
+  width: 136,
+  height: 86,
+  radius: 16,
+  titleHeight: 30,
+  title: "ВРЕМЯ",
+  titleFontFamily: "Fascinate",
+  titleFontSizePx: 22,
+  titleColor: "#000000",
+  panelColor: 0xd9d9d9,
+  titlePanelColor: 0xb7b7b7,
   valueFontFamily: "Fascinate",
-  valueFontSize: "42px",
+  valueFontSizePx: 52,
   valueColor: "#000000",
+  depth: 52,
 } as const;
 
 export const UI_TEXT = {
@@ -451,13 +477,21 @@ export const RELATIVE_TOUCH_CONTROL = {
 } as const;
 
 export const BRAKING = {
-  minDropFromStartKmh: 40,
+  minDropFromStartKmh: 20,
   decelKmhPerSec: 40,
-  recoverKmhPerSec: 10,
+  recoverKmhPerSec: 24,
 } as const;
 
 export const RUN_START_SPEED = {
-  startDropKmh: 40,
+  startDropKmh: 0,
+} as const;
+
+export const OBSTACLE_SLOWDOWN = {
+  enabled: true,
+  hitDurationMs: 1_250,
+  dropKmh: 22,
+  decelKmhPerSec: 45,
+  recoverKmhPerSec: 30,
 } as const;
 
 export const YACHT_SPEED_Y_ANIM = {
@@ -485,6 +519,136 @@ export const SEGMENT_POOL_RULES = {
   poolCount: 12,
   finalStartMeters: 1200,
   finalEndMeters: 1250,
+} as const;
+
+export const SEGMENT_PICKUP_RULES = {
+  coin: {
+    totalCount: 30,
+    oneCoinPerSegment: true,
+    segmentOffsetMinMeters: 8,
+    segmentOffsetMaxMeters: 38,
+    finalFillStartMeters: 1200,
+    finalFillEndMeters: 1250,
+    finalFillXRatioMin: 0.18,
+    finalFillXRatioMax: 0.82,
+  },
+  speedBonus: {
+    totalCount: 3,
+    boostMeters: [190, 520, 860] as const,
+    xRatioMin: 0.22,
+    xRatioMax: 0.78,
+  },
+} as const;
+
+export const SPEED_BONUS_CONFIG = {
+  textureKey: "speed-bonus",
+  shadowTextureKey: "speed-bonus-shadow",
+  spawnYOffset: -120,
+  width: 80,
+  height: 80,
+  shadowWidth: 100,
+  shadowHeight: 32,
+  shadowYOffset: 116,
+  shadowAlpha: 0.35,
+  depth: 20,
+  shadowDepth: 8,
+  speedYMultiplier: 1.35,
+  zigzagHorizontalSpeed: 500,
+  zigzagLeftBoundOffset: 24,
+  zigzagRightBoundOffset: 24,
+  yBobAmplitudePx: 34,
+  yBobFrequencyHz: 0.65,
+  yBobPhaseMin: 0,
+  yBobPhaseMax: Math.PI * 2,
+  effectDurationMs: 5_000,
+  speedMultiplier: 1.5,
+  transition: {
+    rampUpKmhPerSec: 34,
+    rampDownKmhPerSec: 18,
+  },
+  shadowBobScale: {
+    baseScaleX: 0.25,
+    baseScaleY: 0.25,
+    responseX: 0.08,
+    responseY: 0.08,
+    minScaleX: 0.1,
+    maxScaleX: 1,
+    minScaleY: 0.1,
+    maxScaleY: 1,
+  },
+} as const;
+
+export const COIN_CONFIG = {
+  textureKey: "coin",
+  shadowTextureKey: "coin-shadow",
+  width: 54,
+  height: 54,
+  shadowWidth: 52,
+  shadowHeight: 16,
+  shadowYOffset: 82,
+  shadowAlpha: 0.45,
+  depth: 20,
+  shadowDepth: 8,
+  speedYMultiplier: 1,
+  yBobAmplitudePx: 24,
+  yBobFrequencyHz: 0.70,
+  yBobPhaseMin: 0,
+  yBobPhaseMax: Math.PI * 2,
+  shadowBobScale: {
+    baseScaleX: 0.16,
+    baseScaleY: 0.07,
+    responseX: 0.01,
+    responseY: 0.008,
+    minScaleX: 0.14,
+    maxScaleX: 0.18,
+    minScaleY: 0.06,
+    maxScaleY: 0.08,
+  },
+  collectFlyToUi: true,
+  collectDurationMs: 320,
+} as const;
+
+export const COIN_UI_CONFIG = {
+  x: 14,
+  y: 12,
+  width: 136,
+  height: 86,
+  radius: 16,
+  titleHeight: 30,
+  title: "МОНЕТЫ",
+  titleFontFamily: "Fascinate",
+  titleFontSizePx: 22,
+  titleColor: "#000000",
+  panelColor: 0xd9d9d9,
+  titlePanelColor: 0xb7b7b7,
+  iconKey: "coin",
+  iconSize: 28,
+  iconXOffset: 22,
+  valueFontFamily: "Fascinate",
+  valueFontSizePx: 52,
+  valueColor: "#000000",
+  valueXOffset: 56,
+  depth: 52,
+} as const;
+
+export const TOP_PROGRESS_BAR_CONFIG = {
+  xRatio: 0.54,
+  y: 24,
+  width: 300,
+  height: 34,
+  radius: 14,
+  frameColor: 0x143f80,
+  fillColor: 0xffd220,
+  markerShipKey: "ship-1",
+  markerShipScale: 0.17,
+  markerShipRotationDeg: -90,
+  markerShipFlipX: true,
+  markerShipFlipY: true,
+  markerYOffsetPx: -2,
+  flagKey: "flag-new",
+  flagScale: 0.09,
+  flagOffsetX: 0,
+  depth: 52,
 } as const;
 
 export const HAZARD_COLLISION = {
@@ -877,7 +1041,8 @@ export const TIME_BONUS = {
   textureKey: "time-bonus",
   shadowTextureKey: "time-bonus-shadow",
   spawnYOffset: -120,
-  size: 80,
+  width: 80,
+  height: 80,
   shadowWidth: 100,
   shadowHeight: 32,
   shadowYOffset: 120,
@@ -888,8 +1053,8 @@ export const TIME_BONUS = {
   zigzagRightBoundOffset: 24,
   depth: 20,
   shadowDepth: 8,
-  yBobAmplitudePx: 26,
-  yBobFrequencyHz: 1.8,
+  yBobAmplitudePx: 34,
+  yBobFrequencyHz: 0.65,
   yBobPhaseMin: 0,
   yBobPhaseMax: Math.PI * 2,
   shadowBobScale: {

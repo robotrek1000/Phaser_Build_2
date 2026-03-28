@@ -4,42 +4,45 @@ import {
   ASSETS_BAR_UI,
   BRAKING,
   BUOY_COLLISION_LAYER,
-  COIN_PENDING_MILESTONES,
-  COIN_REWARD_ANIMATION,
+  COIN_CONFIG,
+  COIN_UI_CONFIG,
   COLLECT_ANIMATION_BUOY,
   COLLECT_ANIMATION_TIME_BONUS,
   DYNAMIC_BUOY_BLINK,
   DYNAMIC_BUOY_CONFIG,
   DYNAMIC_BUOY_STATES,
-  DISTANCE_CHECKPOINTS,
   FALL_SPEED,
   GREEN_HIT_FEEDBACK,
   HAZARD_COLLISION,
   HAZARD_DAMAGE,
-  HUD_LAYOUT,
+  LANDMARK_METERS,
   IMPACT_ANIMATION,
   LANDMARK_CONFIG,
   MINE_CONFIG,
   MONEY_DOWN_CONFIG,
+  OBSTACLE_SLOWDOWN,
   OBJECT_SIZES,
   PIRATE_CONFIG,
   PLAY_AREA,
-  PROGRESS_BAR_KEYS,
   RED_HIT_INVULNERABILITY,
   RED_HIT_OVERLAY_EFFECT,
   RELATIVE_TOUCH_CONTROL,
   RELATIVE_TOUCH_ROUTING,
   ROCK_CONFIG,
+  RUN_SPEED_RAMP,
   RUN_START_SPEED,
   RUN_TIMER,
+  SEGMENT_PICKUP_RULES,
   SEGMENT_SPAWN,
   SHIP_ASSET_STAGES,
+  SPEED_BONUS_CONFIG,
+  TIME_UI_CONFIG,
   TIME_BONUS,
-  TIME_HUD,
+  TOP_PROGRESS_BAR_CONFIG,
   TUNING,
-  UI_TEXT,
   WATER_SCROLL,
   WHIRLPOOL_CONFIG,
+  YACHT_HAZARD_HITBOX,
   YACHT_SOLID_COLLISION,
   YACHT_SOLID_BLOCKERS,
   YACHT_SPEED_Y_ANIM,
@@ -56,12 +59,13 @@ import {
 } from "../config/level_segments";
 
 type SuccessReason = "success_harbor_610";
-type FailureReason = "out_of_assets" | "out_of_time";
+type FailureReason = "out_of_time" | "hit_hazard";
 type ResultReason = FailureReason | SuccessReason;
 type ControlPlatform = "desktop" | "mobile";
 type HazardType = "mine" | "pirate" | "moneyDown" | "dynamicBuoy" | "whirlpool";
 type SolidType = "rock1" | "rock2" | "rock3" | "island1" | "island2" | "harbor";
-type CollectAnimationType = "buoy" | "timeBonus";
+type CollectAnimationType = "buoy" | "timeBonus" | "speedBonus";
+type AirBonusType = "time" | "speed";
 type DynamicBuoyGameplayState = "up" | "down";
 type DynamicBuoyVisualState = DynamicBuoyGameplayState | "no";
 type ShieldButtonState = "disabled" | "ready" | "active";
@@ -110,21 +114,21 @@ const MONEY_UP_HITBOX = {
 
 export default class GameScene extends Phaser.Scene {
   private water?: Phaser.GameObjects.TileSprite;
-  private speedText?: Phaser.GameObjects.Text;
-  private distanceText?: Phaser.GameObjects.Text;
-  private speedIcon?: Phaser.GameObjects.Image;
-  private distanceIcon?: Phaser.GameObjects.Image;
+  private coinsText?: Phaser.GameObjects.Text;
+  private topProgressGraphics?: Phaser.GameObjects.Graphics;
+  private topProgressShipMarker?: Phaser.GameObjects.Image;
+  private topProgressFlag?: Phaser.GameObjects.Image;
   private assetsBarGraphics?: Phaser.GameObjects.Graphics;
-  private progressBar?: Phaser.GameObjects.Image;
-  private timeBar?: Phaser.GameObjects.Image;
+  private timePanelGraphics?: Phaser.GameObjects.Graphics;
   private timeText?: Phaser.GameObjects.Text;
-  private progressKeys = [...PROGRESS_BAR_KEYS];
 
   private yachtBody?: Phaser.Physics.Arcade.Sprite;
+  private yachtHazardCollider?: Phaser.Physics.Arcade.Sprite;
   private yachtVisual?: Phaser.GameObjects.Image;
 
   private hazards!: Phaser.Physics.Arcade.Group;
   private moneyUps!: Phaser.Physics.Arcade.Group;
+  private coins!: Phaser.Physics.Arcade.Group;
   private timeBonuses!: Phaser.Physics.Arcade.Group;
   private solids!: Phaser.Physics.Arcade.Group;
   private harborGate?: Phaser.Physics.Arcade.Image;
@@ -147,7 +151,6 @@ export default class GameScene extends Phaser.Scene {
   private pointerFrameDeltaY = 0;
   private desiredTargetX = 0;
   private desiredTargetY = 0;
-  private hasPointerControlInput = false;
 
   private yMotionOffsetPx = 0;
   private yachtSpeedMotionOutTween?: Phaser.Tweens.Tween;
@@ -179,20 +182,16 @@ export default class GameScene extends Phaser.Scene {
   private isGameOver = false;
   private speedKmh = Math.max(0, TUNING.SPEED_START_KMH - RUN_START_SPEED.startDropKmh);
   private distanceM = 0;
-  private fuel = TUNING.FUEL_START;
+  private assetsValue = TUNING.FUEL_START;
   private remainingTimeMs = RUN_TIMER.initialMs;
 
-  private pendingCoins = 0;
-  private progressStage = 0;
-  private reachedCoinMilestones = new Set<number>();
+  private coinsCollected = 0;
+  private coinsScheduledTotal = 0;
 
-  private coinRewardAnimationQueue: string[] = [];
-  private isCoinRewardAnimationPlaying = false;
-  private coinRewardAnimationSprite?: Phaser.GameObjects.Image;
-  private coinRewardAnimationDelayEvent?: Phaser.Time.TimerEvent;
-  private coinRewardAnimationHoldEvent?: Phaser.Time.TimerEvent;
-  private coinRewardAnimationEnterTween?: Phaser.Tweens.Tween;
-  private coinRewardAnimationExitTween?: Phaser.Tweens.Tween;
+  private speedBonusRemainingMs = 0;
+  private speedBonusLockedKmh?: number;
+  private speedBonusDecayActive = false;
+  private obstacleSlowdownUntilMs = Number.NEGATIVE_INFINITY;
 
   private scheduledObjects: ScheduledSegmentObject[] = [];
   private scheduledObjectCursor = 0;
@@ -224,7 +223,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.resetPointerControlState();
-    this.playYachtSpeedMotion("brake");
   };
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
@@ -282,30 +280,44 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
+    const speedBonusWasActive = this.speedBonusRemainingMs > 0;
+    if (speedBonusWasActive) {
+      this.speedBonusRemainingMs = Math.max(0, this.speedBonusRemainingMs - delta);
+    }
+    const speedBonusIsActive = this.speedBonusRemainingMs > 0;
+    if (speedBonusWasActive && !speedBonusIsActive) {
+      this.speedBonusDecayActive = true;
+      this.speedBonusLockedKmh = undefined;
+    }
+
     const baseSpeedKmh = this.getBaseSpeedKmhByDistance(this.distanceM);
-    const initialRunSpeedKmh = this.getInitialRunSpeedKmh();
-    const brakeFloorKmh = Math.max(0, TUNING.SPEED_START_KMH - BRAKING.minDropFromStartKmh);
     let speedTargetKmh = baseSpeedKmh;
     let speedStepKmh = BRAKING.recoverKmhPerSec * dt;
 
-    if (this.pointerControlActive) {
+    if (speedBonusIsActive) {
+      const lockedBonusSpeed = this.speedBonusLockedKmh ?? baseSpeedKmh * SPEED_BONUS_CONFIG.speedMultiplier;
+      this.speedBonusLockedKmh = lockedBonusSpeed;
+      speedTargetKmh = lockedBonusSpeed;
+      speedStepKmh = SPEED_BONUS_CONFIG.transition.rampUpKmhPerSec * dt;
+      this.speedBonusDecayActive = false;
+    } else if (this.speedBonusDecayActive) {
       speedTargetKmh = baseSpeedKmh;
-      speedStepKmh = BRAKING.recoverKmhPerSec * dt;
-    } else if (this.hasPointerControlInput) {
-      speedTargetKmh = brakeFloorKmh;
-      speedStepKmh = BRAKING.decelKmhPerSec * dt;
+      speedStepKmh = SPEED_BONUS_CONFIG.transition.rampDownKmhPerSec * dt;
+    } else if (OBSTACLE_SLOWDOWN.enabled && this.time.now < this.obstacleSlowdownUntilMs) {
+      speedTargetKmh = Math.max(0, baseSpeedKmh - OBSTACLE_SLOWDOWN.dropKmh);
+      speedStepKmh = OBSTACLE_SLOWDOWN.decelKmhPerSec * dt;
     } else {
-      speedTargetKmh = initialRunSpeedKmh;
-      speedStepKmh = BRAKING.decelKmhPerSec * dt;
+      speedTargetKmh = baseSpeedKmh;
+      speedStepKmh = OBSTACLE_SLOWDOWN.recoverKmhPerSec * dt;
     }
 
     this.speedKmh = this.moveTowardValue(this.speedKmh, speedTargetKmh, speedStepKmh);
+    if (this.speedBonusDecayActive && Math.abs(this.speedKmh - baseSpeedKmh) < 0.01) {
+      this.speedBonusDecayActive = false;
+    }
 
     const speedMps = (this.speedKmh * 1000) / 3600;
     this.distanceM += speedMps * dt;
-
-    this.updatePendingCoins();
-    this.updateCheckpointProgress();
 
     const controlProfile = this.getControlProfileForPlatform(this.activeControlPlatform);
     if (this.pointerControlActive && (this.pointerFrameDeltaX !== 0 || this.pointerFrameDeltaY !== 0)) {
@@ -339,20 +351,19 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.processSegmentSchedule();
+    this.updateAutoShieldState();
     this.updateShieldRuntime(delta, dt);
     this.applyMineMagnetForces(dt);
     this.updateActiveObjectSpeeds(dt);
     this.updateHazardMotion(dt);
     this.updateMoneyUps(dt);
+    this.updateCoins();
     this.updateTimeBonuses();
     this.updateSolidVelocities();
     this.resolveYachtVsSolidEllipses();
 
-    this.fuel = Math.max(0, this.fuel - dt * TUNING.FUEL_DRAIN_PER_SEC);
-    if (this.fuel <= 0) {
-      this.finishRunOutOfAssets();
-      return;
-    }
+    this.assetsValue = Math.max(0, this.assetsValue - dt * TUNING.FUEL_DRAIN_PER_SEC);
+    this.updateAutoShieldState();
 
     this.cleanupFallingObjects();
     this.pruneOldCollisionMaps();
@@ -367,20 +378,19 @@ export default class GameScene extends Phaser.Scene {
       this.swayTime += delta / 1000;
       const swayOffset = Math.sin(this.swayTime * YACHT_SWAY.frequencyHz) * YACHT_SWAY.amplitudePx;
       this.yachtVisual.setPosition(this.yachtBody.x, this.yachtBody.y + YACHT_VISUAL_OFFSET.y + swayOffset);
+      if (this.yachtHazardCollider) {
+        this.yachtHazardCollider.setPosition(
+          this.yachtBody.x,
+          this.yachtBody.y + (YACHT_HAZARD_HITBOX.offsetY ?? 0),
+        );
+      }
       this.updateShieldVisualPosition();
     }
 
-    if (this.speedText) {
-      this.speedText.setText(`${Math.round(this.speedKmh)} км/ч`);
-    }
-
-    if (this.distanceText) {
-      this.distanceText.setText(`${Math.floor(this.distanceM)} м`);
-    }
-
-    this.updateYachtStageTextureByAssets(this.fuel);
-    this.updateAssetsBar(this.fuel);
-    this.updateProgressBar(this.progressStage);
+    this.updateYachtStageTextureByAssets(this.assetsValue);
+    this.updateAssetsBar(this.assetsValue);
+    this.updateTopProgressUi();
+    this.updateCoinsHud();
     this.updateTimerHud();
     this.updateShieldButtonState();
     this.updateShieldVisualPresentation();
@@ -403,64 +413,100 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private createHud(width: number, _height: number) {
-    this.speedIcon = this.add
-      .image(HUD_LAYOUT.speedX - HUD_LAYOUT.iconOffsetX, HUD_LAYOUT.speedY + HUD_LAYOUT.speedIconYOffset, "icon-speed")
-      .setOrigin(0.5, 0.5);
-    this.speedIcon.setScale(HUD_LAYOUT.speedIconScale);
-    this.speedIcon.setDepth(50);
+    const coinUi = COIN_UI_CONFIG;
+    const coinPanel = this.add.graphics();
+    coinPanel.setDepth(coinUi.depth);
+    coinPanel.fillStyle(coinUi.panelColor, 0.96);
+    coinPanel.fillRoundedRect(coinUi.x, coinUi.y, coinUi.width, coinUi.height, coinUi.radius);
+    coinPanel.fillStyle(coinUi.titlePanelColor, 1);
+    coinPanel.fillRoundedRect(coinUi.x, coinUi.y, coinUi.width, coinUi.titleHeight, coinUi.radius);
+    coinPanel.fillRect(coinUi.x, coinUi.y + coinUi.titleHeight - coinUi.radius, coinUi.width, coinUi.radius);
 
-    this.speedText = this.add.text(HUD_LAYOUT.speedX, HUD_LAYOUT.speedY, "20 км/ч", {
-      fontFamily: UI_TEXT.hudFontFamily,
-      fontSize: UI_TEXT.hudSpeedSize,
-      fontStyle: UI_TEXT.hudSpeedStyle,
-      fontWeight: UI_TEXT.hudSpeedWeight,
-      color: UI_TEXT.hudColor,
-    });
-    this.speedText.setDepth(50);
-
-    this.distanceIcon = this.add
-      .image(
-        HUD_LAYOUT.distanceX - HUD_LAYOUT.iconOffsetX,
-        HUD_LAYOUT.distanceY + HUD_LAYOUT.distanceIconYOffset,
-        "icon-flag",
-      )
-      .setOrigin(0.5, 0.5);
-    this.distanceIcon.setScale(HUD_LAYOUT.distanceIconScale);
-    this.distanceIcon.setDepth(50);
-
-    this.distanceText = this.add.text(HUD_LAYOUT.distanceX, HUD_LAYOUT.distanceY, "0 м", {
-      fontFamily: UI_TEXT.hudFontFamily,
-      fontSize: UI_TEXT.hudDistanceSize,
-      fontStyle: UI_TEXT.hudDistanceStyle,
-      fontWeight: UI_TEXT.hudDistanceWeight,
-      color: UI_TEXT.hudColor,
-    });
-    this.distanceText.setDepth(50);
-
-    this.speedText.setX(HUD_LAYOUT.speedX + HUD_LAYOUT.iconGap);
-    this.distanceText.setX(HUD_LAYOUT.distanceX + HUD_LAYOUT.iconGap);
-
-    const progressX = width * HUD_LAYOUT.progressXRatio;
-    this.progressBar = this.add.image(progressX, HUD_LAYOUT.progressY, this.progressKeys[0]).setOrigin(0.5, 0);
-    this.progressBar.setScale(HUD_LAYOUT.progressScale);
-    this.progressBar.setDepth(50);
-
-    const timeBarX = width * TIME_HUD.xRatio;
-    this.timeBar = this.add.image(timeBarX, TIME_HUD.y, "time-bar").setOrigin(0.5, 0);
-    this.timeBar.setScale(TIME_HUD.scale);
-    this.timeBar.setDepth(50);
-
-    const timeValueY = TIME_HUD.y + this.timeBar.displayHeight * TIME_HUD.valueYOffsetRatio;
-    this.timeText = this.add.text(timeBarX, timeValueY, this.formatTimeMMSS(this.remainingTimeMs), {
-      fontFamily: TIME_HUD.valueFontFamily,
-      fontSize: TIME_HUD.valueFontSize,
-      color: TIME_HUD.valueColor,
+    this.add.text(coinUi.x + coinUi.width / 2, coinUi.y + coinUi.titleHeight / 2, coinUi.title, {
+      fontFamily: coinUi.titleFontFamily,
+      fontSize: `${coinUi.titleFontSizePx}px`,
       fontStyle: "bold",
-    });
+      color: coinUi.titleColor,
+    })
+      .setOrigin(0.5, 0.5)
+      .setDepth(coinUi.depth + 1);
+
+    this.add.image(
+      coinUi.x + coinUi.iconXOffset,
+      coinUi.y + coinUi.titleHeight + (coinUi.height - coinUi.titleHeight) / 2,
+      coinUi.iconKey,
+    )
+      .setDisplaySize(coinUi.iconSize, coinUi.iconSize)
+      .setDepth(coinUi.depth + 1);
+
+    this.coinsText = this.add.text(
+      coinUi.x + coinUi.valueXOffset,
+      coinUi.y + coinUi.titleHeight + (coinUi.height - coinUi.titleHeight) / 2,
+      "0",
+      {
+        fontFamily: coinUi.valueFontFamily,
+        fontSize: `${coinUi.valueFontSizePx}px`,
+        fontStyle: "bold",
+        color: coinUi.valueColor,
+      },
+    );
+    this.coinsText.setOrigin(0, 0.5);
+    this.coinsText.setDepth(coinUi.depth + 1);
+
+    const progressCfg = TOP_PROGRESS_BAR_CONFIG;
+    const progressX = width * progressCfg.xRatio;
+    const progressY = progressCfg.y;
+
+    this.topProgressGraphics = this.add.graphics();
+    this.topProgressGraphics.setDepth(progressCfg.depth);
+    this.topProgressShipMarker = this.add
+      .image(progressX - progressCfg.width / 2, progressY + progressCfg.height / 2 + progressCfg.markerYOffsetPx, progressCfg.markerShipKey)
+      .setScale(progressCfg.markerShipScale)
+      .setAngle(progressCfg.markerShipRotationDeg)
+      .setFlipX(progressCfg.markerShipFlipX)
+      .setFlipY(progressCfg.markerShipFlipY)
+      .setDepth(progressCfg.depth + 2);
+    this.topProgressFlag = this.add
+      .image(progressX + progressCfg.width / 2 + progressCfg.flagOffsetX, progressY + progressCfg.height / 2, progressCfg.flagKey)
+      .setScale(progressCfg.flagScale)
+      .setDepth(progressCfg.depth + 2);
+
+    const timeUi = TIME_UI_CONFIG;
+    const timeX = width * timeUi.xRatio - timeUi.width / 2;
+    this.timePanelGraphics = this.add.graphics();
+    this.timePanelGraphics.setDepth(timeUi.depth);
+    this.timePanelGraphics.fillStyle(timeUi.panelColor, 0.96);
+    this.timePanelGraphics.fillRoundedRect(timeX, timeUi.y, timeUi.width, timeUi.height, timeUi.radius);
+    this.timePanelGraphics.fillStyle(timeUi.titlePanelColor, 1);
+    this.timePanelGraphics.fillRoundedRect(timeX, timeUi.y, timeUi.width, timeUi.titleHeight, timeUi.radius);
+    this.timePanelGraphics.fillRect(timeX, timeUi.y + timeUi.titleHeight - timeUi.radius, timeUi.width, timeUi.radius);
+
+    this.add.text(timeX + timeUi.width / 2, timeUi.y + timeUi.titleHeight / 2, timeUi.title, {
+      fontFamily: timeUi.titleFontFamily,
+      fontSize: `${timeUi.titleFontSizePx}px`,
+      fontStyle: "bold",
+      color: timeUi.titleColor,
+    })
+      .setOrigin(0.5, 0.5)
+      .setDepth(timeUi.depth + 1);
+
+    this.timeText = this.add.text(
+      timeX + timeUi.width / 2,
+      timeUi.y + timeUi.titleHeight + (timeUi.height - timeUi.titleHeight) / 2,
+      this.formatTimeMMSS(this.remainingTimeMs),
+      {
+        fontFamily: timeUi.valueFontFamily,
+        fontSize: `${timeUi.valueFontSizePx}px`,
+        color: timeUi.valueColor,
+        fontStyle: "bold",
+      },
+    );
     this.timeText.setOrigin(0.5, 0.5);
-    this.timeText.setDepth(51);
+    this.timeText.setDepth(timeUi.depth + 1);
 
     this.createRedHitOverlay(width, this.scale.height);
+    this.updateCoinsHud();
+    this.updateTopProgressUi();
   }
 
   private createShieldUi(width: number, height: number) {
@@ -470,25 +516,27 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const buttonCfg = ASSET_SHIELD_CONFIG.button;
-    const centerX = buttonCfg.marginLeftPx + buttonCfg.radiusPx;
-    const centerY = height - buttonCfg.marginBottomPx - buttonCfg.radiusPx;
+    if (!buttonCfg.hidden) {
+      const centerX = buttonCfg.marginLeftPx + buttonCfg.radiusPx;
+      const centerY = height - buttonCfg.marginBottomPx - buttonCfg.radiusPx;
 
-    this.shieldButtonCircle = this.add.circle(centerX, centerY, buttonCfg.radiusPx, buttonCfg.disabled.fillColor, 1);
-    this.shieldButtonCircle.setStrokeStyle(buttonCfg.strokeWidthPx, buttonCfg.strokeColor, 1);
-    this.shieldButtonCircle.setScrollFactor(0);
-    this.shieldButtonCircle.setDepth(buttonCfg.depth);
-    this.shieldButtonCircle.setScale(buttonCfg.disabled.scale);
+      this.shieldButtonCircle = this.add.circle(centerX, centerY, buttonCfg.radiusPx, buttonCfg.disabled.fillColor, 1);
+      this.shieldButtonCircle.setStrokeStyle(buttonCfg.strokeWidthPx, buttonCfg.strokeColor, 1);
+      this.shieldButtonCircle.setScrollFactor(0);
+      this.shieldButtonCircle.setDepth(buttonCfg.depth);
+      this.shieldButtonCircle.setScale(buttonCfg.disabled.scale);
 
-    this.shieldButtonLabel = this.add.text(centerX, centerY, buttonCfg.disabled.label, {
-      fontFamily: buttonCfg.textFontFamily,
-      fontSize: `${buttonCfg.textFontSizePx}px`,
-      color: buttonCfg.disabled.textColor,
-      fontStyle: "bold",
-      align: "center",
-    });
-    this.shieldButtonLabel.setOrigin(0.5, 0.5);
-    this.shieldButtonLabel.setScrollFactor(0);
-    this.shieldButtonLabel.setDepth(buttonCfg.depth + 1);
+      this.shieldButtonLabel = this.add.text(centerX, centerY, buttonCfg.disabled.label, {
+        fontFamily: buttonCfg.textFontFamily,
+        fontSize: `${buttonCfg.textFontSizePx}px`,
+        color: buttonCfg.disabled.textColor,
+        fontStyle: "bold",
+        align: "center",
+      });
+      this.shieldButtonLabel.setOrigin(0.5, 0.5);
+      this.shieldButtonLabel.setScrollFactor(0);
+      this.shieldButtonLabel.setDepth(buttonCfg.depth + 1);
+    }
 
     this.shieldVisual = this.add.graphics();
     this.shieldVisual.setDepth(ASSET_SHIELD_CONFIG.visual.depth);
@@ -500,8 +548,10 @@ export default class GameScene extends Phaser.Scene {
     this.updateShieldButtonState(true);
 
     this.scale.off("resize", this.handleShieldResize, this);
-    this.scale.on("resize", this.handleShieldResize, this);
-    this.handleShieldResize({ width, height });
+    if (!buttonCfg.hidden) {
+      this.scale.on("resize", this.handleShieldResize, this);
+      this.handleShieldResize({ width, height });
+    }
   }
 
   private redrawShieldVisual() {
@@ -566,7 +616,7 @@ export default class GameScene extends Phaser.Scene {
     let nextState: ShieldButtonState = "disabled";
     if (this.shieldActive) {
       nextState = "active";
-    } else if (this.fuel >= ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
+    } else if (this.assetsValue >= ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
       nextState = "ready";
     }
 
@@ -747,6 +797,11 @@ export default class GameScene extends Phaser.Scene {
     this.yachtBody.setImmovable(true);
     this.yachtBody.setVisible(false);
 
+    this.yachtHazardCollider = this.physics.add.sprite(startX, startY, "yacht-rect");
+    this.yachtHazardCollider.body.setAllowGravity(false);
+    this.yachtHazardCollider.setImmovable(true);
+    this.yachtHazardCollider.setVisible(false);
+
     this.yachtVisual = this.add.image(startX, startY, "ship-5");
     this.yachtVisual.setDepth(5);
     this.applyYachtVisualSizing();
@@ -757,8 +812,8 @@ export default class GameScene extends Phaser.Scene {
     this.desiredTargetY = this.targetY;
 
     this.createAssetsBar();
-    this.updateYachtStageTextureByAssets(this.fuel);
-    this.updateAssetsBar(this.fuel);
+    this.updateYachtStageTextureByAssets(this.assetsValue);
+    this.updateAssetsBar(this.assetsValue);
   }
 
   private applyYachtVisualSizing() {
@@ -777,12 +832,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private updateYachtBodyHitboxFromVisual() {
-    if (!this.yachtBody || !this.yachtVisual) {
+    if (!this.yachtBody || !this.yachtVisual || !this.yachtHazardCollider) {
       return;
     }
 
     const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
-    if (!body) {
+    const hazardBody = this.yachtHazardCollider.body as Phaser.Physics.Arcade.Body | undefined;
+    if (!body || !hazardBody) {
       return;
     }
 
@@ -796,21 +852,32 @@ export default class GameScene extends Phaser.Scene {
     );
 
     body.setSize(bodyWidth, bodyHeight, true);
+
+    const hazardWidth = Math.max(
+      YACHT_HAZARD_HITBOX.minWidthPx,
+      Math.round(this.yachtVisual.displayWidth * YACHT_HAZARD_HITBOX.widthRatioToVisual),
+    );
+    const hazardHeight = Math.max(
+      YACHT_HAZARD_HITBOX.minHeightPx,
+      Math.round(this.yachtVisual.displayHeight * YACHT_HAZARD_HITBOX.heightRatioToVisual),
+    );
+    hazardBody.setSize(hazardWidth, hazardHeight, true);
   }
 
   private createGroups() {
     this.hazards = this.physics.add.group({ allowGravity: false });
     this.moneyUps = this.physics.add.group({ allowGravity: false });
+    this.coins = this.physics.add.group({ allowGravity: false });
     this.timeBonuses = this.physics.add.group({ allowGravity: false });
     this.solids = this.physics.add.group({ allowGravity: false, immovable: true });
   }
 
   private setupCollisions() {
-    if (!this.yachtBody) {
+    if (!this.yachtBody || !this.yachtHazardCollider) {
       return;
     }
 
-    this.physics.add.overlap(this.yachtBody, this.hazards, (_yacht, hazardObj) => {
+    this.physics.add.overlap(this.yachtHazardCollider, this.hazards, (_yacht, hazardObj) => {
       const sprite = hazardObj as Phaser.Physics.Arcade.Sprite;
       if (!sprite.active || sprite.getData("collecting") || this.isGameOver) {
         return;
@@ -818,7 +885,7 @@ export default class GameScene extends Phaser.Scene {
       this.handleHazardContact(sprite);
     });
 
-    this.physics.add.overlap(this.yachtBody, this.moneyUps, (_yacht, pickupObj) => {
+    this.physics.add.overlap(this.yachtHazardCollider, this.moneyUps, (_yacht, pickupObj) => {
       const sprite = pickupObj as Phaser.Physics.Arcade.Sprite;
       if (!sprite.active || sprite.getData("collecting") || this.isGameOver) {
         return;
@@ -826,7 +893,15 @@ export default class GameScene extends Phaser.Scene {
       this.collectMoneyUp(sprite);
     });
 
-    this.physics.add.overlap(this.yachtBody, this.timeBonuses, (_yacht, bonusObj) => {
+    this.physics.add.overlap(this.yachtHazardCollider, this.coins, (_yacht, coinObj) => {
+      const sprite = coinObj as Phaser.Physics.Arcade.Sprite;
+      if (!sprite.active || sprite.getData("collecting") || this.isGameOver) {
+        return;
+      }
+      this.collectCoin(sprite);
+    });
+
+    this.physics.add.overlap(this.yachtHazardCollider, this.timeBonuses, (_yacht, bonusObj) => {
       const sprite = bonusObj as Phaser.Physics.Arcade.Sprite;
       if (!sprite.active || sprite.getData("collecting") || this.isGameOver) {
         return;
@@ -896,6 +971,7 @@ export default class GameScene extends Phaser.Scene {
 
   private buildRunSegmentSchedule() {
     this.scheduledObjects = [];
+    this.coinsScheduledTotal = 0;
 
     for (const pool of LEVEL_SEGMENT_POOLS) {
       let cursor = pool.startMeter;
@@ -907,9 +983,12 @@ export default class GameScene extends Phaser.Scene {
         const remaining = pool.endMeter - cursor;
         const usedLength = Math.max(1, Math.min(template.lengthMeters, remaining));
         this.appendTemplateObjects(template, cursor, usedLength, pool.endMeter);
+        this.appendCoinForSegment(cursor, usedLength, pool.endMeter, template.id);
         cursor += usedLength;
       }
     }
+
+    this.appendSpeedBonuses();
 
     this.appendTemplateObjects(
       FINAL_SEGMENT_1200_1250,
@@ -917,6 +996,8 @@ export default class GameScene extends Phaser.Scene {
       FINAL_SEGMENT_1200_1250.lengthMeters,
       1250,
     );
+
+    this.appendMissingCoinsInFinalWindow();
 
     this.scheduledObjects.sort((a, b) => a.spawnMeter - b.spawnMeter);
     this.scheduledObjectCursor = 0;
@@ -956,6 +1037,71 @@ export default class GameScene extends Phaser.Scene {
         scheduleId: `${template.id}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
         spawnMeter,
       });
+      if (item.type === "coin") {
+        this.coinsScheduledTotal += 1;
+      }
+    }
+  }
+
+  private appendCoinForSegment(segmentStartMeter: number, usedLength: number, segmentEndMeter: number, segmentId: string) {
+    const coinRules = SEGMENT_PICKUP_RULES.coin;
+    if (!coinRules.oneCoinPerSegment) {
+      return;
+    }
+    if (segmentStartMeter >= coinRules.finalFillStartMeters) {
+      return;
+    }
+    if (this.coinsScheduledTotal >= coinRules.totalCount) {
+      return;
+    }
+
+    const minOffset = Math.min(usedLength, Math.max(0, coinRules.segmentOffsetMinMeters));
+    const maxOffset = Math.min(usedLength, Math.max(minOffset, coinRules.segmentOffsetMaxMeters));
+    const offset = Phaser.Math.FloatBetween(minOffset, maxOffset);
+    const spawnMeter = Math.min(segmentEndMeter, segmentStartMeter + offset);
+    const xRatio = Phaser.Math.FloatBetween(0.22, 0.78);
+
+    this.scheduledObjects.push({
+      type: "coin",
+      meterOffset: offset,
+      xRatio,
+      scheduleId: `coin-segment-${segmentId}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+      spawnMeter,
+    });
+    this.coinsScheduledTotal += 1;
+  }
+
+  private appendSpeedBonuses() {
+    const speedRules = SEGMENT_PICKUP_RULES.speedBonus;
+    for (const meter of speedRules.boostMeters) {
+      this.scheduledObjects.push({
+        type: "speedBonus",
+        meterOffset: 0,
+        xRatio: Phaser.Math.FloatBetween(speedRules.xRatioMin, speedRules.xRatioMax),
+        scheduleId: `speedBonus@${meter}@${this.scheduledObjects.length}`,
+        spawnMeter: meter,
+      });
+    }
+  }
+
+  private appendMissingCoinsInFinalWindow() {
+    const coinRules = SEGMENT_PICKUP_RULES.coin;
+    const missing = Math.max(0, coinRules.totalCount - this.coinsScheduledTotal);
+    if (missing === 0) {
+      return;
+    }
+
+    for (let i = 0; i < missing; i += 1) {
+      const spawnMeter = Phaser.Math.FloatBetween(coinRules.finalFillStartMeters + 3, coinRules.finalFillEndMeters - 3);
+      const xRatio = Phaser.Math.FloatBetween(coinRules.finalFillXRatioMin, coinRules.finalFillXRatioMax);
+      this.scheduledObjects.push({
+        type: "coin",
+        meterOffset: 0,
+        xRatio,
+        scheduleId: `coin-final-fill-${i}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+        spawnMeter,
+      });
+      this.coinsScheduledTotal += 1;
     }
   }
 
@@ -1003,6 +1149,12 @@ export default class GameScene extends Phaser.Scene {
         break;
       case "moneyUp":
         this.spawnMoneyUp(x);
+        break;
+      case "coin":
+        this.spawnCoin(x);
+        break;
+      case "speedBonus":
+        this.spawnSpeedBonus(x);
         break;
       case "timeBonus":
         this.spawnTimeBonus(x);
@@ -1250,7 +1402,15 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private spawnTimeBonus(x: number) {
-    const bonus = this.timeBonuses.get(x, SEGMENT_SPAWN.objectSpawnY + TIME_BONUS.spawnYOffset, TIME_BONUS.textureKey) as Phaser.Physics.Arcade.Sprite | null;
+    this.spawnAirBonus("time", TIME_BONUS, x);
+  }
+
+  private spawnSpeedBonus(x: number) {
+    this.spawnAirBonus("speed", SPEED_BONUS_CONFIG, x);
+  }
+
+  private spawnAirBonus(type: AirBonusType, config: typeof TIME_BONUS | typeof SPEED_BONUS_CONFIG, x: number) {
+    const bonus = this.timeBonuses.get(x, SEGMENT_SPAWN.objectSpawnY + config.spawnYOffset, config.textureKey) as Phaser.Physics.Arcade.Sprite | null;
     if (!bonus) {
       return;
     }
@@ -1260,44 +1420,95 @@ export default class GameScene extends Phaser.Scene {
     bonus.setActive(true).setVisible(true);
     bonus.setAlpha(1);
     bonus.setRotation(0);
-    bonus.setDepth(TIME_BONUS.depth);
-    bonus.setDisplaySize(TIME_BONUS.size, TIME_BONUS.size);
+    bonus.setDepth(config.depth);
+    bonus.setDisplaySize(config.width, config.height);
 
     const body = bonus.body as Phaser.Physics.Arcade.Body | undefined;
     if (!body) {
       return;
     }
     body.setAllowGravity(false);
-    body.setSize(Math.round(TIME_BONUS.size * 0.72), Math.round(TIME_BONUS.size * 0.72), true);
+    body.setSize(Math.round(config.width * 0.72), Math.round(config.height * 0.72), true);
 
-    bonus.setVelocity(Phaser.Math.Between(0, 1) === 0 ? -TIME_BONUS.zigzagHorizontalSpeed : TIME_BONUS.zigzagHorizontalSpeed, this.getBaseFallSpeedByKmh(this.speedKmh) * TIME_BONUS.speedYMultiplier);
+    const speedX = Phaser.Math.Between(0, 1) === 0 ? -config.zigzagHorizontalSpeed : config.zigzagHorizontalSpeed;
+    bonus.setVelocity(speedX, this.getBaseFallSpeedByKmh(this.speedKmh) * config.speedYMultiplier);
     bonus.setData("collecting", false);
-    bonus.setData("speedYMultiplier", TIME_BONUS.speedYMultiplier);
-    bonus.setData("zigzagHorizontalSpeed", TIME_BONUS.zigzagHorizontalSpeed);
-    bonus.setData("zigzagLeftBoundOffset", TIME_BONUS.zigzagLeftBoundOffset);
-    bonus.setData("zigzagRightBoundOffset", TIME_BONUS.zigzagRightBoundOffset);
-    bonus.setData("shadowYOffset", TIME_BONUS.shadowYOffset);
-    bonus.setData("shadowAlpha", TIME_BONUS.shadowAlpha);
-    bonus.setData("cleanupPadding", TIME_BONUS.size * 1.5);
-    bonus.setData("shadowBaseScaleX", TIME_BONUS.shadowBobScale.baseScaleX);
-    bonus.setData("shadowBaseScaleY", TIME_BONUS.shadowBobScale.baseScaleY);
-    bonus.setData("shadowResponseX", TIME_BONUS.shadowBobScale.responseX);
-    bonus.setData("shadowResponseY", TIME_BONUS.shadowBobScale.responseY);
-    bonus.setData("shadowMinScaleX", TIME_BONUS.shadowBobScale.minScaleX);
-    bonus.setData("shadowMaxScaleX", TIME_BONUS.shadowBobScale.maxScaleX);
-    bonus.setData("shadowMinScaleY", TIME_BONUS.shadowBobScale.minScaleY);
-    bonus.setData("shadowMaxScaleY", TIME_BONUS.shadowBobScale.maxScaleY);
-    bonus.setData("yBobAmplitude", TIME_BONUS.yBobAmplitudePx);
-    bonus.setData("yBobFrequency", TIME_BONUS.yBobFrequencyHz);
-    bonus.setData("yBobPhase", Phaser.Math.FloatBetween(TIME_BONUS.yBobPhaseMin, TIME_BONUS.yBobPhaseMax));
+    bonus.setData("bonusType", type);
+    bonus.setData("speedYMultiplier", config.speedYMultiplier);
+    bonus.setData("zigzagHorizontalSpeed", config.zigzagHorizontalSpeed);
+    bonus.setData("zigzagLeftBoundOffset", config.zigzagLeftBoundOffset);
+    bonus.setData("zigzagRightBoundOffset", config.zigzagRightBoundOffset);
+    bonus.setData("shadowYOffset", config.shadowYOffset);
+    bonus.setData("shadowAlpha", config.shadowAlpha);
+    bonus.setData("cleanupPadding", config.height * 1.5);
+    bonus.setData("shadowBaseScaleX", config.shadowBobScale.baseScaleX);
+    bonus.setData("shadowBaseScaleY", config.shadowBobScale.baseScaleY);
+    bonus.setData("shadowResponseX", config.shadowBobScale.responseX);
+    bonus.setData("shadowResponseY", config.shadowBobScale.responseY);
+    bonus.setData("shadowMinScaleX", config.shadowBobScale.minScaleX);
+    bonus.setData("shadowMaxScaleX", config.shadowBobScale.maxScaleX);
+    bonus.setData("shadowMinScaleY", config.shadowBobScale.minScaleY);
+    bonus.setData("shadowMaxScaleY", config.shadowBobScale.maxScaleY);
+    bonus.setData("yBobAmplitude", config.yBobAmplitudePx);
+    bonus.setData("yBobFrequency", config.yBobFrequencyHz);
+    bonus.setData("yBobPhase", Phaser.Math.FloatBetween(config.yBobPhaseMin, config.yBobPhaseMax));
     bonus.setData("yBobOffsetPrev", 0);
 
-    const shadow = this.add.image(bonus.x, bonus.y + TIME_BONUS.shadowYOffset, TIME_BONUS.shadowTextureKey);
-    shadow.setDisplaySize(TIME_BONUS.shadowWidth, TIME_BONUS.shadowHeight);
-    shadow.setScale(TIME_BONUS.shadowBobScale.baseScaleX, TIME_BONUS.shadowBobScale.baseScaleY);
-    shadow.setAlpha(TIME_BONUS.shadowAlpha);
-    shadow.setDepth(TIME_BONUS.shadowDepth);
+    const shadow = this.add.image(bonus.x, bonus.y + config.shadowYOffset, config.shadowTextureKey);
+    shadow.setDisplaySize(config.shadowWidth, config.shadowHeight);
+    shadow.setScale(config.shadowBobScale.baseScaleX, config.shadowBobScale.baseScaleY);
+    shadow.setAlpha(config.shadowAlpha);
+    shadow.setDepth(config.shadowDepth);
     bonus.setData("shadow", shadow);
+  }
+
+  private spawnCoin(x: number) {
+    const coin = this.coins.get(x, SEGMENT_SPAWN.objectSpawnY, COIN_CONFIG.textureKey) as Phaser.Physics.Arcade.Sprite | null;
+    if (!coin) {
+      return;
+    }
+
+    this.destroyTimeBonusShadow(coin);
+
+    coin.setActive(true).setVisible(true);
+    coin.setAlpha(1);
+    coin.setRotation(0);
+    coin.setDepth(COIN_CONFIG.depth);
+    coin.setDisplaySize(COIN_CONFIG.width, COIN_CONFIG.height);
+
+    const body = coin.body as Phaser.Physics.Arcade.Body | undefined;
+    if (!body) {
+      return;
+    }
+    body.setAllowGravity(false);
+    body.setSize(Math.round(COIN_CONFIG.width * 0.72), Math.round(COIN_CONFIG.height * 0.72), true);
+
+    coin.setVelocity(0, this.getBaseFallSpeedByKmh(this.speedKmh) * COIN_CONFIG.speedYMultiplier);
+    coin.setData("collecting", false);
+    coin.setData("speedYMultiplier", COIN_CONFIG.speedYMultiplier);
+    coin.setData("shadowYOffset", COIN_CONFIG.shadowYOffset);
+    coin.setData("shadowAlpha", COIN_CONFIG.shadowAlpha);
+    coin.setData("cleanupPadding", COIN_CONFIG.height * 1.5);
+    coin.setData("shadowBaseScaleX", COIN_CONFIG.shadowBobScale.baseScaleX);
+    coin.setData("shadowBaseScaleY", COIN_CONFIG.shadowBobScale.baseScaleY);
+    coin.setData("shadowResponseX", COIN_CONFIG.shadowBobScale.responseX);
+    coin.setData("shadowResponseY", COIN_CONFIG.shadowBobScale.responseY);
+    coin.setData("shadowMinScaleX", COIN_CONFIG.shadowBobScale.minScaleX);
+    coin.setData("shadowMaxScaleX", COIN_CONFIG.shadowBobScale.maxScaleX);
+    coin.setData("shadowMinScaleY", COIN_CONFIG.shadowBobScale.minScaleY);
+    coin.setData("shadowMaxScaleY", COIN_CONFIG.shadowBobScale.maxScaleY);
+    coin.setData("yBobAmplitude", COIN_CONFIG.yBobAmplitudePx);
+    coin.setData("yBobFrequency", COIN_CONFIG.yBobFrequencyHz);
+    coin.setData("yBobPhase", Phaser.Math.FloatBetween(COIN_CONFIG.yBobPhaseMin, COIN_CONFIG.yBobPhaseMax));
+    coin.setData("yBobOffsetPrev", 0);
+    coin.setData("isCoin", true);
+
+    const shadow = this.add.image(coin.x, coin.y + COIN_CONFIG.shadowYOffset, COIN_CONFIG.shadowTextureKey);
+    shadow.setDisplaySize(COIN_CONFIG.shadowWidth, COIN_CONFIG.shadowHeight);
+    shadow.setScale(COIN_CONFIG.shadowBobScale.baseScaleX, COIN_CONFIG.shadowBobScale.baseScaleY);
+    shadow.setAlpha(COIN_CONFIG.shadowAlpha);
+    shadow.setDepth(COIN_CONFIG.shadowDepth);
+    coin.setData("shadow", shadow);
   }
 
   private spawnRock(type: "rock1" | "rock2" | "rock3", x: number) {
@@ -1400,13 +1611,13 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private handleHazardContact(sprite: Phaser.Physics.Arcade.Sprite) {
-    if (!this.yachtBody) {
+    if (!this.yachtHazardCollider) {
       return;
     }
 
     const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "mine";
     const collisionCooldown = (sprite.getData("collisionCooldownMs") as number | undefined) ?? 200;
-    const pairKey = this.getCollisionPairKey(this.yachtBody, sprite);
+    const pairKey = this.getCollisionPairKey(this.yachtHazardCollider, sprite);
     const lastHitAt = this.collisionPairLastHit.get(pairKey) ?? Number.NEGATIVE_INFINITY;
     if (this.time.now - lastHitAt < collisionCooldown) {
       return;
@@ -1430,24 +1641,11 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (hazardType === "pirate") {
-      this.applyPiratePush(sprite);
-      if (!this.redInvulActive) {
-        this.applyFuelDamage(HAZARD_DAMAGE.pirate);
-      }
+    if (hazardType === "moneyDown") {
+      this.applyFuelDamage(HAZARD_DAMAGE.moneyDown, false);
+    } else {
+      this.finishRunFailure("hit_hazard");
       return;
-    }
-
-    if (hazardType === "whirlpool") {
-      if (!this.redInvulActive) {
-        this.applyFuelDamage(HAZARD_DAMAGE.whirlpool);
-      }
-      return;
-    }
-
-    if (!this.redInvulActive) {
-      const damage = hazardType === "moneyDown" ? HAZARD_DAMAGE.moneyDown : HAZARD_DAMAGE.mine;
-      this.applyFuelDamage(damage);
     }
 
     const applyImpact = (sprite.getData("applyImpactAnimation") as boolean | undefined) ?? true;
@@ -1465,7 +1663,7 @@ export default class GameScene extends Phaser.Scene {
   private handleDynamicBuoyContact(sprite: Phaser.Physics.Arcade.Sprite) {
     const state = this.getDynamicBuoyCollisionState(sprite);
     if (state === "up") {
-      this.fuel = Math.min(1, this.fuel + DYNAMIC_BUOY_STATES.up.fuelDelta);
+      this.assetsValue = Math.min(1, this.assetsValue + DYNAMIC_BUOY_STATES.up.fuelDelta);
       this.refreshShieldDurationByPickup("dynamicUp");
       this.triggerGreenHitFeedback();
       this.collectFuel(sprite);
@@ -1477,9 +1675,7 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (!this.redInvulActive) {
-      this.applyFuelDamage(DYNAMIC_BUOY_STATES.down.fuelPenalty);
-    }
+    this.applyFuelDamage(DYNAMIC_BUOY_STATES.down.fuelPenalty, false);
 
     const applyImpact = (sprite.getData("applyImpactAnimation") as boolean | undefined) ?? true;
     const destroyOnContact = (sprite.getData("destroyOnContact") as boolean | undefined) ?? applyImpact;
@@ -1491,6 +1687,13 @@ export default class GameScene extends Phaser.Scene {
       this.stopDynamicBuoyStateTimer(sprite);
       sprite.destroy();
     }
+  }
+
+  private applyObstacleSlowdown() {
+    if (!OBSTACLE_SLOWDOWN.enabled) {
+      return;
+    }
+    this.obstacleSlowdownUntilMs = Math.max(this.obstacleSlowdownUntilMs, this.time.now + OBSTACLE_SLOWDOWN.hitDurationMs);
   }
 
   private getDynamicBuoyCollisionState(sprite: Phaser.Physics.Arcade.Sprite): DynamicBuoyGameplayState {
@@ -1795,13 +1998,11 @@ export default class GameScene extends Phaser.Scene {
     sprite.setData("lastCollisionAt", this.time.now);
   }
 
-  private applyFuelDamage(damage: number) {
-    this.fuel = Math.max(0, this.fuel - damage);
-    if (this.fuel <= 0) {
-      this.finishRunOutOfAssets();
-      return;
+  private applyFuelDamage(damage: number, withRedHit = true) {
+    this.assetsValue = Math.max(0, this.assetsValue - damage);
+    if (withRedHit) {
+      this.triggerRedHitEffects();
     }
-    this.triggerRedHitEffects();
   }
 
   private applyPiratePush(sprite: Phaser.Physics.Arcade.Sprite) {
@@ -1886,11 +2087,6 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const damageEnabled = !!sprite.getData("solidDamageEnabled");
-    if (!damageEnabled || this.redInvulActive) {
-      return;
-    }
-
     const id = this.ensureObjectCollisionId(sprite);
     const cooldownMs = (sprite.getData("solidDamageCooldownMs") as number | undefined) ?? 220;
     const last = this.solidDamageLastHit.get(id) ?? Number.NEGATIVE_INFINITY;
@@ -1899,11 +2095,10 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.solidDamageLastHit.set(id, this.time.now);
-    const damageValue = (sprite.getData("solidDamageValue") as number | undefined) ?? 0;
-    if (damageValue <= 0) {
-      return;
+    this.applyObstacleSlowdown();
+    if (!this.redInvulActive) {
+      this.triggerRedHitEffects();
     }
-    this.applyFuelDamage(damageValue);
   }
 
   private updateActiveObjectSpeeds(deltaSec: number) {
@@ -1955,6 +2150,15 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
       const speedYMultiplier = (sprite.getData("speedYMultiplier") as number | undefined) ?? TIME_BONUS.speedYMultiplier;
+      sprite.setVelocityY(baseFallSpeed * speedYMultiplier);
+    });
+
+    this.coins.children.each((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      if (!sprite.active || sprite.getData("collecting")) {
+        return;
+      }
+      const speedYMultiplier = (sprite.getData("speedYMultiplier") as number | undefined) ?? COIN_CONFIG.speedYMultiplier;
       sprite.setVelocityY(baseFallSpeed * speedYMultiplier);
     });
   }
@@ -2062,6 +2266,37 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
+  private updateCoins() {
+    const timeSec = this.time.now / 1000;
+    this.coins.children.each((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      if (!sprite.active) {
+        return;
+      }
+
+      let normalizedBob = 0;
+      if (!sprite.getData("collecting")) {
+        const yBobAmplitude = (sprite.getData("yBobAmplitude") as number | undefined) ?? COIN_CONFIG.yBobAmplitudePx;
+        const yBobFrequency = (sprite.getData("yBobFrequency") as number | undefined) ?? COIN_CONFIG.yBobFrequencyHz;
+        const yBobPhase = (sprite.getData("yBobPhase") as number | undefined) ?? 0;
+        const prevOffset = (sprite.getData("yBobOffsetPrev") as number | undefined) ?? 0;
+        const nextOffset = Math.sin(timeSec * yBobFrequency * Math.PI * 2 + yBobPhase) * yBobAmplitude;
+        sprite.y += nextOffset - prevOffset;
+        sprite.setData("yBobOffsetPrev", nextOffset);
+        normalizedBob = yBobAmplitude > 0 ? Phaser.Math.Clamp(nextOffset / yBobAmplitude, -1, 1) : 0;
+        sprite.setVelocityX(0);
+      }
+
+      const shadow = sprite.getData("shadow") as Phaser.GameObjects.Image | undefined;
+      if (shadow && shadow.active) {
+        const shadowYOffset = (sprite.getData("shadowYOffset") as number | undefined) ?? COIN_CONFIG.shadowYOffset;
+        shadow.setPosition(sprite.x, sprite.y + shadowYOffset);
+        const shadowScale = this.getAirBonusShadowScaleByBob(sprite, normalizedBob);
+        shadow.setScale(shadowScale.scaleX, shadowScale.scaleY);
+      }
+    });
+  }
+
   private updateTimeBonuses() {
     const timeSec = this.time.now / 1000;
     this.timeBonuses.children.each((child) => {
@@ -2092,7 +2327,7 @@ export default class GameScene extends Phaser.Scene {
         const yBobFrequency = (sprite.getData("yBobFrequency") as number | undefined) ?? 0;
         const yBobPhase = (sprite.getData("yBobPhase") as number | undefined) ?? 0;
         const prevOffset = (sprite.getData("yBobOffsetPrev") as number | undefined) ?? 0;
-        const nextOffset = Math.sin(timeSec * yBobFrequency + yBobPhase) * yBobAmplitude;
+        const nextOffset = Math.sin(timeSec * yBobFrequency * Math.PI * 2 + yBobPhase) * yBobAmplitude;
         sprite.y += nextOffset - prevOffset;
         sprite.setData("yBobOffsetPrev", nextOffset);
         normalizedBob = yBobAmplitude > 0 ? Phaser.Math.Clamp(nextOffset / yBobAmplitude, -1, 1) : 0;
@@ -2262,7 +2497,20 @@ export default class GameScene extends Phaser.Scene {
 
     this.timeBonuses.children.each((child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
-      const cleanupPadding = (sprite.getData("cleanupPadding") as number | undefined) ?? TIME_BONUS.size * 1.5;
+      const cleanupPadding = (sprite.getData("cleanupPadding") as number | undefined) ?? TIME_BONUS.height * 1.5;
+      const minX = -cleanupPadding;
+      const maxX = this.scale.width + cleanupPadding;
+      const isOutByY = sprite.y > maxY;
+      const isOutByX = sprite.x < minX || sprite.x > maxX;
+      if (sprite.active && !sprite.getData("collecting") && (isOutByY || isOutByX)) {
+        this.destroyTimeBonusShadow(sprite);
+        sprite.destroy();
+      }
+    });
+
+    this.coins.children.each((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      const cleanupPadding = (sprite.getData("cleanupPadding") as number | undefined) ?? COIN_CONFIG.height * 1.5;
       const minX = -cleanupPadding;
       const maxX = this.scale.width + cleanupPadding;
       const isOutByY = sprite.y > maxY;
@@ -2287,7 +2535,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private collectMoneyUp(sprite: Phaser.Physics.Arcade.Sprite) {
-    this.fuel = Math.min(1, this.fuel + TUNING.FUEL_PICKUP_VALUE);
+    this.assetsValue = Math.min(1, this.assetsValue + TUNING.FUEL_PICKUP_VALUE);
     this.refreshShieldDurationByPickup("moneyUp");
     this.triggerGreenHitFeedback();
     this.collectFuel(sprite);
@@ -2368,9 +2616,27 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private collectAirBonus(sprite: Phaser.Physics.Arcade.Sprite) {
+    const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
     this.destroyTimeBonusShadow(sprite);
+    if (bonusType === "speed") {
+      if (this.speedBonusRemainingMs <= 0 || this.speedBonusLockedKmh === undefined) {
+        this.speedBonusLockedKmh = this.getBaseSpeedKmhByDistance(this.distanceM) * SPEED_BONUS_CONFIG.speedMultiplier;
+      }
+      this.speedBonusRemainingMs = SPEED_BONUS_CONFIG.effectDurationMs;
+      this.speedBonusDecayActive = false;
+      this.playYachtSpeedMotion("accel");
+      this.collectFuel(sprite, "speedBonus");
+      return;
+    }
+
     this.remainingTimeMs += RUN_TIMER.bonusMs;
     this.updateTimerHud();
+    this.collectFuel(sprite, "timeBonus");
+  }
+
+  private collectCoin(sprite: Phaser.Physics.Arcade.Sprite) {
+    this.coinsCollected += 1;
+    this.updateCoinsHud();
     this.collectFuel(sprite, "timeBonus");
   }
 
@@ -2382,122 +2648,8 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private updatePendingCoins() {
-    for (const milestone of COIN_PENDING_MILESTONES) {
-      if (!this.reachedCoinMilestones.has(milestone.meters) && this.distanceM >= milestone.meters) {
-        this.reachedCoinMilestones.add(milestone.meters);
-        this.pendingCoins += milestone.coins;
-        this.enqueueCoinRewardAnimationByCoins(milestone.coins);
-      }
-    }
-  }
-
-  private updateCheckpointProgress() {
-    let nextStage = 0;
-    for (const checkpoint of DISTANCE_CHECKPOINTS) {
-      if (this.distanceM >= checkpoint) {
-        nextStage += 1;
-      }
-    }
-    this.progressStage = nextStage;
-  }
-
-  private enqueueCoinRewardAnimationByCoins(coins: number) {
-    this.coinRewardAnimationQueue.push(this.getCoinRewardAnimationKeyByCoins(coins));
-    this.playNextCoinRewardAnimation();
-  }
-
-  private getCoinRewardAnimationKeyByCoins(coins: number) {
-    if (coins >= 15) {
-      return "coin-animation-3";
-    }
-    if (coins >= 10) {
-      return "coin-animation-2";
-    }
-    return "coin-animation-1";
-  }
-
-  private playNextCoinRewardAnimation() {
-    if (this.isCoinRewardAnimationPlaying || this.coinRewardAnimationQueue.length === 0 || this.isGameOver) {
-      return;
-    }
-
-    const textureKey = this.coinRewardAnimationQueue[0];
-    const { width, height } = this.scale;
-    const x = width * COIN_REWARD_ANIMATION.anchorXRatio;
-    const y = height * COIN_REWARD_ANIMATION.anchorYRatio;
-
-    if (!this.coinRewardAnimationSprite) {
-      this.coinRewardAnimationSprite = this.add.image(x, y, textureKey);
-      this.coinRewardAnimationSprite.setScrollFactor(0);
-      this.coinRewardAnimationSprite.setDepth(COIN_REWARD_ANIMATION.depth);
-    } else {
-      this.coinRewardAnimationSprite.setPosition(x, y);
-      this.coinRewardAnimationSprite.setTexture(textureKey);
-      this.coinRewardAnimationSprite.setVisible(true);
-    }
-
-    this.isCoinRewardAnimationPlaying = true;
-    this.coinRewardAnimationSprite.setAlpha(COIN_REWARD_ANIMATION.alphaStart);
-    this.coinRewardAnimationSprite.setScale(COIN_REWARD_ANIMATION.scaleStart);
-
-    this.coinRewardAnimationDelayEvent?.remove(false);
-    this.coinRewardAnimationHoldEvent?.remove(false);
-    this.coinRewardAnimationEnterTween?.stop();
-    this.coinRewardAnimationExitTween?.stop();
-    this.coinRewardAnimationDelayEvent = this.time.delayedCall(COIN_REWARD_ANIMATION.startDelayMs, () => {
-      if (!this.coinRewardAnimationSprite || this.isGameOver) {
-        return;
-      }
-      this.coinRewardAnimationEnterTween = this.tweens.add({
-        targets: this.coinRewardAnimationSprite,
-        alpha: COIN_REWARD_ANIMATION.alphaPeak,
-        scale: COIN_REWARD_ANIMATION.scalePeak,
-        duration: COIN_REWARD_ANIMATION.enterDurationMs,
-        ease: COIN_REWARD_ANIMATION.ease,
-        onComplete: () => {
-          this.coinRewardAnimationEnterTween = undefined;
-          this.coinRewardAnimationHoldEvent = this.time.delayedCall(COIN_REWARD_ANIMATION.holdMs, () => {
-            if (!this.coinRewardAnimationSprite) {
-              return;
-            }
-            this.coinRewardAnimationExitTween = this.tweens.add({
-              targets: this.coinRewardAnimationSprite,
-              alpha: COIN_REWARD_ANIMATION.alphaEnd,
-              scale: COIN_REWARD_ANIMATION.scaleEnd,
-              duration: COIN_REWARD_ANIMATION.exitDurationMs,
-              ease: COIN_REWARD_ANIMATION.ease,
-              onComplete: () => {
-                if (this.coinRewardAnimationSprite) {
-                  this.coinRewardAnimationSprite.setVisible(false);
-                }
-                this.coinRewardAnimationQueue.shift();
-                this.coinRewardAnimationExitTween = undefined;
-                this.coinRewardAnimationHoldEvent = undefined;
-                this.coinRewardAnimationDelayEvent = undefined;
-                this.isCoinRewardAnimationPlaying = false;
-                this.playNextCoinRewardAnimation();
-              },
-            });
-          });
-        },
-      });
-    });
-  }
-
   private stopCoinRewardAnimations() {
-    this.coinRewardAnimationDelayEvent?.remove(false);
-    this.coinRewardAnimationDelayEvent = undefined;
-    this.coinRewardAnimationHoldEvent?.remove(false);
-    this.coinRewardAnimationHoldEvent = undefined;
-    this.coinRewardAnimationEnterTween?.stop();
-    this.coinRewardAnimationEnterTween = undefined;
-    this.coinRewardAnimationExitTween?.stop();
-    this.coinRewardAnimationExitTween = undefined;
-    this.coinRewardAnimationQueue = [];
-    this.isCoinRewardAnimationPlaying = false;
-    this.coinRewardAnimationSprite?.destroy();
-    this.coinRewardAnimationSprite = undefined;
+    // kept for compatibility with existing run-end flow
   }
 
   private formatTimeMMSS(ms: number) {
@@ -2565,19 +2717,14 @@ export default class GameScene extends Phaser.Scene {
 
   private startPointerControlWithPointer(pointer: Phaser.Input.Pointer) {
     const platform = this.resolveControlPlatformForPointer(pointer);
-    const wasInactive = !this.pointerControlActive;
     this.pointerControlActive = true;
     this.pointerControlId = pointer.id;
-    this.hasPointerControlInput = true;
     this.activeControlPlatform = platform;
     this.updateControlBoundsForPlatform(platform);
     this.pointerLastX = pointer.x;
     this.pointerLastY = pointer.y;
     this.pointerFrameDeltaX = 0;
     this.pointerFrameDeltaY = 0;
-    if (wasInactive) {
-      this.playYachtSpeedMotion("accel");
-    }
   }
 
   private tryStartShieldTapCandidate(pointer: Phaser.Input.Pointer) {
@@ -2669,7 +2816,7 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.fuel < ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
+    if (this.assetsValue < ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
       this.pulseShieldButtonRejectedTap();
       return;
     }
@@ -2737,23 +2884,23 @@ export default class GameScene extends Phaser.Scene {
 
     if (ASSET_SHIELD_CONFIG.runtime.drainEnabled) {
       const minFuelWhileActive = Phaser.Math.Clamp(ASSET_SHIELD_CONFIG.runtime.minFuelWhileActive, 0, 1);
-      const nextFuel = this.fuel - ASSET_SHIELD_CONFIG.runtime.drainPerSec * deltaSec;
+      const nextFuel = this.assetsValue - ASSET_SHIELD_CONFIG.runtime.drainPerSec * deltaSec;
       if (nextFuel <= minFuelWhileActive) {
-        this.fuel = this.fuel > minFuelWhileActive ? minFuelWhileActive : Math.max(0, this.fuel);
+        this.assetsValue = this.assetsValue > minFuelWhileActive ? minFuelWhileActive : Math.max(0, this.assetsValue);
         this.deactivateShield("fuel");
         return;
       }
-      this.fuel = Math.max(0, nextFuel);
+      this.assetsValue = Math.max(0, nextFuel);
     }
 
-    if (ASSET_SHIELD_CONFIG.runtime.autoStopOnFuelEmpty && this.fuel <= 0) {
+    if (ASSET_SHIELD_CONFIG.runtime.autoStopOnFuelEmpty && this.assetsValue <= 0) {
       this.deactivateShield("fuel");
       return;
     }
 
     if (
       ASSET_SHIELD_CONFIG.runtime.autoStopOnFuelBelowReadyThreshold &&
-      this.fuel < ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold
+      this.assetsValue < ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold
     ) {
       this.deactivateShield("fuel");
       return;
@@ -3207,7 +3354,10 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private getBaseSpeedKmhByDistance(distanceM: number) {
-    return TUNING.SPEED_START_KMH + Math.floor(distanceM / 100) * TUNING.SPEED_PER_100M;
+    const clampedDistance = Phaser.Math.Clamp(distanceM, 0, RUN_SPEED_RAMP.maxAtMeters);
+    const steps = Math.floor(clampedDistance / RUN_SPEED_RAMP.everyMeters);
+    const speed = RUN_SPEED_RAMP.startKmh + steps * RUN_SPEED_RAMP.addKmhPerStep;
+    return Math.min(RUN_SPEED_RAMP.maxKmh, speed);
   }
 
   private getInitialRunSpeedKmh() {
@@ -3450,14 +3600,56 @@ export default class GameScene extends Phaser.Scene {
     this.yachtVisual?.clearTint();
   }
 
-  private updateProgressBar(progressStage: number) {
-    if (!this.progressBar) {
+  private updateCoinsHud() {
+    if (!this.coinsText) {
       return;
     }
-    const stageIndex = Phaser.Math.Clamp(progressStage, 0, this.progressKeys.length - 1);
-    const key = this.progressKeys[stageIndex];
-    if (this.progressBar.texture.key !== key) {
-      this.progressBar.setTexture(key);
+    this.coinsText.setText(`${this.coinsCollected}`);
+  }
+
+  private updateTopProgressUi() {
+    if (!this.topProgressGraphics) {
+      return;
+    }
+
+    const cfg = TOP_PROGRESS_BAR_CONFIG;
+    const width = this.scale.width;
+    const x = width * cfg.xRatio;
+    const y = cfg.y;
+    const progress = Phaser.Math.Clamp(this.distanceM / LANDMARK_METERS.harbor, 0, 1);
+    const fillWidth = cfg.width * progress;
+
+    this.topProgressGraphics.clear();
+    this.topProgressGraphics.fillStyle(cfg.frameColor, 1);
+    this.topProgressGraphics.fillRoundedRect(x - cfg.width / 2, y, cfg.width, cfg.height, cfg.radius);
+    this.topProgressGraphics.fillStyle(cfg.fillColor, 1);
+    if (fillWidth > 0) {
+      this.topProgressGraphics.fillRoundedRect(x - cfg.width / 2, y, fillWidth, cfg.height, cfg.radius);
+    }
+
+    if (this.topProgressShipMarker) {
+      this.topProgressShipMarker.setPosition(
+        x - cfg.width / 2 + fillWidth,
+        y + cfg.height / 2 + cfg.markerYOffsetPx,
+      );
+    }
+    if (this.topProgressFlag) {
+      this.topProgressFlag.setPosition(x + cfg.width / 2 + cfg.flagOffsetX, y + cfg.height / 2);
+    }
+  }
+
+  private updateAutoShieldState() {
+    if (!ASSET_SHIELD_CONFIG.enable) {
+      return;
+    }
+
+    if (!this.shieldActive && this.assetsValue >= ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
+      this.activateShield();
+      return;
+    }
+
+    if (this.shieldActive && this.assetsValue <= 0) {
+      this.deactivateShield("fuel");
     }
   }
 
@@ -3507,21 +3699,17 @@ export default class GameScene extends Phaser.Scene {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
       this.destroyTimeBonusShadow(sprite);
     });
+    this.safeEachGroupChild(this.coins, (child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      this.destroyTimeBonusShadow(sprite);
+    });
 
     this.scene.start("Result", {
       distanceM: this.distanceM,
-      coinsAwarded: this.pendingCoins,
+      coinsAwarded: this.coinsCollected,
       coinsLost: 0,
       reason,
     });
-  }
-
-  private finishRunOutOfAssets() {
-    if (this.remainingTimeMs <= 0) {
-      this.finishRunOutOfTime();
-      return;
-    }
-    this.finishRunFailure("out_of_assets");
   }
 
   private finishRunOutOfTime() {
@@ -3542,10 +3730,14 @@ export default class GameScene extends Phaser.Scene {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
       this.destroyTimeBonusShadow(sprite);
     });
+    this.safeEachGroupChild(this.coins, (child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      this.destroyTimeBonusShadow(sprite);
+    });
 
     this.scene.start("Result", {
       distanceM: this.distanceM,
-      coinsAwarded: this.pendingCoins,
+      coinsAwarded: this.coinsCollected,
       coinsLost: 0,
       reason: reason as ResultReason,
     });
@@ -3563,15 +3755,16 @@ export default class GameScene extends Phaser.Scene {
     this.stopGreenHitFeedback();
     this.speedKmh = this.getInitialRunSpeedKmh();
     this.distanceM = 0;
-    this.fuel = TUNING.FUEL_START;
+    this.assetsValue = TUNING.FUEL_START;
     this.remainingTimeMs = RUN_TIMER.initialMs;
-    this.hasPointerControlInput = false;
     this.shieldButtonLastTapAtMs = Number.NEGATIVE_INFINITY;
     this.shieldTapCandidate = undefined;
-
-    this.pendingCoins = 0;
-    this.progressStage = 0;
-    this.reachedCoinMilestones.clear();
+    this.coinsCollected = 0;
+    this.coinsScheduledTotal = 0;
+    this.speedBonusRemainingMs = 0;
+    this.speedBonusLockedKmh = undefined;
+    this.speedBonusDecayActive = false;
+    this.obstacleSlowdownUntilMs = Number.NEGATIVE_INFINITY;
 
     this.scheduledObjects = [];
     this.scheduledObjectCursor = 0;
@@ -3584,6 +3777,7 @@ export default class GameScene extends Phaser.Scene {
     this.stopAllDynamicBuoyStateTimers();
     this.safeClearPhysicsGroup(this.hazards, true, true);
     this.safeClearPhysicsGroup(this.moneyUps, true, true);
+    this.safeClearPhysicsGroup(this.coins, true, true);
 
     this.safeEachGroupChild(this.timeBonuses, (child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
@@ -3596,20 +3790,31 @@ export default class GameScene extends Phaser.Scene {
     this.harborGate = undefined;
 
     this.yachtBody?.destroy();
+    this.yachtHazardCollider?.destroy();
     this.yachtVisual?.destroy();
     this.yachtBody = undefined;
+    this.yachtHazardCollider = undefined;
     this.yachtVisual = undefined;
 
     this.assetsBarGraphics?.destroy();
     this.assetsBarGraphics = undefined;
     this.destroyShieldUi();
 
+    this.topProgressGraphics?.destroy();
+    this.topProgressGraphics = undefined;
+    this.topProgressShipMarker?.destroy();
+    this.topProgressShipMarker = undefined;
+    this.topProgressFlag?.destroy();
+    this.topProgressFlag = undefined;
+    this.coinsText?.destroy();
+    this.coinsText = undefined;
+
     this.redOverlay?.destroy();
     this.redOverlay = undefined;
 
-    this.timeBar?.destroy();
+    this.timePanelGraphics?.destroy();
     this.timeText?.destroy();
-    this.timeBar = undefined;
+    this.timePanelGraphics = undefined;
     this.timeText = undefined;
 
     this.input.off("pointerdown", this.onPointerDown);

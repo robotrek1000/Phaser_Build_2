@@ -72,9 +72,34 @@
                 "key": "time-bonus"
             },
             {
+                "url": "assets/speed_bonus.png",
+                "type": "image",
+                "key": "speed-bonus"
+            },
+            {
                 "url": "assets/time_bonus_shadow.png",
                 "type": "image",
                 "key": "time-bonus-shadow"
+            },
+            {
+                "url": "assets/speed_bonus_shadow.png",
+                "type": "image",
+                "key": "speed-bonus-shadow"
+            },
+            {
+                "url": "assets/coin.png",
+                "type": "image",
+                "key": "coin"
+            },
+            {
+                "url": "assets/coin_shadow.png",
+                "type": "image",
+                "key": "coin-shadow"
+            },
+            {
+                "url": "assets/flag.png",
+                "type": "image",
+                "key": "flag-new"
             },
             {
                 "url": "assets/earth_1.png",
@@ -132,7 +157,7 @@
                 "key": "start-bg"
             },
             {
-                "url": "assets/onboarding_window.png",
+                "url": "assets/onboarding_window_2.png",
                 "type": "image",
                 "key": "onboarding-window"
             },

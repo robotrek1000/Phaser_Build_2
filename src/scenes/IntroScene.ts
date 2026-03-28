@@ -42,7 +42,7 @@ export default class IntroScene extends Phaser.Scene {
     const buttonX = width / 2;
 
     const buttonGraphics = this.add.graphics().setDepth(INTRO_ONBOARDING_UI.buttonDepth);
-    const buttonText = this.add
+    this.add
       .text(buttonX, buttonY, INTRO_ONBOARDING_UI.buttonText, {
         fontFamily: INTRO_ONBOARDING_UI.buttonTextFontFamily,
         fontSize: `${INTRO_ONBOARDING_UI.buttonTextFontSizePx}px`,

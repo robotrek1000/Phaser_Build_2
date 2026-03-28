@@ -8,6 +8,8 @@ export type SegmentObjectType =
   | "rock2"
   | "rock3"
   | "moneyUp"
+  | "coin"
+  | "speedBonus"
   | "timeBonus"
   | "island1"
   | "island2"
@@ -195,7 +197,6 @@ export const LEVEL_SEGMENT_POOLS: SegmentPool[] = [
         lengthMeters: 100,
         weight: 2,
         objects: [
-          { type: "island1", meterOffset: 8, xRatio: 0.84 },
           dynamicBuoy(24, 0.22),
           moneyDown(36, 0.5),
           whirlpool(62, 0.64),
@@ -207,7 +208,6 @@ export const LEVEL_SEGMENT_POOLS: SegmentPool[] = [
         lengthMeters: 100,
         weight: 1,
         objects: [
-          { type: "island1", meterOffset: 8, xRatio: 0.84 },
           pirate(26, 0.56),
           dynamicBuoy(49, 0.24),
           moneyDown(71, 0.77),
@@ -283,7 +283,6 @@ export const LEVEL_SEGMENT_POOLS: SegmentPool[] = [
         lengthMeters: 100,
         weight: 2,
         objects: [
-          { type: "island2", meterOffset: 8, xRatio: 0.2 },
           dynamicBuoy(26, 0.74),
           pirate(41, 0.55),
           moneyUp(56, 0.32),
@@ -295,7 +294,6 @@ export const LEVEL_SEGMENT_POOLS: SegmentPool[] = [
         lengthMeters: 100,
         weight: 1,
         objects: [
-          { type: "island2", meterOffset: 8, xRatio: 0.2 },
           rock2(25, 0.9, 66),
           dynamicBuoy(39, 0.48),
           moneyDown(58, 0.24),
