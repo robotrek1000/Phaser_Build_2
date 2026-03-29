@@ -127,7 +127,10 @@ const MONEY_UP_HITBOX = {
 export default class GameScene extends Phaser.Scene {
   private water?: Phaser.GameObjects.TileSprite;
   private coinsText?: Phaser.GameObjects.Text;
-  private topProgressGraphics?: Phaser.GameObjects.Graphics;
+  private topProgressTrackGraphics?: Phaser.GameObjects.Graphics;
+  private topProgressFillGraphics?: Phaser.GameObjects.Graphics;
+  private topProgressMaskGraphics?: Phaser.GameObjects.Graphics;
+  private topProgressFillMask?: Phaser.Display.Masks.GeometryMask;
   private topProgressShipMarker?: Phaser.GameObjects.Image;
   private topProgressFlag?: Phaser.GameObjects.Image;
   private assetsBarGraphics?: Phaser.GameObjects.Graphics;
@@ -467,25 +470,31 @@ export default class GameScene extends Phaser.Scene {
     this.coinsText.setDepth(coinUi.depth + 1);
 
     const progressCfg = TOP_PROGRESS_BAR_CONFIG;
-    const progressX = width * progressCfg.xRatio;
-    const progressY = progressCfg.y;
+    const progressLayout = this.getTopProgressLayout();
 
-    this.topProgressGraphics = this.add.graphics();
-    this.topProgressGraphics.setDepth(progressCfg.depth);
+    this.topProgressTrackGraphics = this.add.graphics();
+    this.topProgressTrackGraphics.setDepth(progressCfg.depth);
+
+    this.topProgressFillGraphics = this.add.graphics();
+    this.topProgressFillGraphics.setDepth(progressCfg.depth + 1);
+
+    this.topProgressMaskGraphics = this.add.graphics();
+    this.topProgressMaskGraphics.setDepth(progressCfg.depth + 1);
+    this.topProgressMaskGraphics.setVisible(false);
+
+    this.topProgressFillMask = this.topProgressMaskGraphics.createGeometryMask();
+    this.topProgressFillGraphics.setMask(this.topProgressFillMask);
+
     this.topProgressShipMarker = this.add
-      .image(progressX - progressCfg.width / 2, progressY + progressCfg.height / 2 + progressCfg.markerYOffsetPx, progressCfg.markerShipKey)
-      .setScale(progressCfg.markerShipScale)
-      .setAngle(progressCfg.markerShipRotationDeg)
-      .setFlipX(progressCfg.markerShipFlipX)
-      .setFlipY(progressCfg.markerShipFlipY)
+      .image(progressLayout.markerX, progressLayout.markerY, progressCfg.ship.key)
+      .setScale(progressLayout.shipScaleX, progressLayout.shipScaleY)
+      .setAngle(progressCfg.ship.rotationDeg)
+      .setFlipX(progressCfg.ship.flipX)
+      .setFlipY(progressCfg.ship.flipY)
       .setDepth(progressCfg.depth + 2);
     this.topProgressFlag = this.add
-      .image(
-        progressX + progressCfg.width / 2 + progressCfg.flagOffsetX,
-        progressY + progressCfg.height / 2 + progressCfg.flagOffsetY,
-        progressCfg.flagKey,
-      )
-      .setScale(progressCfg.flagScale)
+      .image(progressLayout.flagX, progressLayout.flagY, progressCfg.flag.key)
+      .setScale(progressLayout.flagScaleX, progressLayout.flagScaleY)
       .setDepth(progressCfg.depth + 2);
 
     const timeUi = TIME_UI_CONFIG;
@@ -3808,34 +3817,180 @@ export default class GameScene extends Phaser.Scene {
     this.coinsText.setText(`${this.coinsCollected}`);
   }
 
+  private getTopProgressLayout(progressInput?: number) {
+    const cfg = TOP_PROGRESS_BAR_CONFIG;
+    const progress = Phaser.Math.Clamp(
+      progressInput ?? this.distanceM / LANDMARK_METERS.harbor,
+      0,
+      1,
+    );
+
+    const masterScaleX = cfg.master.scaleX;
+    const masterScaleY = cfg.master.scaleY;
+    const barScaleX = masterScaleX * cfg.bar.scaleX;
+    const barScaleY = masterScaleY * cfg.bar.scaleY;
+    const barScaleAbsX = Math.max(0.0001, Math.abs(barScaleX));
+    const barScaleAbsY = Math.max(0.0001, Math.abs(barScaleY));
+    const barRadiusScale = Math.min(barScaleAbsX, barScaleAbsY);
+
+    const anchorX = this.scale.width * cfg.anchorXRatio + cfg.master.offsetX;
+    const anchorY = cfg.anchorY + cfg.master.offsetY;
+
+    const barWidth = Math.max(1, cfg.bar.width * barScaleAbsX);
+    const barHeight = Math.max(1, cfg.bar.height * barScaleAbsY);
+    const barRadius = Phaser.Math.Clamp(
+      cfg.bar.radius * barRadiusScale,
+      0,
+      Math.min(barWidth, barHeight) / 2,
+    );
+
+    const barCenterX = anchorX + cfg.bar.offsetX * masterScaleX;
+    const barTop = anchorY + cfg.bar.offsetY * masterScaleY;
+    const barLeft = barCenterX - barWidth / 2;
+    const barRight = barCenterX + barWidth / 2;
+    const barCenterY = barTop + barHeight / 2;
+
+    const fillInsetLeft = Math.max(0, cfg.bar.fillInsetLeftPx * barScaleAbsX);
+    const fillInsetRight = Math.max(0, cfg.bar.fillInsetRightPx * barScaleAbsX);
+    const fillInsetTop = Math.max(0, cfg.bar.fillInsetTopPx * barScaleAbsY);
+    const fillInsetBottom = Math.max(0, cfg.bar.fillInsetBottomPx * barScaleAbsY);
+
+    const fillX = barLeft + fillInsetLeft;
+    const fillY = barTop + fillInsetTop;
+    const fillTrackWidth = Math.max(0, barWidth - fillInsetLeft - fillInsetRight);
+    const fillHeight = Math.max(0, barHeight - fillInsetTop - fillInsetBottom);
+
+    let fillWidth = Phaser.Math.Clamp(fillTrackWidth * progress, 0, fillTrackWidth);
+    if (progress > 0 && fillTrackWidth > 0) {
+      const minVisibleFill = Math.max(0, cfg.bar.minVisibleFillPx * barScaleAbsX);
+      fillWidth = Math.min(fillTrackWidth, Math.max(fillWidth, minVisibleFill));
+    }
+
+    const clipPadding = Math.max(0, cfg.bar.clipPaddingPx * barRadiusScale);
+    const maskX = barLeft - clipPadding;
+    const maskY = barTop - clipPadding;
+    const maskWidth = barWidth + clipPadding * 2;
+    const maskHeight = barHeight + clipPadding * 2;
+    const maskRadius = Phaser.Math.Clamp(
+      barRadius + clipPadding,
+      0,
+      Math.min(maskWidth, maskHeight) / 2,
+    );
+
+    let markerX =
+      fillX +
+      fillTrackWidth * progress +
+      (cfg.ship.progressAnchorOffsetX + cfg.ship.offsetX) * masterScaleX;
+    if (cfg.ship.clampToBar) {
+      markerX = Phaser.Math.Clamp(markerX, barLeft, barRight);
+    }
+    const markerY =
+      barCenterY +
+      (cfg.ship.progressAnchorOffsetY + cfg.ship.offsetY) * masterScaleY;
+
+    const shipScaleX = Math.max(
+      0.0001,
+      Math.abs(cfg.ship.baseScale * cfg.ship.scaleX * masterScaleX),
+    );
+    const shipScaleY = Math.max(
+      0.0001,
+      Math.abs(cfg.ship.baseScale * cfg.ship.scaleY * masterScaleY),
+    );
+
+    const flagX =
+      barRight + (cfg.flag.anchorOffsetX + cfg.flag.offsetX) * masterScaleX;
+    const flagY =
+      barCenterY + (cfg.flag.anchorOffsetY + cfg.flag.offsetY) * masterScaleY;
+    const flagScaleX = Math.max(
+      0.0001,
+      Math.abs(cfg.flag.baseScale * cfg.flag.scaleX * masterScaleX),
+    );
+    const flagScaleY = Math.max(
+      0.0001,
+      Math.abs(cfg.flag.baseScale * cfg.flag.scaleY * masterScaleY),
+    );
+
+    return {
+      progress,
+      barLeft,
+      barTop,
+      barWidth,
+      barHeight,
+      barRadius,
+      barCenterY,
+      fillX,
+      fillY,
+      fillWidth,
+      fillHeight,
+      maskX,
+      maskY,
+      maskWidth,
+      maskHeight,
+      maskRadius,
+      markerX,
+      markerY,
+      shipScaleX,
+      shipScaleY,
+      flagX,
+      flagY,
+      flagScaleX,
+      flagScaleY,
+    };
+  }
+
   private updateTopProgressUi() {
-    if (!this.topProgressGraphics) {
+    if (
+      !this.topProgressTrackGraphics ||
+      !this.topProgressFillGraphics ||
+      !this.topProgressMaskGraphics
+    ) {
       return;
     }
 
     const cfg = TOP_PROGRESS_BAR_CONFIG;
-    const width = this.scale.width;
-    const x = width * cfg.xRatio;
-    const y = cfg.y;
-    const progress = Phaser.Math.Clamp(this.distanceM / LANDMARK_METERS.harbor, 0, 1);
-    const fillWidth = cfg.width * progress;
+    const layout = this.getTopProgressLayout();
 
-    this.topProgressGraphics.clear();
-    this.topProgressGraphics.fillStyle(cfg.frameColor, 1);
-    this.topProgressGraphics.fillRoundedRect(x - cfg.width / 2, y, cfg.width, cfg.height, cfg.radius);
-    this.topProgressGraphics.fillStyle(cfg.fillColor, 1);
-    if (fillWidth > 0) {
-      this.topProgressGraphics.fillRoundedRect(x - cfg.width / 2, y, fillWidth, cfg.height, cfg.radius);
-    }
+    this.topProgressTrackGraphics.clear();
+    this.topProgressTrackGraphics.fillStyle(cfg.bar.frameColor, 1);
+    this.topProgressTrackGraphics.fillRoundedRect(
+      layout.barLeft,
+      layout.barTop,
+      layout.barWidth,
+      layout.barHeight,
+      layout.barRadius,
+    );
 
-    if (this.topProgressShipMarker) {
-      this.topProgressShipMarker.setPosition(
-        x - cfg.width / 2 + fillWidth,
-        y + cfg.height / 2 + cfg.markerYOffsetPx,
+    this.topProgressFillGraphics.clear();
+    this.topProgressFillGraphics.fillStyle(cfg.bar.fillColor, 1);
+    if (layout.fillWidth > 0 && layout.fillHeight > 0) {
+      this.topProgressFillGraphics.fillRect(
+        layout.fillX,
+        layout.fillY,
+        layout.fillWidth,
+        layout.fillHeight,
       );
     }
+
+    this.topProgressMaskGraphics.clear();
+    this.topProgressMaskGraphics.fillStyle(0xffffff, 1);
+    this.topProgressMaskGraphics.fillRoundedRect(
+      layout.maskX,
+      layout.maskY,
+      layout.maskWidth,
+      layout.maskHeight,
+      layout.maskRadius,
+    );
+
+    if (this.topProgressShipMarker) {
+      this.topProgressShipMarker.setPosition(layout.markerX, layout.markerY);
+      this.topProgressShipMarker.setScale(layout.shipScaleX, layout.shipScaleY);
+      this.topProgressShipMarker.setAngle(cfg.ship.rotationDeg);
+      this.topProgressShipMarker.setFlipX(cfg.ship.flipX);
+      this.topProgressShipMarker.setFlipY(cfg.ship.flipY);
+    }
     if (this.topProgressFlag) {
-      this.topProgressFlag.setPosition(x + cfg.width / 2 + cfg.flagOffsetX, y + cfg.height / 2 + cfg.flagOffsetY);
+      this.topProgressFlag.setPosition(layout.flagX, layout.flagY);
+      this.topProgressFlag.setScale(layout.flagScaleX, layout.flagScaleY);
     }
   }
 
@@ -4001,8 +4156,15 @@ export default class GameScene extends Phaser.Scene {
     this.assetsBarGraphics = undefined;
     this.destroyShieldUi();
 
-    this.topProgressGraphics?.destroy();
-    this.topProgressGraphics = undefined;
+    this.topProgressFillGraphics?.clearMask(false);
+    this.topProgressFillMask?.destroy();
+    this.topProgressFillMask = undefined;
+    this.topProgressTrackGraphics?.destroy();
+    this.topProgressTrackGraphics = undefined;
+    this.topProgressFillGraphics?.destroy();
+    this.topProgressFillGraphics = undefined;
+    this.topProgressMaskGraphics?.destroy();
+    this.topProgressMaskGraphics = undefined;
     this.topProgressShipMarker?.destroy();
     this.topProgressShipMarker = undefined;
     this.topProgressFlag?.destroy();
