@@ -89,20 +89,20 @@ export const YACHT_HITBOX = {
 } as const;
 
 export const YACHT_HAZARD_HITBOX = {
-  widthRatioToVisual: 0.36,
-  heightRatioToVisual: 0.76,
-  minWidthPx: 30,
-  minHeightPx: 110,
-  offsetY: 12,
+  widthRatioToVisual: 0.52,
+  heightRatioToVisual: 0.84,
+  minWidthPx: 72,
+  minHeightPx: 170,
+  offsetY: 16,
 } as const;
 
 export const YACHT_SOLID_COLLISION = {
-  radiusXRatio: 0.45,
-  radiusYRatio: 0.34,
+  radiusXRatio: 0.62,
+  radiusYRatio: 0.44,
   centerOffsetX: 0,
-  centerOffsetY: 18,
-  minRadiusX: 10,
-  minRadiusY: 20,
+  centerOffsetY: 20,
+  minRadiusX: 18,
+  minRadiusY: 28,
 } as const;
 
 export const YACHT_SOLID_BLOCKERS = {
@@ -215,15 +215,71 @@ export const ASSET_SHIELD_CONFIG = {
     },
   },
   magnet: {
-    attractEnabled: true,
-    repelEnabled: true,
-    attractRadiusPx: 250,
-    attractForcePxPerSec: 10000,
-    attractFalloffPower: 0.05,
-    repelRadiusPx: 400,
-    repelForcePxPerSec: 15000,
-    repelFalloffPower: 0.5,
-    maxPushSpeedPxPerSec: 5000,
+    attract: {
+      enabled: true,
+      targets: {
+        moneyUp: true,
+        dynamicUp: true,
+      },
+      originOffsetX: 0,
+      originOffsetY: 0,
+      radiusPx: 520,
+      forcePxPerSec: 6000,
+      forceDistribution: "uniform" as "uniform" | "falloff",
+      falloffPower: 0.05,
+      minEffectiveDistancePx: 0,
+      centerDirection: {
+        useLastResolvedDirection: true,
+        useVelocityFallback: true,
+        fallbackDirX: 1,
+        fallbackDirY: 0,
+      },
+      maxPushSpeedPxPerSec: 260,
+      axisFactorX: 1,
+      axisFactorY: 1,
+      updateCooldownMs: 0,
+      clampToPlayAreaX: false,
+      clampPaddingX: 0,
+      clampToViewportY: false,
+      clampPaddingY: 0,
+    },
+    repel: {
+      enabled: true,
+      targets: {
+        moneyDown: true,
+        dynamicDown: true,
+      },
+      originOffsetX: 0,
+      originOffsetY: 0,
+      radiusPx: 300,
+      forcePxPerSec: 100,
+      forceDistribution: "uniform" as "uniform" | "falloff",
+      falloffPower: 0.5,
+      minEffectiveDistancePx: 0,
+      centerDirection: {
+        useLastResolvedDirection: true,
+        useVelocityFallback: true,
+        fallbackDirX: 1,
+        fallbackDirY: 0,
+      },
+      maxPushSpeedPxPerSec: 260,
+      axisFactorX: 1,
+      axisFactorY: 1,
+      updateCooldownMs: 0,
+      clampToPlayAreaX: false,
+      clampPaddingX: 0,
+      clampToViewportY: false,
+      clampPaddingY: 0,
+      hardBoundary: {
+        enabled: true,
+        radiusPx: 0,
+        boundaryPaddingPx: 2,
+        projectOutMode: "hardSnap" as "hardSnap",
+        projectEveryFrame: true,
+        outwardImpulseAfterProjectPxPerSec: 15000,
+        clampMaxPushSpeedAfterProject: true,
+      },
+    },
   },
   pickupMagnet: {
     enabled: true,
@@ -360,10 +416,10 @@ export const ASSET_SHIELD_CONFIG = {
 
 export const YACHT_VISUAL_SIZE = {
   targetHeightPx: 280,
-  hitboxWidthRatioToVisual: 0.24,
-  hitboxHeightRatioToVisual: 0.72,
-  minHitboxWidthPx: 24,
-  minHitboxHeightPx: 100,
+  hitboxWidthRatioToVisual: 0.34,
+  hitboxHeightRatioToVisual: 0.82,
+  minHitboxWidthPx: 54,
+  minHitboxHeightPx: 140,
 } as const;
 
 export const SHIP_ASSET_STAGES = [
@@ -595,17 +651,60 @@ export const SEGMENT_PICKUP_RULES = {
     oneCoinPerSegment: true,
     segmentOffsetMinMeters: 8,
     segmentOffsetMaxMeters: 38,
+    segmentXRatioMin: 0.22,
+    segmentXRatioMax: 0.78,
     finalFillStartMeters: 1200,
     finalFillEndMeters: 1250,
     finalFillXRatioMin: 0.18,
     finalFillXRatioMax: 0.82,
   },
   speedBonus: {
-    totalCount: 3,
-    boostMeters: [190, 520, 860] as const,
     xRatioMin: 0.22,
     xRatioMax: 0.78,
   },
+} as const;
+
+export const SEGMENT_PATTERN_RULES = {
+  poolLengthMeters: 100,
+  allowedSegmentLengthsMeters: [50, 100] as const,
+  fallbackTemplateId: "ordinary_filler_50",
+  stages: {
+    early: { poolIndexFrom: 1, poolIndexTo: 2 },
+    mid: { poolIndexFrom: 3, poolIndexTo: 6 },
+    late: { poolIndexFrom: 7, poolIndexTo: 9 },
+    endgame: { poolIndexFrom: 10, poolIndexTo: 12 },
+  },
+  requiredPerPool: {
+    moneyUpMinDefault: 1,
+    moneyUpMinEarly: 2,
+    moneyDownMinByStage: {
+      early: 1,
+      mid: 2,
+      late: 3,
+      endgame: 4,
+    },
+    dynamicBuoyMinFromPoolIndex: 3,
+    dynamicBuoyMinDefault: 1,
+    rockMin: 1,
+    timeBonusMin: 1,
+    speedBonusMin: 1,
+  },
+  guaranteedSpawnPaddingMeters: {
+    min: 6,
+    max: 6,
+  },
+} as const;
+
+export const SEGMENT_COIN_SAFETY = {
+  enabled: true,
+  blockingTypes: ["mine", "pirate", "whirlpool", "rock1", "rock2", "rock3"] as const,
+  minDeltaMeters: 7,
+  minDeltaXRatio: 0.12,
+  maxResampleAttempts: 18,
+  resampleMeterJitterMeters: 7,
+  safeXRatioMin: 0.2,
+  safeXRatioMax: 0.8,
+  finalFillExtraAttemptsMultiplier: 3,
 } as const;
 
 export const SPEED_BONUS_CONFIG = {

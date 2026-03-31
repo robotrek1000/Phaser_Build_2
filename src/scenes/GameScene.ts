@@ -33,6 +33,8 @@ import {
   RUN_SPEED_RAMP,
   RUN_START_SPEED,
   RUN_TIMER,
+  SEGMENT_COIN_SAFETY,
+  SEGMENT_PATTERN_RULES,
   SEGMENT_PICKUP_RULES,
   SEGMENT_SPAWN,
   SHIP_ASSET_STAGES,
@@ -54,8 +56,11 @@ import {
 import {
   FINAL_SEGMENT_1200_1250,
   LEVEL_SEGMENT_POOLS,
+  SEGMENT_TEMPLATE_CATALOG,
   type SegmentObjectDef,
   type SegmentObjectType,
+  type SegmentPool,
+  type SegmentPoolStage,
   type SegmentTemplate,
 } from "../config/level_segments";
 
@@ -998,29 +1003,31 @@ export default class GameScene extends Phaser.Scene {
   private buildRunSegmentSchedule() {
     this.scheduledObjects = [];
     this.coinsScheduledTotal = 0;
+    const patternPoolsUsage = new Map<string, Set<number>>();
 
     for (const pool of LEVEL_SEGMENT_POOLS) {
       let cursor = pool.startMeter;
       while (cursor < pool.endMeter) {
-        const template = this.pickTemplateByWeight(pool.templates);
+        const remaining = pool.endMeter - cursor;
+        const template = this.pickTemplateForPoolSlot(pool, remaining, patternPoolsUsage) ?? this.pickFallbackTemplate(pool, remaining);
         if (!template) {
           break;
         }
-        const remaining = pool.endMeter - cursor;
-        const usedLength = Math.max(1, Math.min(template.lengthMeters, remaining));
-        this.appendTemplateObjects(template, cursor, usedLength, pool.endMeter);
-        this.appendCoinForSegment(cursor, usedLength, pool.endMeter, template.id);
+        const usedLength = template.lengthMeters;
+        this.appendTemplateObjects(template, cursor, usedLength, pool.endMeter, pool.poolIndex);
+        this.appendCoinForSegment(cursor, usedLength, pool.endMeter, template.id, pool.poolIndex);
+        this.markPatternPoolUsage(patternPoolsUsage, template.patternId, pool.poolIndex);
         cursor += usedLength;
       }
+      this.ensurePoolObjectRequirements(pool);
     }
-
-    this.appendSpeedBonuses();
 
     this.appendTemplateObjects(
       FINAL_SEGMENT_1200_1250,
       1200,
       FINAL_SEGMENT_1200_1250.lengthMeters,
       1250,
+      12,
     );
 
     this.appendMissingCoinsInFinalWindow();
@@ -1029,38 +1036,164 @@ export default class GameScene extends Phaser.Scene {
     this.scheduledObjectCursor = 0;
   }
 
-  private pickTemplateByWeight(templates: SegmentTemplate[]) {
-    if (templates.length === 0) {
+  private pickTemplateForPoolSlot(
+    pool: SegmentPool,
+    remainingMeters: number,
+    patternPoolsUsage: Map<string, Set<number>>,
+  ) {
+    const candidates = SEGMENT_TEMPLATE_CATALOG.filter((template) => {
+      if (template.lengthMeters > remainingMeters) {
+        return false;
+      }
+      if (remainingMeters <= 50 && template.lengthMeters !== 50) {
+        return false;
+      }
+      if (pool.poolIndex < template.poolWindow.poolIndexFrom || pool.poolIndex > template.poolWindow.poolIndexTo) {
+        return false;
+      }
+      if (!this.canUsePatternInPool(template, pool.poolIndex, patternPoolsUsage)) {
+        return false;
+      }
+      return this.resolveTemplateWeightForPool(template, pool.poolIndex) > 0;
+    });
+
+    if (candidates.length === 0) {
       return null;
     }
 
-    const totalWeight = templates.reduce((sum, item) => sum + Math.max(0, item.weight), 0);
+    const totalWeight = candidates.reduce((sum, item) => sum + this.resolveTemplateWeightForPool(item, pool.poolIndex), 0);
     if (totalWeight <= 0) {
-      return Phaser.Utils.Array.GetRandom(templates);
+      return Phaser.Utils.Array.GetRandom(candidates);
     }
 
     let random = Phaser.Math.FloatBetween(0, totalWeight);
-    for (const template of templates) {
-      random -= Math.max(0, template.weight);
+    for (const template of candidates) {
+      random -= this.resolveTemplateWeightForPool(template, pool.poolIndex);
       if (random <= 0) {
         return template;
       }
     }
-    return templates[templates.length - 1];
+    return candidates[candidates.length - 1];
   }
 
-  private appendTemplateObjects(template: SegmentTemplate, segmentStartMeter: number, usedLength: number, segmentEndMeter: number) {
+  private pickFallbackTemplate(pool: SegmentPool, remainingMeters: number) {
+    const fallbackId = SEGMENT_PATTERN_RULES.fallbackTemplateId;
+    const fallbackTemplate = SEGMENT_TEMPLATE_CATALOG.find((template) => template.id === fallbackId) ?? null;
+    if (
+      fallbackTemplate &&
+      fallbackTemplate.lengthMeters <= remainingMeters &&
+      (remainingMeters > 50 || fallbackTemplate.lengthMeters === 50) &&
+      pool.poolIndex >= fallbackTemplate.poolWindow.poolIndexFrom &&
+      pool.poolIndex <= fallbackTemplate.poolWindow.poolIndexTo
+    ) {
+      return fallbackTemplate;
+    }
+
+    const anyFifty = SEGMENT_TEMPLATE_CATALOG.find(
+      (template) =>
+        template.lengthMeters === 50 &&
+        pool.poolIndex >= template.poolWindow.poolIndexFrom &&
+        pool.poolIndex <= template.poolWindow.poolIndexTo,
+    );
+    return anyFifty ?? null;
+  }
+
+  private canUsePatternInPool(
+    template: SegmentTemplate,
+    poolIndex: number,
+    patternPoolsUsage: Map<string, Set<number>>,
+  ) {
+    if (template.maxPoolsPerRun === undefined) {
+      return true;
+    }
+
+    const usedPools = patternPoolsUsage.get(template.patternId);
+    if (!usedPools) {
+      return true;
+    }
+    if (usedPools.has(poolIndex)) {
+      return true;
+    }
+    return usedPools.size < template.maxPoolsPerRun;
+  }
+
+  private markPatternPoolUsage(
+    patternPoolsUsage: Map<string, Set<number>>,
+    patternId: string,
+    poolIndex: number,
+  ) {
+    let usedPools = patternPoolsUsage.get(patternId);
+    if (!usedPools) {
+      usedPools = new Set<number>();
+      patternPoolsUsage.set(patternId, usedPools);
+    }
+    usedPools.add(poolIndex);
+  }
+
+  private getPoolStage(poolIndex: number): SegmentPoolStage {
+    const { early, mid, late, endgame } = SEGMENT_PATTERN_RULES.stages;
+    if (poolIndex >= early.poolIndexFrom && poolIndex <= early.poolIndexTo) {
+      return "early";
+    }
+    if (poolIndex >= mid.poolIndexFrom && poolIndex <= mid.poolIndexTo) {
+      return "mid";
+    }
+    if (poolIndex >= late.poolIndexFrom && poolIndex <= late.poolIndexTo) {
+      return "late";
+    }
+    if (poolIndex >= endgame.poolIndexFrom && poolIndex <= endgame.poolIndexTo) {
+      return "endgame";
+    }
+    return "endgame";
+  }
+
+  private resolveTemplateWeightForPool(template: SegmentTemplate, poolIndex: number) {
+    const stage = this.getPoolStage(poolIndex);
+    const stageMultiplier = template.weightByPoolStage?.[stage] ?? 1;
+    return Math.max(0, template.baseWeight * stageMultiplier);
+  }
+
+  private appendTemplateObjects(
+    template: SegmentTemplate,
+    segmentStartMeter: number,
+    usedLength: number,
+    segmentEndMeter: number,
+    poolIndex: number,
+  ) {
     for (const item of template.objects) {
       if (item.meterOffset < 0 || item.meterOffset > usedLength) {
         continue;
       }
-      const spawnMeter = segmentStartMeter + item.meterOffset;
+
+      let spawnMeter = segmentStartMeter + item.meterOffset;
       if (spawnMeter > segmentEndMeter) {
         continue;
       }
+
+      let xRatio = item.xRatio;
+      if (item.type === "coin") {
+        const safeCandidate = this.findSafeCoinPlacement(
+          Math.max(segmentStartMeter, spawnMeter - SEGMENT_COIN_SAFETY.resampleMeterJitterMeters),
+          Math.min(segmentEndMeter, spawnMeter + SEGMENT_COIN_SAFETY.resampleMeterJitterMeters),
+          SEGMENT_COIN_SAFETY.safeXRatioMin,
+          SEGMENT_COIN_SAFETY.safeXRatioMax,
+          spawnMeter,
+          xRatio ?? 0.5,
+        );
+        if (!safeCandidate && SEGMENT_COIN_SAFETY.enabled) {
+          continue;
+        }
+        if (safeCandidate) {
+          spawnMeter = safeCandidate.spawnMeter;
+          xRatio = safeCandidate.xRatio;
+        }
+      }
+
       this.scheduledObjects.push({
         ...item,
-        scheduleId: `${template.id}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+        xRatio,
+        meterOffset: spawnMeter - segmentStartMeter,
+        scheduleId: `${template.id}@${poolIndex}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
         spawnMeter,
       });
       if (item.type === "coin") {
@@ -1069,7 +1202,13 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private appendCoinForSegment(segmentStartMeter: number, usedLength: number, segmentEndMeter: number, segmentId: string) {
+  private appendCoinForSegment(
+    segmentStartMeter: number,
+    usedLength: number,
+    segmentEndMeter: number,
+    segmentId: string,
+    poolIndex: number,
+  ) {
     const coinRules = SEGMENT_PICKUP_RULES.coin;
     if (!coinRules.oneCoinPerSegment) {
       return;
@@ -1083,31 +1222,174 @@ export default class GameScene extends Phaser.Scene {
 
     const minOffset = Math.min(usedLength, Math.max(0, coinRules.segmentOffsetMinMeters));
     const maxOffset = Math.min(usedLength, Math.max(minOffset, coinRules.segmentOffsetMaxMeters));
-    const offset = Phaser.Math.FloatBetween(minOffset, maxOffset);
-    const spawnMeter = Math.min(segmentEndMeter, segmentStartMeter + offset);
-    const xRatio = Phaser.Math.FloatBetween(0.22, 0.78);
+    const meterMin = Math.min(segmentEndMeter, segmentStartMeter + minOffset);
+    const meterMax = Math.min(segmentEndMeter, segmentStartMeter + maxOffset);
+    const safeCandidate = this.findSafeCoinPlacement(
+      meterMin,
+      meterMax,
+      coinRules.segmentXRatioMin,
+      coinRules.segmentXRatioMax,
+    );
+
+    if (!safeCandidate) {
+      return;
+    }
 
     this.scheduledObjects.push({
       type: "coin",
-      meterOffset: offset,
-      xRatio,
-      scheduleId: `coin-segment-${segmentId}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
-      spawnMeter,
+      meterOffset: safeCandidate.spawnMeter - segmentStartMeter,
+      xRatio: safeCandidate.xRatio,
+      scheduleId: `coin-segment-${segmentId}@${poolIndex}@${safeCandidate.spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+      spawnMeter: safeCandidate.spawnMeter,
     });
     this.coinsScheduledTotal += 1;
   }
 
-  private appendSpeedBonuses() {
-    const speedRules = SEGMENT_PICKUP_RULES.speedBonus;
-    for (const meter of speedRules.boostMeters) {
-      this.scheduledObjects.push({
-        type: "speedBonus",
-        meterOffset: 0,
-        xRatio: Phaser.Math.FloatBetween(speedRules.xRatioMin, speedRules.xRatioMax),
-        scheduleId: `speedBonus@${meter}@${this.scheduledObjects.length}`,
-        spawnMeter: meter,
-      });
+  private isCoinPlacementSafe(spawnMeter: number, xRatio: number) {
+    if (!SEGMENT_COIN_SAFETY.enabled) {
+      return true;
     }
+
+    for (const scheduled of this.scheduledObjects) {
+      if (!SEGMENT_COIN_SAFETY.blockingTypes.includes(scheduled.type as (typeof SEGMENT_COIN_SAFETY.blockingTypes)[number])) {
+        continue;
+      }
+      if (Math.abs(scheduled.spawnMeter - spawnMeter) > SEGMENT_COIN_SAFETY.minDeltaMeters) {
+        continue;
+      }
+      const objectXRatio = Phaser.Math.Clamp(scheduled.xRatio ?? 0.5, 0, 1);
+      if (Math.abs(objectXRatio - xRatio) <= SEGMENT_COIN_SAFETY.minDeltaXRatio) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private findSafeCoinPlacement(
+    meterFrom: number,
+    meterTo: number,
+    xRatioMin: number,
+    xRatioMax: number,
+    preferredMeter?: number,
+    preferredXRatio?: number,
+  ) {
+    const meterMin = Math.min(meterFrom, meterTo);
+    const meterMax = Math.max(meterFrom, meterTo);
+    const xMin = Math.min(xRatioMin, xRatioMax);
+    const xMax = Math.max(xRatioMin, xRatioMax);
+    const attempts = Math.max(1, SEGMENT_COIN_SAFETY.maxResampleAttempts);
+
+    for (let i = 0; i < attempts; i += 1) {
+      let spawnMeter: number;
+      if (preferredMeter !== undefined && i === 0) {
+        spawnMeter = Phaser.Math.Clamp(preferredMeter, meterMin, meterMax);
+      } else if (preferredMeter !== undefined) {
+        const jitter = SEGMENT_COIN_SAFETY.resampleMeterJitterMeters;
+        spawnMeter = Phaser.Math.Clamp(preferredMeter + Phaser.Math.FloatBetween(-jitter, jitter), meterMin, meterMax);
+      } else {
+        spawnMeter = Phaser.Math.FloatBetween(meterMin, meterMax);
+      }
+
+      const xRatio =
+        preferredXRatio !== undefined && i === 0
+          ? Phaser.Math.Clamp(preferredXRatio, xMin, xMax)
+          : Phaser.Math.FloatBetween(xMin, xMax);
+
+      if (this.isCoinPlacementSafe(spawnMeter, xRatio)) {
+        return { spawnMeter, xRatio };
+      }
+    }
+
+    return null;
+  }
+
+  private ensurePoolObjectRequirements(pool: SegmentPool) {
+    const poolObjects = this.scheduledObjects.filter(
+      (item) => item.spawnMeter >= pool.startMeter && item.spawnMeter < pool.endMeter,
+    );
+    const counts = {
+      moneyUp: 0,
+      moneyDown: 0,
+      dynamicBuoy: 0,
+      rocks: 0,
+      timeBonus: 0,
+      speedBonus: 0,
+    };
+
+    for (const item of poolObjects) {
+      if (item.type === "moneyUp") {
+        counts.moneyUp += 1;
+      } else if (item.type === "moneyDown") {
+        counts.moneyDown += 1;
+      } else if (item.type === "dynamicBuoy") {
+        counts.dynamicBuoy += 1;
+      } else if (item.type === "rock1" || item.type === "rock2" || item.type === "rock3") {
+        counts.rocks += 1;
+      } else if (item.type === "timeBonus") {
+        counts.timeBonus += 1;
+      } else if (item.type === "speedBonus") {
+        counts.speedBonus += 1;
+      }
+    }
+
+    const stage = this.getPoolStage(pool.poolIndex);
+    const required = SEGMENT_PATTERN_RULES.requiredPerPool;
+    const requiredMoneyUp = pool.poolIndex <= SEGMENT_PATTERN_RULES.stages.early.poolIndexTo
+      ? required.moneyUpMinEarly
+      : required.moneyUpMinDefault;
+    const requiredMoneyDown = required.moneyDownMinByStage[stage];
+    const requiredDynamic =
+      pool.poolIndex >= required.dynamicBuoyMinFromPoolIndex ? required.dynamicBuoyMinDefault : 0;
+
+    for (let i = counts.moneyUp; i < requiredMoneyUp; i += 1) {
+      this.scheduleGuaranteedObject(pool, "moneyUp", `guarantee-moneyUp-${i}`);
+    }
+    for (let i = counts.moneyDown; i < requiredMoneyDown; i += 1) {
+      this.scheduleGuaranteedObject(pool, "moneyDown", `guarantee-moneyDown-${i}`);
+    }
+    for (let i = counts.dynamicBuoy; i < requiredDynamic; i += 1) {
+      this.scheduleGuaranteedObject(pool, "dynamicBuoy", `guarantee-dynamic-${i}`);
+    }
+    for (let i = counts.rocks; i < required.rockMin; i += 1) {
+      this.scheduleGuaranteedObject(pool, "rock1", `guarantee-rock-${i}`);
+    }
+    for (let i = counts.timeBonus; i < required.timeBonusMin; i += 1) {
+      this.scheduleGuaranteedObject(pool, "timeBonus", `guarantee-time-${i}`);
+    }
+    for (let i = counts.speedBonus; i < required.speedBonusMin; i += 1) {
+      this.scheduleGuaranteedObject(pool, "speedBonus", `guarantee-speed-${i}`);
+    }
+  }
+
+  private scheduleGuaranteedObject(pool: SegmentPool, type: SegmentObjectType, reason: string) {
+    const meterPadding = SEGMENT_PATTERN_RULES.guaranteedSpawnPaddingMeters;
+    const meterMin = pool.startMeter + meterPadding.min;
+    const meterMax = pool.endMeter - meterPadding.max;
+    const spawnMeter = Phaser.Math.FloatBetween(meterMin, meterMax);
+
+    let finalType: SegmentObjectType = type;
+    if (type === "rock1") {
+      finalType = Phaser.Utils.Array.GetRandom(["rock1", "rock2", "rock3"] as const);
+    }
+
+    let xRatio = 0.5;
+    if (finalType === "rock1" || finalType === "rock2" || finalType === "rock3") {
+      xRatio = Phaser.Math.Between(0, 1) === 0 ? Phaser.Math.FloatBetween(0.08, 0.22) : Phaser.Math.FloatBetween(0.78, 0.92);
+    } else if (finalType === "speedBonus") {
+      xRatio = Phaser.Math.FloatBetween(SEGMENT_PICKUP_RULES.speedBonus.xRatioMin, SEGMENT_PICKUP_RULES.speedBonus.xRatioMax);
+    } else if (finalType === "timeBonus") {
+      xRatio = Phaser.Math.FloatBetween(0.22, 0.78);
+    } else {
+      xRatio = Phaser.Math.FloatBetween(0.2, 0.8);
+    }
+
+    this.scheduledObjects.push({
+      type: finalType,
+      meterOffset: spawnMeter - pool.startMeter,
+      xRatio,
+      scheduleId: `${reason}@pool${pool.poolIndex}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+      spawnMeter,
+    });
   }
 
   private appendMissingCoinsInFinalWindow() {
@@ -1117,17 +1399,56 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    for (let i = 0; i < missing; i += 1) {
-      const spawnMeter = Phaser.Math.FloatBetween(coinRules.finalFillStartMeters + 3, coinRules.finalFillEndMeters - 3);
-      const xRatio = Phaser.Math.FloatBetween(coinRules.finalFillXRatioMin, coinRules.finalFillXRatioMax);
+    const maxAttempts = Math.max(
+      missing,
+      missing * SEGMENT_COIN_SAFETY.maxResampleAttempts * SEGMENT_COIN_SAFETY.finalFillExtraAttemptsMultiplier,
+    );
+    let spawned = 0;
+    let attempts = 0;
+    while (spawned < missing && attempts < maxAttempts) {
+      attempts += 1;
+      const safeCandidate = this.findSafeCoinPlacement(
+        coinRules.finalFillStartMeters + 3,
+        coinRules.finalFillEndMeters - 3,
+        coinRules.finalFillXRatioMin,
+        coinRules.finalFillXRatioMax,
+      );
+      if (!safeCandidate) {
+        continue;
+      }
+      this.scheduledObjects.push({
+        type: "coin",
+        meterOffset: 0,
+        xRatio: safeCandidate.xRatio,
+        scheduleId: `coin-final-fill-${spawned}@${safeCandidate.spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+        spawnMeter: safeCandidate.spawnMeter,
+      });
+      this.coinsScheduledTotal += 1;
+      spawned += 1;
+    }
+
+    while (spawned < missing) {
+      const broadSafeCandidate = this.findSafeCoinPlacement(
+        6,
+        coinRules.finalFillEndMeters - 6,
+        SEGMENT_COIN_SAFETY.safeXRatioMin,
+        SEGMENT_COIN_SAFETY.safeXRatioMax,
+      );
+      const spawnMeter = broadSafeCandidate
+        ? broadSafeCandidate.spawnMeter
+        : Phaser.Math.FloatBetween(coinRules.finalFillStartMeters + 3, coinRules.finalFillEndMeters - 3);
+      const xRatio = broadSafeCandidate
+        ? broadSafeCandidate.xRatio
+        : Phaser.Math.FloatBetween(coinRules.finalFillXRatioMin, coinRules.finalFillXRatioMax);
       this.scheduledObjects.push({
         type: "coin",
         meterOffset: 0,
         xRatio,
-        scheduleId: `coin-final-fill-${i}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+        scheduleId: `coin-final-fallback-${spawned}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
         spawnMeter,
       });
       this.coinsScheduledTotal += 1;
+      spawned += 1;
     }
   }
 
@@ -3016,32 +3337,36 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private applyShieldMagnetForces(deltaSec: number) {
+    this.applyShieldAttractForces(deltaSec);
+    this.applyShieldRepelForces(deltaSec);
+  }
+
+  private applyShieldAttractForces(deltaSec: number) {
     if (!this.yachtBody) {
       return;
     }
 
-    const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
-    const originX = body ? body.center.x : this.yachtBody.x;
-    const originY = body ? body.center.y : this.yachtBody.y;
-    const magnetCfg = ASSET_SHIELD_CONFIG.magnet;
+    const attractCfg = ASSET_SHIELD_CONFIG.magnet.attract;
+    if (!attractCfg.enabled) {
+      return;
+    }
 
-    if (magnetCfg.attractEnabled) {
+    const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
+    const originX = (body ? body.center.x : this.yachtBody.x) + attractCfg.originOffsetX;
+    const originY = (body ? body.center.y : this.yachtBody.y) + attractCfg.originOffsetY;
+
+    if (attractCfg.targets.moneyUp) {
       this.moneyUps.children.each((child) => {
         const sprite = child as Phaser.Physics.Arcade.Sprite;
         if (!sprite.active || sprite.getData("collecting")) {
           return;
         }
-        this.applyShieldMagnetForceToSprite(
-          sprite,
-          originX,
-          originY,
-          magnetCfg.attractRadiusPx,
-          magnetCfg.attractForcePxPerSec,
-          magnetCfg.attractFalloffPower,
-          "attract",
-          deltaSec,
-        );
+        this.applyAttractToSprite(sprite, originX, originY, attractCfg, deltaSec);
       });
+    }
+
+    if (!attractCfg.targets.dynamicUp) {
+      return;
     }
 
     this.hazards.children.each((child) => {
@@ -3050,48 +3375,52 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
       const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "mine";
-      if (hazardType === "moneyDown" && magnetCfg.repelEnabled) {
-        this.applyShieldMagnetForceToSprite(
-          sprite,
-          originX,
-          originY,
-          magnetCfg.repelRadiusPx,
-          magnetCfg.repelForcePxPerSec,
-          magnetCfg.repelFalloffPower,
-          "repel",
-          deltaSec,
-        );
-        return;
-      }
       if (hazardType !== "dynamicBuoy") {
         return;
       }
-      const dynamicState = this.getDynamicBuoyCollisionState(sprite);
-      if (dynamicState === "up" && magnetCfg.attractEnabled) {
-        this.applyShieldMagnetForceToSprite(
-          sprite,
-          originX,
-          originY,
-          magnetCfg.attractRadiusPx,
-          magnetCfg.attractForcePxPerSec,
-          magnetCfg.attractFalloffPower,
-          "attract",
-          deltaSec,
-        );
+      if (this.getDynamicBuoyCollisionState(sprite) !== "up") {
         return;
       }
-      if (dynamicState === "down" && magnetCfg.repelEnabled) {
-        this.applyShieldMagnetForceToSprite(
-          sprite,
-          originX,
-          originY,
-          magnetCfg.repelRadiusPx,
-          magnetCfg.repelForcePxPerSec,
-          magnetCfg.repelFalloffPower,
-          "repel",
-          deltaSec,
-        );
+      this.applyAttractToSprite(sprite, originX, originY, attractCfg, deltaSec);
+    });
+  }
+
+  private applyShieldRepelForces(deltaSec: number) {
+    if (!this.yachtBody) {
+      return;
+    }
+
+    const repelCfg = ASSET_SHIELD_CONFIG.magnet.repel;
+    if (!repelCfg.enabled) {
+      return;
+    }
+
+    const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
+    const originX = (body ? body.center.x : this.yachtBody.x) + repelCfg.originOffsetX;
+    const originY = (body ? body.center.y : this.yachtBody.y) + repelCfg.originOffsetY;
+    const repelBoundaryRadius =
+      repelCfg.hardBoundary.enabled && repelCfg.hardBoundary.radiusPx > 0
+        ? repelCfg.hardBoundary.radiusPx
+        : repelCfg.radiusPx;
+    const repelEffectiveRadius = Math.max(repelCfg.radiusPx, repelBoundaryRadius);
+
+    this.hazards.children.each((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      if (!sprite.active || sprite.getData("collecting")) {
+        return;
       }
+      const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "mine";
+      if (hazardType === "moneyDown" && repelCfg.targets.moneyDown) {
+        this.applyRepelToSprite(sprite, originX, originY, repelEffectiveRadius, repelCfg, deltaSec);
+        return;
+      }
+      if (hazardType !== "dynamicBuoy" || !repelCfg.targets.dynamicDown) {
+        return;
+      }
+      if (this.getDynamicBuoyCollisionState(sprite) !== "down") {
+        return;
+      }
+      this.applyRepelToSprite(sprite, originX, originY, repelEffectiveRadius, repelCfg, deltaSec);
     });
   }
 
@@ -3214,40 +3543,342 @@ export default class GameScene extends Phaser.Scene {
     sprite.setPosition(nextX, nextY);
   }
 
-  private applyShieldMagnetForceToSprite(
+  private applyAttractToSprite(
     sprite: Phaser.Physics.Arcade.Sprite,
     originX: number,
     originY: number,
-    radiusPx: number,
-    forcePxPerSec: number,
-    falloffPower: number,
-    mode: "attract" | "repel",
+    cfg: typeof ASSET_SHIELD_CONFIG.magnet.attract,
     deltaSec: number,
   ) {
+    if (cfg.updateCooldownMs > 0) {
+      const now = this.time.now;
+      const lastAt = (sprite.getData("shieldAttractLastAt") as number | undefined) ?? Number.NEGATIVE_INFINITY;
+      if (now - lastAt < cfg.updateCooldownMs) {
+        return;
+      }
+      sprite.setData("shieldAttractLastAt", now);
+    }
+
     const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
     const centerX = body ? body.center.x : sprite.x;
     const centerY = body ? body.center.y : sprite.y;
     const dx = centerX - originX;
     const dy = centerY - originY;
     const distance = Math.hypot(dx, dy);
-    if (distance <= 1 || distance > radiusPx) {
+    const radiusPx = Math.max(0, cfg.radiusPx);
+    if (distance > radiusPx || radiusPx <= 0) {
       return;
     }
 
-    const falloffBase = 1 - distance / radiusPx;
-    const falloff = Math.pow(Math.max(0, falloffBase), Math.max(0.05, falloffPower));
-    const directionSign = mode === "attract" ? -1 : 1;
-    const nx = (dx / distance) * directionSign;
-    const ny = (dy / distance) * directionSign;
-    const impulse = forcePxPerSec * falloff * deltaSec;
+    const outwardDirection = this.resolveShieldMagnetDirection(
+      sprite,
+      dx,
+      dy,
+      distance,
+      cfg.minEffectiveDistancePx,
+      cfg.centerDirection,
+      "shieldAttractDirX",
+      "shieldAttractDirY",
+    );
 
-    const maxPushSpeed = Math.max(10, ASSET_SHIELD_CONFIG.magnet.maxPushSpeedPxPerSec);
+    let impulse = cfg.forcePxPerSec * deltaSec;
+    if (cfg.forceDistribution === "falloff") {
+      const normalizedDistance = Phaser.Math.Clamp(distance / Math.max(radiusPx, 0.0001), 0, 1);
+      const falloffBase = 1 - normalizedDistance;
+      const falloff = Math.pow(Math.max(0, falloffBase), Math.max(0.05, cfg.falloffPower));
+      impulse = cfg.forcePxPerSec * falloff * deltaSec;
+    }
+    if (impulse <= 0) {
+      return;
+    }
+
+    const nx = -outwardDirection.x;
+    const ny = -outwardDirection.y;
+    const maxPushSpeed = Math.max(10, cfg.maxPushSpeedPxPerSec);
     const currentPushVx = (sprite.getData("pushVx") as number | undefined) ?? 0;
     const currentPushVy = (sprite.getData("pushVy") as number | undefined) ?? 0;
-    const nextPushVx = Phaser.Math.Clamp(currentPushVx + nx * impulse, -maxPushSpeed, maxPushSpeed);
-    const nextPushVy = Phaser.Math.Clamp(currentPushVy + ny * impulse, -maxPushSpeed, maxPushSpeed);
+    const nextPushVx = Phaser.Math.Clamp(
+      currentPushVx + nx * impulse * cfg.axisFactorX,
+      -maxPushSpeed,
+      maxPushSpeed,
+    );
+    const nextPushVy = Phaser.Math.Clamp(
+      currentPushVy + ny * impulse * cfg.axisFactorY,
+      -maxPushSpeed,
+      maxPushSpeed,
+    );
     sprite.setData("pushVx", nextPushVx);
     sprite.setData("pushVy", nextPushVy);
+    this.clampShieldMagnetSpritePosition(
+      sprite,
+      cfg.clampToPlayAreaX,
+      cfg.clampPaddingX,
+      cfg.clampToViewportY,
+      cfg.clampPaddingY,
+    );
+  }
+
+  private applyRepelToSprite(
+    sprite: Phaser.Physics.Arcade.Sprite,
+    originX: number,
+    originY: number,
+    effectiveRadiusPx: number,
+    cfg: typeof ASSET_SHIELD_CONFIG.magnet.repel,
+    deltaSec: number,
+  ) {
+    if (cfg.updateCooldownMs > 0) {
+      const now = this.time.now;
+      const lastAt = (sprite.getData("shieldRepelLastAt") as number | undefined) ?? Number.NEGATIVE_INFINITY;
+      if (now - lastAt < cfg.updateCooldownMs) {
+        return;
+      }
+      sprite.setData("shieldRepelLastAt", now);
+    }
+
+    const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+    const centerX = body ? body.center.x : sprite.x;
+    const centerY = body ? body.center.y : sprite.y;
+    const dx = centerX - originX;
+    const dy = centerY - originY;
+    const distance = Math.hypot(dx, dy);
+    const radiusPx = Math.max(0, effectiveRadiusPx);
+    if (distance > radiusPx || radiusPx <= 0) {
+      sprite.setData("shieldRepelBoundaryWasInside", false);
+      return;
+    }
+
+    const outwardDirection = this.resolveShieldMagnetDirection(
+      sprite,
+      dx,
+      dy,
+      distance,
+      cfg.minEffectiveDistancePx,
+      cfg.centerDirection,
+      "shieldRepelDirX",
+      "shieldRepelDirY",
+    );
+    let effectiveDistance = distance;
+    const boundaryDistance = this.enforceRepelHardBoundary(
+      sprite,
+      originX,
+      originY,
+      outwardDirection.x,
+      outwardDirection.y,
+      distance,
+      deltaSec,
+      cfg,
+    );
+    if (typeof boundaryDistance === "number") {
+      effectiveDistance = boundaryDistance;
+    }
+
+    let impulse = cfg.forcePxPerSec * deltaSec;
+    if (cfg.forceDistribution === "falloff") {
+      const normalizedDistance = Phaser.Math.Clamp(effectiveDistance / Math.max(radiusPx, 0.0001), 0, 1);
+      const falloffBase = 1 - normalizedDistance;
+      const falloff = Math.pow(Math.max(0, falloffBase), Math.max(0.05, cfg.falloffPower));
+      impulse = cfg.forcePxPerSec * falloff * deltaSec;
+    }
+    if (impulse <= 0) {
+      return;
+    }
+
+    const maxPushSpeed = Math.max(10, cfg.maxPushSpeedPxPerSec);
+    const currentPushVx = (sprite.getData("pushVx") as number | undefined) ?? 0;
+    const currentPushVy = (sprite.getData("pushVy") as number | undefined) ?? 0;
+    const nextPushVx = Phaser.Math.Clamp(
+      currentPushVx + outwardDirection.x * impulse * cfg.axisFactorX,
+      -maxPushSpeed,
+      maxPushSpeed,
+    );
+    const nextPushVy = Phaser.Math.Clamp(
+      currentPushVy + outwardDirection.y * impulse * cfg.axisFactorY,
+      -maxPushSpeed,
+      maxPushSpeed,
+    );
+    sprite.setData("pushVx", nextPushVx);
+    sprite.setData("pushVy", nextPushVy);
+    this.clampShieldMagnetSpritePosition(
+      sprite,
+      cfg.clampToPlayAreaX,
+      cfg.clampPaddingX,
+      cfg.clampToViewportY,
+      cfg.clampPaddingY,
+    );
+  }
+
+  private resolveShieldMagnetDirection(
+    sprite: Phaser.Physics.Arcade.Sprite,
+    dx: number,
+    dy: number,
+    distance: number,
+    minEffectiveDistancePx: number,
+    centerCfg: {
+      useLastResolvedDirection: boolean;
+      useVelocityFallback: boolean;
+      fallbackDirX: number;
+      fallbackDirY: number;
+    },
+    directionDataKeyX: string,
+    directionDataKeyY: string,
+  ) {
+    const minEffectiveDistance = Math.max(0, minEffectiveDistancePx);
+    if (distance > Math.max(minEffectiveDistance, 0.0001)) {
+      const nx = dx / distance;
+      const ny = dy / distance;
+      sprite.setData(directionDataKeyX, nx);
+      sprite.setData(directionDataKeyY, ny);
+      return { x: nx, y: ny };
+    }
+
+    let fallbackX: number | undefined;
+    let fallbackY: number | undefined;
+
+    if (centerCfg.useLastResolvedDirection) {
+      const storedX = sprite.getData(directionDataKeyX) as number | undefined;
+      const storedY = sprite.getData(directionDataKeyY) as number | undefined;
+      if (
+        typeof storedX === "number" &&
+        typeof storedY === "number" &&
+        Number.isFinite(storedX) &&
+        Number.isFinite(storedY)
+      ) {
+        const storedLen = Math.hypot(storedX, storedY);
+        if (storedLen > 0.0001) {
+          fallbackX = storedX / storedLen;
+          fallbackY = storedY / storedLen;
+        }
+      }
+    }
+
+    if (
+      (fallbackX === undefined || fallbackY === undefined) &&
+      centerCfg.useVelocityFallback
+    ) {
+      const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+      const vx = body?.velocity.x ?? 0;
+      const vy = body?.velocity.y ?? 0;
+      const velocityLen = Math.hypot(vx, vy);
+      if (velocityLen > 0.0001) {
+        fallbackX = vx / velocityLen;
+        fallbackY = vy / velocityLen;
+      }
+    }
+
+    if (fallbackX === undefined || fallbackY === undefined) {
+      fallbackX = centerCfg.fallbackDirX;
+      fallbackY = centerCfg.fallbackDirY;
+    }
+
+    const fallbackLen = Math.hypot(fallbackX, fallbackY);
+    const nx = fallbackLen > 0.0001 ? fallbackX / fallbackLen : 1;
+    const ny = fallbackLen > 0.0001 ? fallbackY / fallbackLen : 0;
+    sprite.setData(directionDataKeyX, nx);
+    sprite.setData(directionDataKeyY, ny);
+    return { x: nx, y: ny };
+  }
+
+  private enforceRepelHardBoundary(
+    sprite: Phaser.Physics.Arcade.Sprite,
+    originX: number,
+    originY: number,
+    outwardDirX: number,
+    outwardDirY: number,
+    distance: number,
+    deltaSec: number,
+    cfg: typeof ASSET_SHIELD_CONFIG.magnet.repel,
+  ) {
+    const boundaryCfg = cfg.hardBoundary;
+    if (!boundaryCfg.enabled) {
+      sprite.setData("shieldRepelBoundaryWasInside", false);
+      return undefined;
+    }
+
+    const configuredRadius = boundaryCfg.radiusPx > 0 ? boundaryCfg.radiusPx : cfg.radiusPx;
+    const boundaryRadius = Math.max(0, configuredRadius);
+    if (boundaryRadius <= 0) {
+      sprite.setData("shieldRepelBoundaryWasInside", false);
+      return undefined;
+    }
+
+    const isInside = distance < boundaryRadius;
+    if (!isInside) {
+      sprite.setData("shieldRepelBoundaryWasInside", false);
+      return undefined;
+    }
+
+    const wasInside = (sprite.getData("shieldRepelBoundaryWasInside") as boolean | undefined) ?? false;
+    sprite.setData("shieldRepelBoundaryWasInside", true);
+    if (!boundaryCfg.projectEveryFrame && wasInside) {
+      return boundaryRadius;
+    }
+
+    if (boundaryCfg.projectOutMode === "hardSnap") {
+      const padding = Math.max(0, boundaryCfg.boundaryPaddingPx);
+      const targetCenterX = originX + outwardDirX * (boundaryRadius + padding);
+      const targetCenterY = originY + outwardDirY * (boundaryRadius + padding);
+      const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+      const currentCenterX = body ? body.center.x : sprite.x;
+      const currentCenterY = body ? body.center.y : sprite.y;
+      sprite.setPosition(
+        sprite.x + (targetCenterX - currentCenterX),
+        sprite.y + (targetCenterY - currentCenterY),
+      );
+    }
+
+    const boundaryImpulse = Math.max(0, boundaryCfg.outwardImpulseAfterProjectPxPerSec) * deltaSec;
+    if (boundaryImpulse > 0) {
+      const currentPushVx = (sprite.getData("pushVx") as number | undefined) ?? 0;
+      const currentPushVy = (sprite.getData("pushVy") as number | undefined) ?? 0;
+      let nextPushVx = currentPushVx + outwardDirX * boundaryImpulse;
+      let nextPushVy = currentPushVy + outwardDirY * boundaryImpulse;
+      if (boundaryCfg.clampMaxPushSpeedAfterProject) {
+        const maxPushSpeed = Math.max(10, cfg.maxPushSpeedPxPerSec);
+        nextPushVx = Phaser.Math.Clamp(nextPushVx, -maxPushSpeed, maxPushSpeed);
+        nextPushVy = Phaser.Math.Clamp(nextPushVy, -maxPushSpeed, maxPushSpeed);
+      }
+      sprite.setData("pushVx", nextPushVx);
+      sprite.setData("pushVy", nextPushVy);
+    }
+
+    return boundaryRadius;
+  }
+
+  private clampShieldMagnetSpritePosition(
+    sprite: Phaser.Physics.Arcade.Sprite,
+    clampToPlayAreaX: boolean,
+    clampPaddingX: number,
+    clampToViewportY: boolean,
+    clampPaddingY: number,
+  ) {
+    if (!clampToPlayAreaX && !clampToViewportY) {
+      return;
+    }
+
+    const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+    const currentCenterX = body ? body.center.x : sprite.x;
+    const currentCenterY = body ? body.center.y : sprite.y;
+    let targetCenterX = currentCenterX;
+    let targetCenterY = currentCenterY;
+
+    if (clampToPlayAreaX) {
+      const paddingX = Math.max(0, clampPaddingX);
+      targetCenterX = Phaser.Math.Clamp(
+        targetCenterX,
+        this.playAreaLeft - paddingX,
+        this.playAreaRight + paddingX,
+      );
+    }
+
+    if (clampToViewportY) {
+      const paddingY = Math.max(0, clampPaddingY);
+      targetCenterY = Phaser.Math.Clamp(targetCenterY, -paddingY, this.scale.height + paddingY);
+    }
+
+    sprite.setPosition(
+      sprite.x + (targetCenterX - currentCenterX),
+      sprite.y + (targetCenterY - currentCenterY),
+    );
   }
 
   private isShieldInvulnerabilityActiveForHazard(hazardKey: ShieldHazardKey) {

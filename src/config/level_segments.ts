@@ -23,43 +23,33 @@ export type SegmentObjectDef = {
   xOffsetPx?: number;
 };
 
+export type SegmentLengthMeters = 50 | 100;
+
+export type SegmentPoolStage = "early" | "mid" | "late" | "endgame";
+
 export type SegmentTemplate = {
   id: string;
-  lengthMeters: number;
-  weight: number;
+  patternId: string;
+  lengthMeters: SegmentLengthMeters;
+  baseWeight: number;
+  weightByPoolStage?: Partial<Record<SegmentPoolStage, number>>;
+  poolWindow: {
+    poolIndexFrom: number;
+    poolIndexTo: number;
+  };
+  maxPoolsPerRun?: number;
   objects: SegmentObjectDef[];
 };
 
 export type SegmentPool = {
   id: string;
+  poolIndex: number;
   startMeter: number;
   endMeter: number;
-  templates: SegmentTemplate[];
 };
 
 const moneyUp = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
   type: "moneyUp",
-  meterOffset,
-  xRatio,
-  xOffsetPx,
-});
-
-const timeBonus = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
-  type: "timeBonus",
-  meterOffset,
-  xRatio,
-  xOffsetPx,
-});
-
-const mine = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
-  type: "mine",
-  meterOffset,
-  xRatio,
-  xOffsetPx,
-});
-
-const pirate = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
-  type: "pirate",
   meterOffset,
   xRatio,
   xOffsetPx,
@@ -74,6 +64,20 @@ const moneyDown = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentO
 
 const dynamicBuoy = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
   type: "dynamicBuoy",
+  meterOffset,
+  xRatio,
+  xOffsetPx,
+});
+
+const mine = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
+  type: "mine",
+  meterOffset,
+  xRatio,
+  xOffsetPx,
+});
+
+const pirate = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
+  type: "pirate",
   meterOffset,
   xRatio,
   xOffsetPx,
@@ -107,264 +111,647 @@ const rock3 = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjec
   xOffsetPx,
 });
 
+const coin = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
+  type: "coin",
+  meterOffset,
+  xRatio,
+  xOffsetPx,
+});
+
+const timeBonus = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
+  type: "timeBonus",
+  meterOffset,
+  xRatio,
+  xOffsetPx,
+});
+
+const speedBonus = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
+  type: "speedBonus",
+  meterOffset,
+  xRatio,
+  xOffsetPx,
+});
+
+const tpl = (
+  id: string,
+  patternId: string,
+  lengthMeters: SegmentLengthMeters,
+  baseWeight: number,
+  poolIndexFrom: number,
+  poolIndexTo: number,
+  objects: SegmentObjectDef[],
+  maxPoolsPerRun?: number,
+  weightByPoolStage?: Partial<Record<SegmentPoolStage, number>>,
+): SegmentTemplate => ({
+  id,
+  patternId,
+  lengthMeters,
+  baseWeight,
+  poolWindow: { poolIndexFrom, poolIndexTo },
+  maxPoolsPerRun,
+  weightByPoolStage,
+  objects,
+});
+
 export const SEGMENT_POOL_SIZE_METERS = 100;
 export const SEGMENT_POOL_COUNT = 12;
 
-export const LEVEL_SEGMENT_POOLS: SegmentPool[] = [
-  {
-    id: "pool_0_100",
-    startMeter: 0,
-    endMeter: 100,
-    templates: [
-      {
-        id: "p0_a",
-        lengthMeters: 40,
-        weight: 3,
-        objects: [moneyUp(8, 0.3), moneyDown(20, 0.7), moneyUp(34, 0.52)],
-      },
-      {
-        id: "p0_b",
-        lengthMeters: 60,
-        weight: 2,
-        objects: [rock2(16, 0.14, -64), timeBonus(33, 0.52), mine(48, 0.8)],
-      },
+export const LEVEL_SEGMENT_POOLS: SegmentPool[] = Array.from({ length: SEGMENT_POOL_COUNT }, (_, i) => {
+  const startMeter = i * SEGMENT_POOL_SIZE_METERS;
+  const endMeter = startMeter + SEGMENT_POOL_SIZE_METERS;
+  return {
+    id: `pool_${startMeter}_${endMeter}`,
+    poolIndex: i + 1,
+    startMeter,
+    endMeter,
+  };
+});
+
+export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
+  tpl(
+    "green_paradise_p1",
+    "green_paradise",
+    50,
+    1,
+    1,
+    1,
+    [
+      moneyUp(4, 0.2),
+      moneyUp(8, 0.35),
+      moneyUp(12, 0.5),
+      moneyUp(16, 0.65),
+      moneyUp(20, 0.8),
+      moneyUp(24, 0.65),
+      moneyUp(28, 0.5),
+      moneyUp(32, 0.35),
+      moneyUp(40, 0.22),
+      moneyUp(48, 0.78),
     ],
-  },
-  {
-    id: "pool_100_200",
-    startMeter: 100,
-    endMeter: 200,
-    templates: [
-      {
-        id: "p1_a",
-        lengthMeters: 50,
-        weight: 3,
-        objects: [moneyDown(10, 0.25), moneyUp(24, 0.62), rock3(42, 0.92, 72)],
-      },
-      {
-        id: "p1_b",
-        lengthMeters: 50,
-        weight: 2,
-        objects: [whirlpool(12, 0.5), moneyUp(22, 0.18), dynamicBuoy(36, 0.78), timeBonus(45, 0.52)],
-      },
+    3,
+  ),
+  tpl(
+    "green_paradise_p6",
+    "green_paradise",
+    50,
+    1,
+    6,
+    6,
+    [
+      moneyUp(4, 0.24),
+      moneyUp(8, 0.42),
+      moneyUp(12, 0.6),
+      moneyUp(16, 0.78),
+      moneyUp(20, 0.6),
+      moneyUp(24, 0.42),
+      moneyUp(28, 0.24),
+      moneyUp(34, 0.5),
+      moneyUp(40, 0.32),
+      moneyUp(47, 0.68),
     ],
-  },
-  {
-    id: "pool_200_300",
-    startMeter: 200,
-    endMeter: 300,
-    templates: [
-      {
-        id: "p2_a",
-        lengthMeters: 40,
-        weight: 3,
-        objects: [pirate(14, 0.52), moneyDown(28, 0.27), moneyUp(36, 0.74)],
-      },
-      {
-        id: "p2_b",
-        lengthMeters: 60,
-        weight: 2,
-        objects: [rock1(8, 0.08, -76), dynamicBuoy(20, 0.76), whirlpool(38, 0.44), moneyUp(51, 0.65)],
-      },
+    3,
+  ),
+  tpl(
+    "green_paradise_p10",
+    "green_paradise",
+    50,
+    1,
+    10,
+    10,
+    [
+      moneyUp(5, 0.22),
+      moneyUp(9, 0.4),
+      moneyUp(13, 0.58),
+      moneyUp(17, 0.76),
+      moneyUp(21, 0.58),
+      moneyUp(25, 0.4),
+      moneyUp(29, 0.22),
+      moneyUp(35, 0.5),
+      moneyUp(41, 0.3),
+      moneyUp(48, 0.7),
     ],
-  },
-  {
-    id: "pool_300_400",
-    startMeter: 300,
-    endMeter: 400,
-    templates: [
-      {
-        id: "p3_a",
-        lengthMeters: 50,
-        weight: 3,
-        objects: [moneyDown(11, 0.2), pirate(27, 0.7), dynamicBuoy(39, 0.48)],
-      },
-      {
-        id: "p3_b",
-        lengthMeters: 50,
-        weight: 2,
-        objects: [whirlpool(10, 0.56), rock2(22, 0.88, 56), moneyDown(32, 0.3), timeBonus(46, 0.5)],
-      },
+    3,
+  ),
+  tpl(
+    "bonus_paradise_p3",
+    "bonus_paradise",
+    50,
+    1,
+    3,
+    3,
+    [
+      speedBonus(6, 0.25),
+      timeBonus(12, 0.75),
+      speedBonus(18, 0.42),
+      timeBonus(24, 0.58),
+      speedBonus(30, 0.75),
+      timeBonus(36, 0.25),
+      speedBonus(42, 0.58),
+      timeBonus(48, 0.42),
     ],
-  },
-  {
-    id: "pool_400_500",
-    startMeter: 400,
-    endMeter: 500,
-    templates: [
-      {
-        id: "p4_island_left",
-        lengthMeters: 100,
-        weight: 2,
-        objects: [
-          dynamicBuoy(24, 0.22),
-          moneyDown(36, 0.5),
-          whirlpool(62, 0.64),
-          rock3(84, 0.08, -82),
-        ],
-      },
-      {
-        id: "p4_island_right",
-        lengthMeters: 100,
-        weight: 1,
-        objects: [
-          pirate(26, 0.56),
-          dynamicBuoy(49, 0.24),
-          moneyDown(71, 0.77),
-          timeBonus(90, 0.48),
-        ],
-      },
+    3,
+  ),
+  tpl(
+    "bonus_paradise_p7",
+    "bonus_paradise",
+    50,
+    1,
+    7,
+    7,
+    [
+      timeBonus(6, 0.22),
+      speedBonus(12, 0.78),
+      timeBonus(18, 0.38),
+      speedBonus(24, 0.62),
+      timeBonus(30, 0.78),
+      speedBonus(36, 0.22),
+      coin(42, 0.5),
+      timeBonus(48, 0.5),
     ],
-  },
-  {
-    id: "pool_500_600",
-    startMeter: 500,
-    endMeter: 600,
-    templates: [
-      {
-        id: "p5_a",
-        lengthMeters: 40,
-        weight: 3,
-        objects: [rock2(8, 0.18, -64), moneyDown(21, 0.63), whirlpool(32, 0.45)],
-      },
-      {
-        id: "p5_b",
-        lengthMeters: 60,
-        weight: 2,
-        objects: [pirate(10, 0.58), moneyUp(26, 0.24), dynamicBuoy(40, 0.74), timeBonus(53, 0.5)],
-      },
+    3,
+  ),
+  tpl(
+    "bonus_paradise_p9",
+    "bonus_paradise",
+    50,
+    1,
+    9,
+    9,
+    [
+      speedBonus(6, 0.26),
+      timeBonus(12, 0.74),
+      speedBonus(18, 0.5),
+      timeBonus(24, 0.26),
+      speedBonus(30, 0.74),
+      timeBonus(36, 0.5),
+      speedBonus(42, 0.62),
+      timeBonus(48, 0.38),
     ],
-  },
-  {
-    id: "pool_600_700",
-    startMeter: 600,
-    endMeter: 700,
-    templates: [
-      {
-        id: "p6_a",
-        lengthMeters: 50,
-        weight: 3,
-        objects: [whirlpool(12, 0.4), rock1(24, 0.9, 72), pirate(39, 0.53), dynamicBuoy(46, 0.26)],
-      },
-      {
-        id: "p6_b",
-        lengthMeters: 50,
-        weight: 2,
-        objects: [moneyDown(10, 0.27), moneyUp(21, 0.7), dynamicBuoy(31, 0.52), timeBonus(44, 0.49)],
-      },
+    3,
+  ),
+  tpl(
+    "red_hell_50",
+    "red_hell",
+    50,
+    1,
+    3,
+    12,
+    [
+      moneyDown(4, 0.16),
+      moneyDown(8, 0.3),
+      moneyDown(12, 0.44),
+      moneyDown(16, 0.58),
+      moneyDown(20, 0.72),
+      moneyDown(24, 0.86),
+      moneyDown(30, 0.72),
+      moneyDown(36, 0.58),
+      moneyDown(42, 0.44),
+      moneyDown(48, 0.3),
     ],
-  },
-  {
-    id: "pool_700_800",
-    startMeter: 700,
-    endMeter: 800,
-    templates: [
-      {
-        id: "p7_a",
-        lengthMeters: 50,
-        weight: 3,
-        objects: [pirate(10, 0.24), whirlpool(22, 0.64), rock3(39, 0.11, -76), moneyDown(46, 0.55)],
-      },
-      {
-        id: "p7_b",
-        lengthMeters: 50,
-        weight: 2,
-        objects: [dynamicBuoy(8, 0.7), moneyUp(20, 0.32), moneyDown(33, 0.5), timeBonus(46, 0.54)],
-      },
+    2,
+    { early: 0.6, mid: 1, late: 1.3, endgame: 1.5 },
+  ),
+  tpl(
+    "dynamic_hell_50",
+    "dynamic_hell",
+    50,
+    1,
+    3,
+    12,
+    [
+      dynamicBuoy(5, 0.2),
+      dynamicBuoy(10, 0.34),
+      dynamicBuoy(15, 0.48),
+      dynamicBuoy(20, 0.62),
+      dynamicBuoy(25, 0.76),
+      dynamicBuoy(30, 0.62),
+      dynamicBuoy(35, 0.48),
+      dynamicBuoy(40, 0.34),
+      moneyDown(45, 0.2),
+      moneyDown(49, 0.8),
     ],
-  },
-  {
-    id: "pool_800_900",
-    startMeter: 800,
-    endMeter: 900,
-    templates: [
-      {
-        id: "p8_island_left",
-        lengthMeters: 100,
-        weight: 2,
-        objects: [
-          dynamicBuoy(26, 0.74),
-          pirate(41, 0.55),
-          moneyUp(56, 0.32),
-          whirlpool(83, 0.48),
-        ],
-      },
-      {
-        id: "p8_island_right",
-        lengthMeters: 100,
-        weight: 1,
-        objects: [
-          rock2(25, 0.9, 66),
-          dynamicBuoy(39, 0.48),
-          moneyDown(58, 0.24),
-          timeBonus(90, 0.5),
-        ],
-      },
+    2,
+    { early: 0.7, mid: 1, late: 1.2, endgame: 1.35 },
+  ),
+  tpl(
+    "green_red_mix_50",
+    "green_red_mix",
+    50,
+    2,
+    1,
+    3,
+    [
+      moneyUp(6, 0.25),
+      moneyDown(12, 0.58),
+      moneyUp(18, 0.42),
+      moneyDown(24, 0.72),
+      rock1(30, 0.14, -52),
+      moneyUp(36, 0.6),
+      moneyDown(42, 0.3),
+      timeBonus(48, 0.5),
     ],
-  },
-  {
-    id: "pool_900_1000",
-    startMeter: 900,
-    endMeter: 1000,
-    templates: [
-      {
-        id: "p9_a",
-        lengthMeters: 40,
-        weight: 3,
-        objects: [dynamicBuoy(9, 0.47), pirate(22, 0.68), moneyDown(32, 0.24)],
-      },
-      {
-        id: "p9_b",
-        lengthMeters: 60,
-        weight: 2,
-        objects: [rock1(10, 0.1, -82), moneyDown(25, 0.78), dynamicBuoy(37, 0.55), pirate(52, 0.36)],
-      },
+    undefined,
+    { early: 1.2, mid: 1, late: 0.65, endgame: 0.5 },
+  ),
+  tpl(
+    "green_red_mix_100",
+    "green_red_mix",
+    100,
+    2,
+    1,
+    3,
+    [
+      moneyUp(8, 0.2),
+      moneyDown(16, 0.62),
+      moneyUp(24, 0.4),
+      moneyDown(32, 0.76),
+      rock2(40, 0.88, 58),
+      moneyUp(50, 0.3),
+      moneyDown(60, 0.68),
+      moneyUp(70, 0.48),
+      moneyDown(80, 0.24),
+      speedBonus(90, 0.52),
     ],
-  },
-  {
-    id: "pool_1000_1100",
-    startMeter: 1000,
-    endMeter: 1100,
-    templates: [
-      {
-        id: "p10_a",
-        lengthMeters: 50,
-        weight: 3,
-        objects: [pirate(9, 0.52), dynamicBuoy(21, 0.18), whirlpool(35, 0.71), moneyDown(44, 0.36)],
-      },
-      {
-        id: "p10_b",
-        lengthMeters: 50,
-        weight: 2,
-        objects: [rock3(9, 0.86, 64), dynamicBuoy(20, 0.55), pirate(31, 0.27), timeBonus(42, 0.5), moneyDown(47, 0.22)],
-      },
+    undefined,
+    { early: 1.1, mid: 1, late: 0.55, endgame: 0.4 },
+  ),
+  tpl(
+    "minefield_50",
+    "minefield",
+    50,
+    1,
+    6,
+    12,
+    [
+      mine(5, 0.18),
+      mine(10, 0.34),
+      mine(15, 0.5),
+      mine(20, 0.66),
+      mine(25, 0.82),
+      mine(30, 0.66),
+      mine(35, 0.5),
+      mine(40, 0.34),
+      mine(45, 0.18),
+      mine(49, 0.82),
     ],
-  },
-  {
-    id: "pool_1100_1200",
-    startMeter: 1100,
-    endMeter: 1200,
-    templates: [
-      {
-        id: "p11_a",
-        lengthMeters: 40,
-        weight: 3,
-        objects: [dynamicBuoy(8, 0.22), whirlpool(18, 0.56), pirate(31, 0.7), moneyDown(36, 0.42)],
-      },
-      {
-        id: "p11_b",
-        lengthMeters: 60,
-        weight: 2,
-        objects: [rock2(8, 0.1, -68), pirate(22, 0.54), dynamicBuoy(35, 0.79), moneyDown(45, 0.34), timeBonus(56, 0.48)],
-      },
+    2,
+    { early: 0.2, mid: 0.9, late: 1.3, endgame: 1.45 },
+  ),
+  tpl(
+    "whirlpool_cluster_50",
+    "whirlpool_cluster",
+    50,
+    1,
+    6,
+    12,
+    [
+      whirlpool(6, 0.28),
+      whirlpool(12, 0.5),
+      whirlpool(18, 0.72),
+      whirlpool(24, 0.36),
+      whirlpool(30, 0.64),
+      whirlpool(36, 0.48),
+      whirlpool(42, 0.26),
+      whirlpool(48, 0.74),
     ],
-  },
+    2,
+    { early: 0.2, mid: 0.85, late: 1.25, endgame: 1.35 },
+  ),
+  tpl(
+    "rocky_canyon_50",
+    "rocky_canyon",
+    50,
+    2,
+    2,
+    12,
+    [
+      rock1(6, 0.1, -78),
+      rock2(14, 0.88, 74),
+      rock3(22, 0.52),
+      moneyDown(30, 0.32),
+      moneyUp(36, 0.7),
+      whirlpool(42, 0.5),
+      coin(48, 0.24),
+    ],
+    3,
+    { early: 1, mid: 1.05, late: 1.1, endgame: 1 },
+  ),
+  tpl(
+    "rocky_canyon_100",
+    "rocky_canyon",
+    100,
+    2,
+    2,
+    12,
+    [
+      rock1(8, 0.1, -82),
+      rock2(18, 0.9, 70),
+      moneyUp(28, 0.28),
+      rock3(38, 0.52),
+      moneyDown(48, 0.72),
+      whirlpool(58, 0.45),
+      rock1(68, 0.12, -82),
+      moneyDown(78, 0.32),
+      coin(88, 0.68),
+      timeBonus(96, 0.5),
+    ],
+    3,
+    { early: 1, mid: 1.05, late: 1.15, endgame: 1.05 },
+  ),
+  tpl(
+    "pirates_and_mines_50",
+    "pirates_and_mines",
+    50,
+    2,
+    4,
+    12,
+    [
+      mine(6, 0.24),
+      pirate(14, 0.62),
+      mine(22, 0.46),
+      moneyDown(30, 0.3),
+      pirate(38, 0.72),
+      mine(46, 0.52),
+    ],
+    2,
+    { early: 0, mid: 1, late: 1.15, endgame: 1.2 },
+  ),
+  tpl(
+    "pirates_and_mines_100",
+    "pirates_and_mines",
+    100,
+    2,
+    4,
+    12,
+    [
+      mine(8, 0.2),
+      pirate(18, 0.58),
+      moneyDown(28, 0.34),
+      mine(38, 0.74),
+      pirate(48, 0.44),
+      mine(58, 0.22),
+      pirate(68, 0.66),
+      moneyDown(78, 0.52),
+      mine(88, 0.78),
+      speedBonus(96, 0.32),
+    ],
+    2,
+    { early: 0, mid: 1, late: 1.15, endgame: 1.25 },
+  ),
+  tpl(
+    "risk_chase_50",
+    "risk_chase_whirlpool_rocks_coins",
+    50,
+    1,
+    8,
+    12,
+    [
+      rock1(6, 0.1, -78),
+      whirlpool(14, 0.46),
+      coin(16, 0.36),
+      whirlpool(24, 0.54),
+      coin(26, 0.64),
+      rock2(34, 0.9, 72),
+      whirlpool(40, 0.5),
+      coin(44, 0.58),
+      moneyDown(48, 0.3),
+    ],
+    2,
+    { early: 0, mid: 0.6, late: 1.25, endgame: 1.5 },
+  ),
+  tpl(
+    "risk_chase_100",
+    "risk_chase_whirlpool_rocks_coins",
+    100,
+    1,
+    8,
+    12,
+    [
+      rock1(8, 0.1, -82),
+      whirlpool(18, 0.42),
+      coin(20, 0.34),
+      whirlpool(30, 0.58),
+      coin(32, 0.66),
+      rock2(42, 0.9, 74),
+      whirlpool(52, 0.48),
+      coin(54, 0.38),
+      whirlpool(64, 0.62),
+      coin(66, 0.7),
+      rock3(76, 0.12, -76),
+      whirlpool(86, 0.5),
+      coin(88, 0.56),
+      moneyDown(96, 0.26),
+    ],
+    2,
+    { early: 0, mid: 0.5, late: 1.2, endgame: 1.45 },
+  ),
+  tpl(
+    "lane_slalom_50",
+    "lane_slalom",
+    50,
+    3,
+    2,
+    12,
+    [
+      rock1(7, 0.12, -72),
+      moneyUp(14, 0.42),
+      moneyDown(21, 0.64),
+      rock2(28, 0.88, 66),
+      moneyUp(35, 0.32),
+      moneyDown(42, 0.56),
+      timeBonus(48, 0.5),
+    ],
+  ),
+  tpl(
+    "staggered_cross_50",
+    "staggered_cross",
+    50,
+    3,
+    3,
+    12,
+    [
+      moneyDown(6, 0.24),
+      dynamicBuoy(12, 0.74),
+      mine(18, 0.44),
+      moneyUp(24, 0.28),
+      dynamicBuoy(30, 0.62),
+      moneyDown(36, 0.4),
+      speedBonus(42, 0.78),
+      timeBonus(48, 0.22),
+    ],
+  ),
+  tpl(
+    "dual_risk_dual_reward_100",
+    "dual_risk_dual_reward",
+    100,
+    2,
+    4,
+    12,
+    [
+      pirate(10, 0.24),
+      mine(20, 0.68),
+      moneyUp(30, 0.38),
+      moneyDown(40, 0.58),
+      pirate(50, 0.72),
+      mine(60, 0.3),
+      moneyUp(70, 0.62),
+      moneyDown(80, 0.42),
+      timeBonus(90, 0.22),
+      speedBonus(98, 0.78),
+    ],
+  ),
+  tpl(
+    "center_pressure_50",
+    "center_pressure",
+    50,
+    3,
+    2,
+    12,
+    [
+      whirlpool(8, 0.5),
+      moneyDown(16, 0.5),
+      rock3(24, 0.14, -62),
+      rock2(32, 0.86, 62),
+      moneyUp(40, 0.5),
+      coin(48, 0.72),
+    ],
+  ),
+  tpl(
+    "edge_pressure_100",
+    "edge_pressure",
+    100,
+    2,
+    3,
+    12,
+    [
+      rock1(10, 0.08, -82),
+      mine(20, 0.2),
+      dynamicBuoy(30, 0.8),
+      moneyDown(40, 0.24),
+      rock2(50, 0.92, 70),
+      mine(60, 0.78),
+      dynamicBuoy(70, 0.22),
+      moneyUp(80, 0.74),
+      timeBonus(90, 0.48),
+      speedBonus(98, 0.52),
+    ],
+  ),
+  tpl(
+    "zigzag_buoys_50",
+    "zigzag_buoys",
+    50,
+    3,
+    2,
+    12,
+    [
+      moneyUp(6, 0.2),
+      moneyDown(12, 0.34),
+      moneyUp(18, 0.48),
+      moneyDown(24, 0.62),
+      moneyUp(30, 0.76),
+      moneyDown(36, 0.62),
+      moneyUp(42, 0.48),
+      moneyDown(48, 0.34),
+    ],
+    undefined,
+    { early: 1, mid: 1.05, late: 1.15, endgame: 1.2 },
+  ),
+  tpl(
+    "bonus_corridor_100",
+    "bonus_corridor",
+    100,
+    2,
+    2,
+    12,
+    [
+      moneyUp(10, 0.28),
+      timeBonus(20, 0.42),
+      speedBonus(30, 0.58),
+      moneyUp(40, 0.72),
+      coin(50, 0.3),
+      timeBonus(60, 0.68),
+      speedBonus(70, 0.36),
+      coin(80, 0.54),
+      moneyDown(90, 0.74),
+      rock3(98, 0.12, -70),
+    ],
+  ),
+  tpl(
+    "rock_gate_mix_50",
+    "rock_gate_mix",
+    50,
+    3,
+    2,
+    12,
+    [
+      rock1(8, 0.16, -66),
+      rock2(16, 0.84, 62),
+      moneyDown(24, 0.52),
+      moneyUp(32, 0.36),
+      whirlpool(40, 0.64),
+      coin(48, 0.5),
+    ],
+  ),
+  tpl(
+    "spiral_avoid_100",
+    "spiral_avoid",
+    100,
+    2,
+    4,
+    12,
+    [
+      whirlpool(10, 0.5),
+      mine(20, 0.26),
+      pirate(30, 0.72),
+      whirlpool(40, 0.38),
+      moneyDown(50, 0.6),
+      mine(60, 0.76),
+      pirate(70, 0.3),
+      whirlpool(80, 0.56),
+      moneyUp(90, 0.42),
+      timeBonus(98, 0.22),
+    ],
+  ),
+  tpl(
+    "late_reaction_50",
+    "late_reaction",
+    50,
+    3,
+    3,
+    12,
+    [
+      moneyUp(6, 0.24),
+      mine(14, 0.66),
+      dynamicBuoy(22, 0.34),
+      moneyDown(30, 0.74),
+      pirate(38, 0.5),
+      speedBonus(46, 0.28),
+      timeBonus(49, 0.72),
+    ],
+  ),
+  tpl(
+    "ordinary_filler_50",
+    "ordinary_filler",
+    50,
+    3,
+    1,
+    12,
+    [
+      moneyUp(8, 0.28),
+      moneyDown(16, 0.62),
+      rock1(24, 0.12, -64),
+      rock2(32, 0.88, 64),
+      timeBonus(40, 0.48),
+      speedBonus(48, 0.54),
+    ],
+  ),
 ];
 
 export const FINAL_SEGMENT_1200_1250: SegmentTemplate = {
   id: "final_1200_1250",
+  patternId: "final_harbor",
   lengthMeters: 50,
-  weight: 1,
+  baseWeight: 1,
+  poolWindow: { poolIndexFrom: 12, poolIndexTo: 12 },
   objects: [
     { type: "harbor", meterOffset: 50, xRatio: 0.5 },
     { type: "harborGate", meterOffset: 50, xRatio: 0.5 },
