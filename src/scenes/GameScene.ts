@@ -34,6 +34,7 @@ import {
   RUN_SPEED_RAMP,
   RUN_START_SPEED,
   RUN_TIMER,
+  SEA_BACKGROUND_CONFIG,
   SEGMENT_GLOBAL_BONUS_SPAWN,
   SEGMENT_COIN_SAFETY,
   SEGMENT_PATTERN_RULES,
@@ -47,6 +48,7 @@ import {
   TUNING,
   WATER_SCROLL,
   WHIRLPOOL_CONFIG,
+  WORLD_OBJECT_DARKENING_CONFIG,
   YACHT_HAZARD_HITBOX,
   YACHT_SOLID_BLOCKERS,
   YACHT_SOLID_CONTACT_RESOLVE,
@@ -81,6 +83,8 @@ type ShieldHazardKey = (typeof ASSET_SHIELD_CONFIG.invulnerability.affectedHazar
 type ShieldPickupMagnetTargetKey = "coin" | "timeBonus" | "speedBonus";
 type BuoyCollisionActorType = "moneyUp" | HazardType;
 type SegmentBonusType = "timeBonus" | "speedBonus";
+type SeaStageId = (typeof SEA_BACKGROUND_CONFIG.stages)[number]["id"];
+type SeaTransitionMode = "alphaCrossfade" | "textureTransition" | "none";
 type ShieldPickupMagnetResolvedConfig = {
   enabled: boolean;
   radiusPx: number;
@@ -127,7 +131,8 @@ const MONEY_UP_SWAY_AMPLITUDE_DEG = 4;
 const MONEY_UP_SWAY_FREQUENCY_HZ = 1.1;
 
 export default class GameScene extends Phaser.Scene {
-  private water?: Phaser.GameObjects.TileSprite;
+  private waterBase?: Phaser.GameObjects.TileSprite;
+  private waterOverlay?: Phaser.GameObjects.TileSprite;
   private coinsText?: Phaser.GameObjects.Text;
   private topProgressTrackGraphics?: Phaser.GameObjects.Graphics;
   private topProgressFillGraphics?: Phaser.GameObjects.Graphics;
@@ -139,6 +144,8 @@ export default class GameScene extends Phaser.Scene {
   private timePanelGraphics?: Phaser.GameObjects.Graphics;
   private timeText?: Phaser.GameObjects.Text;
   private hitboxDebugGraphics?: Phaser.GameObjects.Graphics;
+  private debugSpeedText?: Phaser.GameObjects.Text;
+  private debugDistanceText?: Phaser.GameObjects.Text;
 
   private yachtBody?: Phaser.Physics.Arcade.Sprite;
   private yachtHazardCollider?: Phaser.Physics.Arcade.Sprite;
@@ -219,6 +226,16 @@ export default class GameScene extends Phaser.Scene {
   private buoyCollisionPairLastHit = new Map<string, number>();
   private collisionIdCounter = 0;
   private solidDamageLastHit = new Map<number, number>();
+  private seaStageIndex = 0;
+  private seaTransitionIndex = -1;
+  private seaTransitionActive = false;
+  private seaTransitionRuntimeMode: SeaTransitionMode = "none";
+  private seaTransitionScrolledPx = 0;
+  private seaTransitionScrolledMeters = 0;
+  private seaCurrentDarkeningIntensity = 0;
+  private seaLastDarkeningIntensity = Number.NaN;
+  private yachtFeedbackTintWasActive = false;
+  private readonly worldDarkeningAppliedIntensity = new WeakMap<object, number>();
 
   private readonly onPointerDown = (pointer: Phaser.Input.Pointer) => {
     if (this.pointerControlActive && this.pointerControlId !== pointer.id) {
@@ -387,11 +404,11 @@ export default class GameScene extends Phaser.Scene {
     this.cleanupFallingObjects();
     this.pruneOldCollisionMaps();
 
-    if (this.water) {
-      const extra = Math.max(0, this.speedKmh - 20) * WATER_SCROLL.extraPerKmhAfter20;
-      const scrollSpeed = WATER_SCROLL.baseSpeed + this.speedKmh * WATER_SCROLL.perKmh + extra;
-      this.water.tilePositionY -= delta * scrollSpeed;
-    }
+    const extra = Math.max(0, this.speedKmh - 20) * WATER_SCROLL.extraPerKmhAfter20;
+    const scrollSpeed = WATER_SCROLL.baseSpeed + this.speedKmh * WATER_SCROLL.perKmh + extra;
+    const scrollDeltaPx = delta * scrollSpeed;
+    this.updateSeaBackgroundState(scrollDeltaPx, speedMps * dt);
+    this.scrollWaterBackground(scrollDeltaPx);
 
     if (this.yachtBody && this.yachtVisual) {
       this.swayTime += delta / 1000;
@@ -413,6 +430,7 @@ export default class GameScene extends Phaser.Scene {
     this.updateTimerHud();
     this.updateShieldButtonState();
     this.updateShieldVisualPresentation();
+    this.applyWorldDarkening(this.seaCurrentDarkeningIntensity);
     this.updateHitboxDebugOverlay();
   }
 
@@ -421,18 +439,54 @@ export default class GameScene extends Phaser.Scene {
     this.hitboxDebugGraphics = this.add.graphics();
     this.hitboxDebugGraphics.setDepth(HITBOX_DEBUG.depth);
     this.hitboxDebugGraphics.setVisible(HITBOX_DEBUG.enabled);
+
+    const metricsCfg = HITBOX_DEBUG.metricsUi;
+    const fontStyle = metricsCfg.fontStyle === "bold" ? "bold" : "normal";
+    this.debugSpeedText = this.add.text(0, 0, "0", {
+      fontFamily: metricsCfg.fontFamily,
+      fontSize: `${metricsCfg.fontSizePx}px`,
+      fontStyle,
+      color: metricsCfg.speedColor,
+      stroke: metricsCfg.fontStrokeColor,
+      strokeThickness: metricsCfg.fontStrokeThickness,
+    });
+    this.debugSpeedText.setDepth(metricsCfg.depth);
+    this.debugSpeedText.setAlpha(metricsCfg.alpha);
+    this.debugSpeedText.setVisible(false);
+
+    this.debugDistanceText = this.add.text(0, 0, "0", {
+      fontFamily: metricsCfg.fontFamily,
+      fontSize: `${metricsCfg.fontSizePx}px`,
+      fontStyle,
+      color: metricsCfg.distanceColor,
+      stroke: metricsCfg.fontStrokeColor,
+      strokeThickness: metricsCfg.fontStrokeThickness,
+    });
+    this.debugDistanceText.setDepth(metricsCfg.depth);
+    this.debugDistanceText.setAlpha(metricsCfg.alpha);
+    this.debugDistanceText.setVisible(false);
   }
 
   private destroyHitboxDebugOverlay() {
     this.hitboxDebugGraphics?.destroy();
     this.hitboxDebugGraphics = undefined;
+    this.debugSpeedText?.destroy();
+    this.debugDistanceText?.destroy();
+    this.debugSpeedText = undefined;
+    this.debugDistanceText = undefined;
   }
 
   private updateHitboxDebugOverlay() {
     const graphics = this.hitboxDebugGraphics;
-    if (!graphics) {
+    const speedText = this.debugSpeedText;
+    const distanceText = this.debugDistanceText;
+    if (!graphics || !speedText || !distanceText) {
       return;
     }
+
+    const metricsCfg = HITBOX_DEBUG.metricsUi;
+    const isMetricsVisible = HITBOX_DEBUG.enabled && metricsCfg.enabled;
+    this.updateDebugMetricsTexts(isMetricsVisible);
 
     if (!HITBOX_DEBUG.enabled) {
       graphics.clear();
@@ -463,6 +517,45 @@ export default class GameScene extends Phaser.Scene {
     if (HITBOX_DEBUG.drawShieldZones) {
       this.drawShieldZonesDebug();
     }
+  }
+
+  private updateDebugMetricsTexts(visible: boolean) {
+    if (!this.debugSpeedText || !this.debugDistanceText) {
+      return;
+    }
+    if (!visible) {
+      this.debugSpeedText.setVisible(false);
+      this.debugDistanceText.setVisible(false);
+      return;
+    }
+
+    const cfg = HITBOX_DEBUG.metricsUi;
+    let anchorX = this.scale.width * cfg.xRatio;
+    let anchorY = cfg.y;
+    if (cfg.anchorMode === "progressBar") {
+      const layout = this.getTopProgressLayout();
+      anchorX = layout.barLeft + layout.barWidth / 2;
+      anchorY = layout.barTop;
+    }
+    const baseX = anchorX + cfg.offsetX;
+    const baseY = anchorY + cfg.offsetY;
+    const originX = cfg.align === "left" ? 0 : cfg.align === "right" ? 1 : 0.5;
+
+    const speedValue = cfg.roundSpeedKmh ? Math.round(this.speedKmh) : this.speedKmh;
+    const distanceValue = cfg.roundDistanceM ? Math.floor(this.distanceM) : this.distanceM;
+    const speedTextValue = Number.isInteger(speedValue) ? `${speedValue}` : speedValue.toFixed(2);
+    const distanceTextValue = Number.isInteger(distanceValue) ? `${distanceValue}` : distanceValue.toFixed(2);
+
+    this.debugSpeedText
+      .setText(speedTextValue)
+      .setPosition(baseX, baseY)
+      .setOrigin(originX, 0)
+      .setVisible(true);
+    this.debugDistanceText
+      .setText(distanceTextValue)
+      .setPosition(baseX, baseY + cfg.lineGapPx)
+      .setOrigin(originX, 0)
+      .setVisible(true);
   }
 
   private drawArcadeBodyRect(target: Phaser.GameObjects.GameObject | undefined, color: number) {
@@ -601,7 +694,532 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private createWaterBackground(width: number, height: number) {
-    this.water = this.add.tileSprite(0, 0, width, height, "sea-bg").setOrigin(0, 0);
+    this.seaStageIndex = 0;
+    this.seaTransitionIndex = -1;
+    this.seaTransitionActive = false;
+    this.seaTransitionRuntimeMode = "none";
+    this.seaTransitionScrolledPx = 0;
+    this.seaTransitionScrolledMeters = 0;
+    this.seaCurrentDarkeningIntensity = 0;
+    this.seaLastDarkeningIntensity = Number.NaN;
+    this.yachtFeedbackTintWasActive = false;
+
+    const firstStageKey = SEA_BACKGROUND_CONFIG.enabled
+      ? (SEA_BACKGROUND_CONFIG.stages[0]?.baseKey ?? "sea-bg")
+      : "sea-bg";
+
+    this.waterBase = this.add.tileSprite(0, 0, width, height, firstStageKey).setOrigin(0, 0);
+    this.waterOverlay = this.add.tileSprite(0, 0, width, height, firstStageKey).setOrigin(0, 0);
+    this.waterOverlay.setVisible(false);
+    this.waterOverlay.setAlpha(0);
+    this.updateCurrentSeaDarkeningIntensity(0);
+  }
+
+  private scrollWaterBackground(scrollDeltaPx: number) {
+    if (!this.waterBase) {
+      return;
+    }
+
+    this.waterBase.tilePositionY -= scrollDeltaPx;
+
+    if (!this.waterOverlay || !this.waterOverlay.visible) {
+      return;
+    }
+
+    if (
+      this.seaTransitionActive &&
+      this.seaTransitionRuntimeMode === "alphaCrossfade" &&
+      SEA_BACKGROUND_CONFIG.alphaCrossfade.syncTilePositionBetweenLayers
+    ) {
+      this.waterOverlay.tilePositionY = this.waterBase.tilePositionY;
+      return;
+    }
+
+    this.waterOverlay.tilePositionY -= scrollDeltaPx;
+  }
+
+  private resolveSeaTransitionMode(): SeaTransitionMode {
+    if (!SEA_BACKGROUND_CONFIG.enabled || !SEA_BACKGROUND_CONFIG.transitionsEnabled) {
+      return "none";
+    }
+
+    if (SEA_BACKGROUND_CONFIG.transitionMode === "alphaCrossfade") {
+      return SEA_BACKGROUND_CONFIG.alphaCrossfade.enabled ? "alphaCrossfade" : "none";
+    }
+
+    if (SEA_BACKGROUND_CONFIG.transitionMode === "textureTransition") {
+      return SEA_BACKGROUND_CONFIG.textureTransition.enabled ? "textureTransition" : "none";
+    }
+
+    return "none";
+  }
+
+  private updateSeaBackgroundState(scrollDeltaPx: number, distanceDeltaM: number) {
+    if (!this.waterBase) {
+      this.seaCurrentDarkeningIntensity = 0;
+      return;
+    }
+
+    if (!SEA_BACKGROUND_CONFIG.enabled) {
+      this.seaCurrentDarkeningIntensity = 0;
+      return;
+    }
+
+    const mode = this.resolveSeaTransitionMode();
+
+    if (!this.seaTransitionActive) {
+      const nextTransitionIndex = this.seaTransitionIndex + 1;
+      const nextTransition = SEA_BACKGROUND_CONFIG.transitions[nextTransitionIndex];
+      if (nextTransition && this.distanceM >= nextTransition.triggerMeters) {
+        if (mode === "none") {
+          this.applyInstantSeaTransition(nextTransitionIndex);
+        } else {
+          this.startSeaTransition(nextTransitionIndex, mode);
+        }
+      }
+    }
+
+    if (!this.seaTransitionActive) {
+      this.updateCurrentSeaDarkeningIntensity(0);
+      return;
+    }
+
+    const transition = SEA_BACKGROUND_CONFIG.transitions[this.seaTransitionIndex];
+    if (!transition) {
+      this.seaTransitionActive = false;
+      this.seaTransitionRuntimeMode = "none";
+      this.updateCurrentSeaDarkeningIntensity(0);
+      return;
+    }
+
+    let transitionProgress = 0;
+    if (this.seaTransitionRuntimeMode === "alphaCrossfade") {
+      transitionProgress = this.updateAlphaCrossfadeTransition(distanceDeltaM);
+    } else if (this.seaTransitionRuntimeMode === "textureTransition") {
+      const transitionLengthPx = this.getTextureTransitionLengthPx(transition.key);
+      this.seaTransitionScrolledPx += Math.max(0, scrollDeltaPx);
+      transitionProgress = Phaser.Math.Clamp(this.seaTransitionScrolledPx / transitionLengthPx, 0, 1);
+    }
+
+    this.updateCurrentSeaDarkeningIntensity(transitionProgress);
+    if (transitionProgress >= 1) {
+      this.completeSeaTransition();
+    }
+  }
+
+  private startSeaTransition(transitionIndex: number, mode: Exclude<SeaTransitionMode, "none">) {
+    const transition = SEA_BACKGROUND_CONFIG.transitions[transitionIndex];
+    if (!transition || !this.waterBase) {
+      return;
+    }
+
+    const fromStageIndex = this.getSeaStageIndexById(transition.fromStage);
+    if (fromStageIndex >= 0) {
+      this.seaStageIndex = fromStageIndex;
+    }
+
+    this.seaTransitionIndex = transitionIndex;
+    this.seaTransitionActive = true;
+    this.seaTransitionRuntimeMode = mode;
+    this.seaTransitionScrolledPx = 0;
+    this.seaTransitionScrolledMeters = 0;
+
+    if (mode === "alphaCrossfade") {
+      this.startAlphaCrossfadeTransition(transition);
+    } else {
+      this.switchWaterBaseTexture(
+        transition.key,
+        SEA_BACKGROUND_CONFIG.textureTransition.resetTilePositionOnSwitch,
+      );
+    }
+
+    this.updateCurrentSeaDarkeningIntensity(0);
+  }
+
+  private startAlphaCrossfadeTransition(
+    transition: (typeof SEA_BACKGROUND_CONFIG.transitions)[number],
+  ) {
+    if (!this.waterBase || !this.waterOverlay) {
+      return;
+    }
+
+    const toStageIndex = this.getSeaStageIndexById(transition.toStage);
+    const toStage = toStageIndex >= 0 ? SEA_BACKGROUND_CONFIG.stages[toStageIndex] : undefined;
+    if (!toStage) {
+      return;
+    }
+
+    this.switchWaterOverlayTexture(toStage.baseKey);
+    if (SEA_BACKGROUND_CONFIG.alphaCrossfade.syncTilePositionBetweenLayers) {
+      this.waterOverlay.tilePositionY = this.waterBase.tilePositionY;
+    }
+    this.waterBase.setAlpha(1);
+    this.waterBase.setVisible(true);
+    this.waterOverlay.setAlpha(SEA_BACKGROUND_CONFIG.alphaCrossfade.startAlpha);
+    this.waterOverlay.setVisible(true);
+  }
+
+  private updateAlphaCrossfadeTransition(distanceDeltaM: number) {
+    if (!this.waterBase || !this.waterOverlay) {
+      return 1;
+    }
+
+    const cfg = SEA_BACKGROUND_CONFIG.alphaCrossfade;
+    const distanceStep = Math.max(0, distanceDeltaM);
+    this.seaTransitionScrolledMeters += distanceStep;
+
+    const durationMeters = this.getAlphaCrossfadeDurationMeters();
+    const rawProgress = durationMeters > 0 ? this.seaTransitionScrolledMeters / durationMeters : 1;
+    const clampedProgress = cfg.clampProgress ? Phaser.Math.Clamp(rawProgress, 0, 1) : rawProgress;
+    const easedProgress = this.getBlendValueWithEase(clampedProgress, cfg.ease, cfg.clampProgress);
+
+    const overlayAlpha = Phaser.Math.Linear(cfg.startAlpha, cfg.endAlpha, easedProgress);
+    const baseAlpha = Phaser.Math.Clamp(1 - easedProgress, 0, 1);
+
+    this.waterOverlay.setAlpha(Phaser.Math.Clamp(overlayAlpha, 0, 1));
+    this.waterBase.setAlpha(baseAlpha);
+    this.waterBase.setVisible(cfg.keepPreviousLayerUntilComplete || easedProgress < 1);
+
+    return Phaser.Math.Clamp(clampedProgress, 0, 1);
+  }
+
+  private completeSeaTransition() {
+    const transition = SEA_BACKGROUND_CONFIG.transitions[this.seaTransitionIndex];
+    if (!transition) {
+      this.seaTransitionActive = false;
+      this.seaTransitionRuntimeMode = "none";
+      this.seaTransitionScrolledPx = 0;
+      this.seaTransitionScrolledMeters = 0;
+      return;
+    }
+
+    const toStageIndex = this.getSeaStageIndexById(transition.toStage);
+    if (toStageIndex >= 0) {
+      this.seaStageIndex = toStageIndex;
+    }
+
+    this.seaTransitionActive = false;
+    const mode = this.seaTransitionRuntimeMode;
+    this.seaTransitionRuntimeMode = "none";
+    this.seaTransitionScrolledPx = 0;
+    this.seaTransitionScrolledMeters = 0;
+
+    const stage = SEA_BACKGROUND_CONFIG.stages[this.seaStageIndex];
+    if (stage) {
+      this.switchWaterBaseTexture(stage.baseKey, false);
+    }
+
+    if (mode === "alphaCrossfade" && this.waterOverlay) {
+      if (SEA_BACKGROUND_CONFIG.alphaCrossfade.destroyOverlayOnComplete) {
+        this.waterOverlay.destroy();
+        this.waterOverlay = undefined;
+      } else {
+        this.waterOverlay.setVisible(false);
+        this.waterOverlay.setAlpha(0);
+      }
+      if (!this.waterOverlay) {
+        const { width, height } = this.scale;
+        this.waterOverlay = this.add.tileSprite(0, 0, width, height, stage?.baseKey ?? "sea-bg").setOrigin(0, 0);
+        this.waterOverlay.setVisible(false);
+        this.waterOverlay.setAlpha(0);
+      }
+    }
+
+    this.resetWaterLayerAlphas();
+    this.updateCurrentSeaDarkeningIntensity(0);
+  }
+
+  private applyInstantSeaTransition(transitionIndex: number) {
+    const transition = SEA_BACKGROUND_CONFIG.transitions[transitionIndex];
+    if (!transition) {
+      return;
+    }
+
+    const toStageIndex = this.getSeaStageIndexById(transition.toStage);
+    if (toStageIndex < 0) {
+      return;
+    }
+
+    this.seaTransitionIndex = transitionIndex;
+    this.seaTransitionActive = false;
+    this.seaTransitionRuntimeMode = "none";
+    this.seaTransitionScrolledPx = 0;
+    this.seaTransitionScrolledMeters = 0;
+    this.seaStageIndex = toStageIndex;
+
+    const stage = SEA_BACKGROUND_CONFIG.stages[this.seaStageIndex];
+    if (stage) {
+      this.switchWaterBaseTexture(stage.baseKey, false);
+    }
+    if (this.waterOverlay) {
+      this.waterOverlay.setVisible(false);
+      this.waterOverlay.setAlpha(0);
+    }
+    this.resetWaterLayerAlphas();
+    this.updateCurrentSeaDarkeningIntensity(0);
+  }
+
+  private switchWaterBaseTexture(textureKey: string, resetTilePosition: boolean) {
+    if (!this.waterBase) {
+      return;
+    }
+    if (this.waterBase.texture.key !== textureKey) {
+      this.waterBase.setTexture(textureKey);
+    }
+    if (resetTilePosition) {
+      this.waterBase.tilePositionY = 0;
+      if (this.waterOverlay && this.waterOverlay.visible) {
+        this.waterOverlay.tilePositionY = 0;
+      }
+    }
+  }
+
+  private switchWaterOverlayTexture(textureKey: string) {
+    if (!this.waterOverlay) {
+      const { width, height } = this.scale;
+      this.waterOverlay = this.add.tileSprite(0, 0, width, height, textureKey).setOrigin(0, 0);
+      this.waterOverlay.setAlpha(0);
+      this.waterOverlay.setVisible(false);
+      return;
+    }
+    if (this.waterOverlay.texture.key !== textureKey) {
+      this.waterOverlay.setTexture(textureKey);
+    }
+  }
+
+  private resetWaterLayerAlphas() {
+    this.waterBase?.setAlpha(1);
+    this.waterBase?.setVisible(true);
+    this.waterOverlay?.setAlpha(0);
+    this.waterOverlay?.setVisible(false);
+  }
+
+  private getTextureTransitionLengthPx(textureKey: string) {
+    const cfg = SEA_BACKGROUND_CONFIG.textureTransition;
+    const fallback = Math.max(1, cfg.fallbackLengthPx);
+    if (cfg.lengthMode !== "textureHeightPx") {
+      return fallback;
+    }
+
+    const texture = this.textures.get(textureKey);
+    const baseFrame = texture?.get("__BASE");
+    const frameHeight = baseFrame?.height ?? 0;
+    if (frameHeight <= 0) {
+      return fallback;
+    }
+    return Math.max(1, frameHeight * cfg.lengthTextureMultiplier);
+  }
+
+  private getAlphaCrossfadeDurationMeters() {
+    const cfg = SEA_BACKGROUND_CONFIG.alphaCrossfade;
+    const minMeters = Math.max(1, cfg.minDurationMeters);
+    const maxMeters = Math.max(minMeters, cfg.maxDurationMeters);
+    return Phaser.Math.Clamp(cfg.durationMeters, minMeters, maxMeters);
+  }
+
+  private getSeaStageIndexById(stageId: SeaStageId) {
+    return SEA_BACKGROUND_CONFIG.stages.findIndex((stage) => stage.id === stageId);
+  }
+
+  private getSeaStageIntensity(stageId: SeaStageId) {
+    const stageIntensity = WORLD_OBJECT_DARKENING_CONFIG.intensityByStage as Record<string, number>;
+    return Phaser.Math.Clamp(stageIntensity[stageId] ?? 0, 0, 1);
+  }
+
+  private getSeaTransitionBlendValue(progress: number) {
+    const eased = Phaser.Math.Clamp(progress, 0, 1);
+    const easeFn = Phaser.Tweens.Builders.GetEaseFunction(WORLD_OBJECT_DARKENING_CONFIG.transitionBlendEase);
+    return easeFn ? Phaser.Math.Clamp(easeFn(eased), 0, 1) : eased;
+  }
+
+  private getBlendValueWithEase(progress: number, easeKey: string, clampProgress: boolean) {
+    const normalized = clampProgress ? Phaser.Math.Clamp(progress, 0, 1) : progress;
+    const easeFn = Phaser.Tweens.Builders.GetEaseFunction(easeKey);
+    const eased = easeFn ? easeFn(normalized) : normalized;
+    return clampProgress ? Phaser.Math.Clamp(eased, 0, 1) : eased;
+  }
+
+  private updateCurrentSeaDarkeningIntensity(transitionProgress: number) {
+    const currentStage = SEA_BACKGROUND_CONFIG.stages[this.seaStageIndex];
+    if (!currentStage) {
+      this.seaCurrentDarkeningIntensity = 0;
+      return;
+    }
+
+    let intensity = this.getSeaStageIntensity(currentStage.id);
+    if (this.seaTransitionActive) {
+      const transition = SEA_BACKGROUND_CONFIG.transitions[this.seaTransitionIndex];
+      if (transition) {
+        const fromIntensity = this.getSeaStageIntensity(transition.fromStage);
+        const toIntensity = this.getSeaStageIntensity(transition.toStage);
+
+        if (this.seaTransitionRuntimeMode === "alphaCrossfade") {
+          const alphaCfg = SEA_BACKGROUND_CONFIG.alphaCrossfade;
+          if (alphaCfg.pauseDarkeningInterpolation) {
+            intensity = fromIntensity;
+          } else if (alphaCfg.useProgressForDarkeningBlend) {
+            const blend = this.getBlendValueWithEase(
+              transitionProgress,
+              alphaCfg.ease,
+              alphaCfg.clampProgress,
+            );
+            intensity = Phaser.Math.Linear(fromIntensity, toIntensity, blend);
+          } else {
+            intensity = fromIntensity;
+          }
+        } else {
+          const blend = this.getSeaTransitionBlendValue(transitionProgress);
+          intensity = Phaser.Math.Linear(fromIntensity, toIntensity, blend);
+        }
+      }
+    }
+
+    this.seaCurrentDarkeningIntensity = Phaser.Math.Clamp(intensity, 0, 1);
+  }
+
+  private applyWorldDarkening(baseIntensity: number) {
+    const darkeningCfg = WORLD_OBJECT_DARKENING_CONFIG;
+    const intensity = darkeningCfg.enabled ? Phaser.Math.Clamp(baseIntensity, 0, 1) : 0;
+    const forceGlobal =
+      Number.isNaN(this.seaLastDarkeningIntensity) ||
+      Math.abs(this.seaLastDarkeningIntensity - intensity) >= darkeningCfg.updateDeltaThreshold;
+
+    const feedbackActive = this.isYachtFeedbackTintActive();
+    let forceYacht = forceGlobal;
+    if (darkeningCfg.reapplyAfterFeedbackStops && this.yachtFeedbackTintWasActive && !feedbackActive) {
+      forceYacht = true;
+    }
+    this.yachtFeedbackTintWasActive = feedbackActive;
+
+    if (!(darkeningCfg.preserveGameplayFeedbackTints && feedbackActive)) {
+      this.applyDarkeningToTarget(this.yachtVisual, "yachtVisual", intensity, forceYacht);
+    }
+
+    this.applyDarkeningToGroup(this.hazards, "hazards", intensity, forceGlobal);
+    this.applyDarkeningToGroup(this.moneyUps, "moneyUps", intensity, forceGlobal);
+    this.applyDarkeningToGroup(this.coins, "coins", intensity, forceGlobal);
+    this.applyDarkeningToGroup(this.timeBonuses, "timeBonuses", intensity, forceGlobal);
+    this.applyDarkeningToGroup(this.solids, "solids", intensity, forceGlobal);
+    this.applyDarkeningToTarget(this.harborGate, "harborGate", intensity, forceGlobal);
+    this.applyDarkeningToTarget(this.shieldVisual, "shieldVisual", intensity, forceGlobal);
+
+    if (darkeningCfg.targetsByRuntimeKind.shadows) {
+      this.applyDarkeningToBonusShadows(this.timeBonuses, intensity, forceGlobal);
+      this.applyDarkeningToBonusShadows(this.coins, intensity, forceGlobal);
+    }
+
+    this.seaLastDarkeningIntensity = intensity;
+  }
+
+  private applyDarkeningToGroup(
+    group: Phaser.Physics.Arcade.Group | undefined,
+    runtimeKind: keyof typeof WORLD_OBJECT_DARKENING_CONFIG.targetsByRuntimeKind,
+    intensity: number,
+    force: boolean,
+  ) {
+    if (!this.isPhysicsGroupUsable(group)) {
+      return;
+    }
+
+    group.children.each((child) => {
+      const gameObject = child as Phaser.GameObjects.GameObject & { active?: boolean };
+      if (gameObject.active === false) {
+        return;
+      }
+      this.applyDarkeningToTarget(gameObject, runtimeKind, intensity, force);
+    });
+  }
+
+  private applyDarkeningToBonusShadows(
+    group: Phaser.Physics.Arcade.Group | undefined,
+    intensity: number,
+    force: boolean,
+  ) {
+    if (!this.isPhysicsGroupUsable(group)) {
+      return;
+    }
+
+    group.children.each((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      if (!sprite.active) {
+        return;
+      }
+      const shadow = sprite.getData("shadow") as Phaser.GameObjects.GameObject | undefined;
+      this.applyDarkeningToTarget(shadow, "shadows", intensity, force);
+    });
+  }
+
+  private applyDarkeningToTarget(
+    target: Phaser.GameObjects.GameObject | undefined,
+    runtimeKind: keyof typeof WORLD_OBJECT_DARKENING_CONFIG.targetsByRuntimeKind,
+    intensity: number,
+    force = false,
+    textureKeyOverride?: string,
+  ) {
+    if (!target) {
+      return;
+    }
+
+    const tintTarget = target as Phaser.GameObjects.GameObject & {
+      texture?: { key?: string };
+      setTint?: (color: number) => Phaser.GameObjects.GameObject;
+      clearTint?: () => Phaser.GameObjects.GameObject;
+      active?: boolean;
+    };
+    if (tintTarget.active === false || !tintTarget.setTint || !tintTarget.clearTint) {
+      return;
+    }
+
+    const cfg = WORLD_OBJECT_DARKENING_CONFIG;
+    if (!cfg.enabled || !cfg.targetsByRuntimeKind[runtimeKind]) {
+      tintTarget.clearTint();
+      this.worldDarkeningAppliedIntensity.delete(target);
+      return;
+    }
+
+    const textureKey = textureKeyOverride ?? tintTarget.texture?.key ?? "";
+    const perTextureConfig = (cfg.targetsByTextureKey as Record<string, { enabled: boolean; intensityMultiplier: number }>)[
+      textureKey
+    ] ?? cfg.defaultTarget;
+    if (!perTextureConfig.enabled) {
+      tintTarget.clearTint();
+      this.worldDarkeningAppliedIntensity.delete(target);
+      return;
+    }
+
+    const finalIntensity = Phaser.Math.Clamp(intensity * perTextureConfig.intensityMultiplier, 0, 1);
+    const prevIntensity = this.worldDarkeningAppliedIntensity.get(target);
+    if (!force && prevIntensity !== undefined && Math.abs(prevIntensity - finalIntensity) < cfg.updateDeltaThreshold) {
+      return;
+    }
+
+    if (finalIntensity <= 0) {
+      tintTarget.clearTint();
+      this.worldDarkeningAppliedIntensity.set(target, 0);
+      return;
+    }
+
+    tintTarget.setTint(this.getDarkeningTintColor(finalIntensity));
+    this.worldDarkeningAppliedIntensity.set(target, finalIntensity);
+  }
+
+  private getDarkeningTintColor(intensity: number) {
+    const clamped = Phaser.Math.Clamp(intensity, 0, 1);
+    const darkColor = Phaser.Display.Color.ValueToColor(WORLD_OBJECT_DARKENING_CONFIG.darkenColor);
+    const red = Math.round(255 + (darkColor.red - 255) * clamped);
+    const green = Math.round(255 + (darkColor.green - 255) * clamped);
+    const blue = Math.round(255 + (darkColor.blue - 255) * clamped);
+    return Phaser.Display.Color.GetColor(red, green, blue);
+  }
+
+  private isYachtFeedbackTintActive() {
+    return !!(
+      this.redInvulActive ||
+      this.redShipBlinkTween?.isPlaying() ||
+      this.greenShipTintTween?.isPlaying() ||
+      this.redBuoyShipTintTween?.isPlaying() ||
+      this.shieldShipBlinkTween?.isPlaying()
+    );
   }
 
   private createObjectTextures() {
@@ -5186,6 +5804,15 @@ export default class GameScene extends Phaser.Scene {
     this.speedBonusLockedKmh = undefined;
     this.speedBonusDecayActive = false;
     this.obstacleSlowdownUntilMs = Number.NEGATIVE_INFINITY;
+    this.seaStageIndex = 0;
+    this.seaTransitionIndex = -1;
+    this.seaTransitionActive = false;
+    this.seaTransitionRuntimeMode = "none";
+    this.seaTransitionScrolledPx = 0;
+    this.seaTransitionScrolledMeters = 0;
+    this.seaCurrentDarkeningIntensity = 0;
+    this.seaLastDarkeningIntensity = Number.NaN;
+    this.yachtFeedbackTintWasActive = false;
 
     this.scheduledObjects = [];
     this.scheduledObjectCursor = 0;
@@ -5245,6 +5872,10 @@ export default class GameScene extends Phaser.Scene {
     this.timeText?.destroy();
     this.timePanelGraphics = undefined;
     this.timeText = undefined;
+    this.waterBase?.destroy();
+    this.waterOverlay?.destroy();
+    this.waterBase = undefined;
+    this.waterOverlay = undefined;
 
     this.input.off("pointerdown", this.onPointerDown);
     this.input.off("pointerup", this.onPointerUp);

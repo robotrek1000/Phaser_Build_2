@@ -7,6 +7,31 @@
                 "key": "sea-bg"
             },
             {
+                "url": "assets/background_sea_2.png",
+                "type": "image",
+                "key": "sea-bg-2"
+            },
+            {
+                "url": "assets/background_sea_3.png",
+                "type": "image",
+                "key": "sea-bg-3"
+            },
+            {
+                "url": "assets/background_sea_4.png",
+                "type": "image",
+                "key": "sea-bg-4"
+            },
+            {
+                "url": "assets/background_sea_2_to_3.png",
+                "type": "image",
+                "key": "sea-bg-2-to-3"
+            },
+            {
+                "url": "assets/background_sea_3_to_4.png",
+                "type": "image",
+                "key": "sea-bg-3-to-4"
+            },
+            {
                 "url": "assets/money_up.png",
                 "type": "image",
                 "key": "money-up"
