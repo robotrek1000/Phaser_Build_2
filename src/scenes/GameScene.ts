@@ -15,10 +15,12 @@ import {
   GREEN_HIT_FEEDBACK,
   HAZARD_COLLISION,
   HAZARD_DAMAGE,
+  HITBOX_DEBUG,
   LANDMARK_METERS,
   IMPACT_ANIMATION,
   LANDMARK_CONFIG,
   MINE_CONFIG,
+  MONEY_UP_HITBOX,
   MONEY_DOWN_CONFIG,
   OBSTACLE_SLOWDOWN,
   OBJECT_SIZES,
@@ -46,8 +48,8 @@ import {
   WATER_SCROLL,
   WHIRLPOOL_CONFIG,
   YACHT_HAZARD_HITBOX,
-  YACHT_SOLID_COLLISION,
   YACHT_SOLID_BLOCKERS,
+  YACHT_SOLID_CONTACT_RESOLVE,
   YACHT_SPEED_Y_ANIM,
   YACHT_SWAY,
   YACHT_VISUAL_OFFSET,
@@ -96,11 +98,11 @@ type EllipseHitbox = {
   centerYRatio: number;
 };
 
-type EllipseHitboxParams = {
-  centerX: number;
-  centerY: number;
-  radiusX: number;
-  radiusY: number;
+type RectHitbox = {
+  widthRatio: number;
+  heightRatio: number;
+  offsetX: number;
+  offsetY: number;
 };
 
 type ScheduledSegmentObject = SegmentObjectDef & {
@@ -122,12 +124,6 @@ const MONEY_UP_DRIFT_AMPLITUDE_PX = 10;
 const MONEY_UP_DRIFT_FREQUENCY_HZ = 1.1;
 const MONEY_UP_SWAY_AMPLITUDE_DEG = 4;
 const MONEY_UP_SWAY_FREQUENCY_HZ = 1.1;
-const MONEY_UP_HITBOX = {
-  radiusXRatio: 0.36,
-  radiusYRatio: 0.46,
-  centerXRatio: 0.5,
-  centerYRatio: 0.58,
-} as const;
 
 export default class GameScene extends Phaser.Scene {
   private water?: Phaser.GameObjects.TileSprite;
@@ -141,6 +137,7 @@ export default class GameScene extends Phaser.Scene {
   private assetsBarGraphics?: Phaser.GameObjects.Graphics;
   private timePanelGraphics?: Phaser.GameObjects.Graphics;
   private timeText?: Phaser.GameObjects.Text;
+  private hitboxDebugGraphics?: Phaser.GameObjects.Graphics;
 
   private yachtBody?: Phaser.Physics.Arcade.Sprite;
   private yachtHazardCollider?: Phaser.Physics.Arcade.Sprite;
@@ -284,6 +281,7 @@ export default class GameScene extends Phaser.Scene {
     this.createShieldUi(width, height);
     this.setupInput();
     this.createGroups();
+    this.createHitboxDebugOverlay();
     this.setupCollisions();
     this.buildRunSegmentSchedule();
     this.updateTimerHud();
@@ -381,7 +379,6 @@ export default class GameScene extends Phaser.Scene {
     this.updateCoins();
     this.updateTimeBonuses();
     this.updateSolidVelocities();
-    this.resolveYachtVsSolidEllipses();
 
     this.assetsValue = Math.max(0, this.assetsValue - dt * TUNING.FUEL_DRAIN_PER_SEC);
     this.updateAutoShieldState();
@@ -401,7 +398,7 @@ export default class GameScene extends Phaser.Scene {
       this.yachtVisual.setPosition(this.yachtBody.x, this.yachtBody.y + YACHT_VISUAL_OFFSET.y + swayOffset);
       if (this.yachtHazardCollider) {
         this.yachtHazardCollider.setPosition(
-          this.yachtBody.x,
+          this.yachtBody.x + (YACHT_HAZARD_HITBOX.offsetX ?? 0),
           this.yachtBody.y + (YACHT_HAZARD_HITBOX.offsetY ?? 0),
         );
       }
@@ -415,6 +412,191 @@ export default class GameScene extends Phaser.Scene {
     this.updateTimerHud();
     this.updateShieldButtonState();
     this.updateShieldVisualPresentation();
+    this.updateHitboxDebugOverlay();
+  }
+
+  private createHitboxDebugOverlay() {
+    this.destroyHitboxDebugOverlay();
+    this.hitboxDebugGraphics = this.add.graphics();
+    this.hitboxDebugGraphics.setDepth(HITBOX_DEBUG.depth);
+    this.hitboxDebugGraphics.setVisible(HITBOX_DEBUG.enabled);
+  }
+
+  private destroyHitboxDebugOverlay() {
+    this.hitboxDebugGraphics?.destroy();
+    this.hitboxDebugGraphics = undefined;
+  }
+
+  private updateHitboxDebugOverlay() {
+    const graphics = this.hitboxDebugGraphics;
+    if (!graphics) {
+      return;
+    }
+
+    if (!HITBOX_DEBUG.enabled) {
+      graphics.clear();
+      graphics.setVisible(false);
+      return;
+    }
+
+    graphics.setVisible(true);
+    graphics.clear();
+
+    if (HITBOX_DEBUG.drawArcadeBodies) {
+      this.drawArcadeBodyRect(this.yachtBody, HITBOX_DEBUG.colors.yachtBody);
+      this.drawArcadeBodyRect(this.yachtHazardCollider, HITBOX_DEBUG.colors.yachtHazardCollider);
+      this.drawGroupArcadeBodies(this.hazards, HITBOX_DEBUG.colors.hazards);
+      this.drawGroupArcadeBodies(this.moneyUps, HITBOX_DEBUG.colors.moneyUps);
+      this.drawGroupArcadeBodies(this.coins, HITBOX_DEBUG.colors.coins);
+      this.drawGroupArcadeBodies(this.timeBonuses, HITBOX_DEBUG.colors.bonuses);
+      this.drawGroupArcadeBodies(this.solids, HITBOX_DEBUG.colors.solids);
+      if (this.harborGate?.active) {
+        this.drawArcadeBodyRect(this.harborGate, HITBOX_DEBUG.colors.harborGate);
+      }
+    }
+
+    if (HITBOX_DEBUG.drawSolidEllipses) {
+      this.drawSolidEllipsesDebug();
+    }
+
+    if (HITBOX_DEBUG.drawShieldZones) {
+      this.drawShieldZonesDebug();
+    }
+  }
+
+  private drawArcadeBodyRect(target: Phaser.GameObjects.GameObject | undefined, color: number) {
+    const graphics = this.hitboxDebugGraphics;
+    if (!graphics || !target) {
+      return;
+    }
+
+    const body = (target as Phaser.GameObjects.GameObject & {
+      body?: Phaser.Physics.Arcade.Body | Phaser.Physics.Arcade.StaticBody;
+    }).body;
+    if (!body || body.width <= 0 || body.height <= 0) {
+      return;
+    }
+
+    graphics.lineStyle(HITBOX_DEBUG.lineWidth, color, HITBOX_DEBUG.alpha);
+    graphics.strokeRect(body.x, body.y, body.width, body.height);
+  }
+
+  private drawGroupArcadeBodies(group: Phaser.Physics.Arcade.Group | undefined, color: number) {
+    if (!this.isPhysicsGroupUsable(group)) {
+      return;
+    }
+    group.children.each((child) => {
+      const gameObject = child as Phaser.GameObjects.GameObject & { active?: boolean };
+      if (gameObject.active === false) {
+        return;
+      }
+      this.drawArcadeBodyRect(gameObject, color);
+    });
+  }
+
+  private drawEllipseOutline(centerX: number, centerY: number, radiusX: number, radiusY: number, color: number) {
+    const graphics = this.hitboxDebugGraphics;
+    if (!graphics || radiusX <= 0 || radiusY <= 0) {
+      return;
+    }
+    graphics.lineStyle(HITBOX_DEBUG.lineWidth, color, HITBOX_DEBUG.alpha);
+    graphics.strokeEllipse(centerX, centerY, radiusX * 2, radiusY * 2);
+  }
+
+  private drawCircleOutline(centerX: number, centerY: number, radius: number, color: number) {
+    const graphics = this.hitboxDebugGraphics;
+    if (!graphics || radius <= 0) {
+      return;
+    }
+    graphics.lineStyle(HITBOX_DEBUG.lineWidth, color, HITBOX_DEBUG.alpha);
+    graphics.strokeCircle(centerX, centerY, radius);
+  }
+
+  private drawSolidEllipsesDebug() {
+    if (!this.isPhysicsGroupUsable(this.solids)) {
+      return;
+    }
+
+    this.solids.children.each((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      if (!sprite.active) {
+        return;
+      }
+      const ellipse = sprite.getData("solidEllipse") as EllipseHitbox | undefined;
+      if (!ellipse) {
+        return;
+      }
+
+      const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+      if (body && body.width > 0 && body.height > 0) {
+        this.drawEllipseOutline(
+          body.center.x,
+          body.center.y,
+          body.width * 0.5,
+          body.height * 0.5,
+          HITBOX_DEBUG.colors.solidEllipse,
+        );
+        return;
+      }
+
+      const centerX = sprite.x + sprite.displayWidth * (ellipse.centerXRatio - 0.5);
+      const centerY = sprite.y + sprite.displayHeight * (ellipse.centerYRatio - 0.5);
+      const radiusX = sprite.displayWidth * ellipse.radiusXRatio;
+      const radiusY = sprite.displayHeight * ellipse.radiusYRatio;
+      this.drawEllipseOutline(centerX, centerY, radiusX, radiusY, HITBOX_DEBUG.colors.solidEllipse);
+    });
+  }
+
+  private drawShieldZonesDebug() {
+    if (!this.yachtBody) {
+      return;
+    }
+
+    const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
+    const yachtCenterX = body ? body.center.x : this.yachtBody.x;
+    const yachtCenterY = body ? body.center.y : this.yachtBody.y;
+
+    const attractCfg = ASSET_SHIELD_CONFIG.magnet.attract;
+    if (attractCfg.enabled && attractCfg.radiusPx > 0) {
+      this.drawCircleOutline(
+        yachtCenterX + attractCfg.originOffsetX,
+        yachtCenterY + attractCfg.originOffsetY,
+        attractCfg.radiusPx,
+        HITBOX_DEBUG.colors.shieldAttract,
+      );
+    }
+
+    const repelCfg = ASSET_SHIELD_CONFIG.magnet.repel;
+    if (repelCfg.enabled && repelCfg.radiusPx > 0) {
+      this.drawCircleOutline(
+        yachtCenterX + repelCfg.originOffsetX,
+        yachtCenterY + repelCfg.originOffsetY,
+        repelCfg.radiusPx,
+        HITBOX_DEBUG.colors.shieldRepel,
+      );
+    }
+
+    if (repelCfg.enabled && repelCfg.hardBoundary.enabled) {
+      const boundaryRadius = repelCfg.hardBoundary.radiusPx > 0 ? repelCfg.hardBoundary.radiusPx : repelCfg.radiusPx;
+      if (boundaryRadius > 0) {
+        this.drawCircleOutline(
+          yachtCenterX + repelCfg.originOffsetX,
+          yachtCenterY + repelCfg.originOffsetY,
+          boundaryRadius,
+          HITBOX_DEBUG.colors.shieldRepelBoundary,
+        );
+      }
+    }
+
+    const pickupMagnetCfg = ASSET_SHIELD_CONFIG.pickupMagnet;
+    if (pickupMagnetCfg.enabled && pickupMagnetCfg.common.radiusPx > 0) {
+      this.drawCircleOutline(
+        yachtCenterX + pickupMagnetCfg.anchorOffsetX,
+        yachtCenterY + pickupMagnetCfg.anchorOffsetY,
+        pickupMagnetCfg.common.radiusPx,
+        HITBOX_DEBUG.colors.shieldPickup,
+      );
+    }
   }
 
   private createWaterBackground(width: number, height: number) {
@@ -882,7 +1064,13 @@ export default class GameScene extends Phaser.Scene {
       Math.round(this.yachtVisual.displayHeight * YACHT_VISUAL_SIZE.hitboxHeightRatioToVisual),
     );
 
-    body.setSize(bodyWidth, bodyHeight, true);
+    body.setSize(bodyWidth, bodyHeight, false);
+    const bodyBaseOffsetX = Math.round((this.yachtBody.displayWidth - bodyWidth) * 0.5);
+    const bodyBaseOffsetY = Math.round((this.yachtBody.displayHeight - bodyHeight) * 0.5);
+    body.setOffset(
+      bodyBaseOffsetX + (YACHT_VISUAL_SIZE.hitboxOffsetX ?? 0),
+      bodyBaseOffsetY + (YACHT_VISUAL_SIZE.hitboxOffsetY ?? 0),
+    );
 
     const hazardWidth = Math.max(
       YACHT_HAZARD_HITBOX.minWidthPx,
@@ -892,7 +1080,10 @@ export default class GameScene extends Phaser.Scene {
       YACHT_HAZARD_HITBOX.minHeightPx,
       Math.round(this.yachtVisual.displayHeight * YACHT_HAZARD_HITBOX.heightRatioToVisual),
     );
-    hazardBody.setSize(hazardWidth, hazardHeight, true);
+    hazardBody.setSize(hazardWidth, hazardHeight, false);
+    const hazardBaseOffsetX = Math.round((this.yachtHazardCollider.displayWidth - hazardWidth) * 0.5);
+    const hazardBaseOffsetY = Math.round((this.yachtHazardCollider.displayHeight - hazardHeight) * 0.5);
+    hazardBody.setOffset(hazardBaseOffsetX, hazardBaseOffsetY);
   }
 
   private createGroups() {
@@ -945,6 +1136,7 @@ export default class GameScene extends Phaser.Scene {
       this.solids,
       (_yacht, solidObj) => {
         const sprite = solidObj as Phaser.Physics.Arcade.Sprite;
+        this.resolveYachtSolidContact(sprite);
         this.handleSolidColliderContact(sprite);
       },
       (_yacht, solidObj) => !this.isGameOver && this.canYachtBeBlockedBySolid(solidObj as Phaser.Physics.Arcade.Sprite),
@@ -1775,7 +1967,7 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
     body.setAllowGravity(false);
-    body.setSize(Math.round(config.width * 0.72), Math.round(config.height * 0.72), true);
+    this.applyRectBody(bonus, config.hitbox);
 
     const speedX = Phaser.Math.Between(0, 1) === 0 ? -config.zigzagHorizontalSpeed : config.zigzagHorizontalSpeed;
     bonus.setVelocity(speedX, this.getBaseFallSpeedByKmh(this.speedKmh) * config.speedYMultiplier);
@@ -1829,7 +2021,7 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
     body.setAllowGravity(false);
-    body.setSize(Math.round(COIN_CONFIG.width * 0.72), Math.round(COIN_CONFIG.height * 0.72), true);
+    this.applyRectBody(coin, COIN_CONFIG.hitbox);
 
     coin.setVelocity(0, this.getBaseFallSpeedByKmh(this.speedKmh) * COIN_CONFIG.speedYMultiplier);
     coin.setData("collecting", false);
@@ -1957,6 +2149,21 @@ export default class GameScene extends Phaser.Scene {
       Math.round(sprite.displayWidth * ellipse.centerXRatio - radiusX),
       Math.round(sprite.displayHeight * ellipse.centerYRatio - radiusY),
     );
+  }
+
+  private applyRectBody(sprite: Phaser.Physics.Arcade.Sprite, hitbox: RectHitbox) {
+    const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+    if (!body) {
+      return;
+    }
+
+    const bodyWidth = Math.max(1, Math.round(sprite.displayWidth * hitbox.widthRatio));
+    const bodyHeight = Math.max(1, Math.round(sprite.displayHeight * hitbox.heightRatio));
+    body.setSize(bodyWidth, bodyHeight, false);
+
+    const baseOffsetX = Math.round((sprite.displayWidth - bodyWidth) * 0.5);
+    const baseOffsetY = Math.round((sprite.displayHeight - bodyHeight) * 0.5);
+    body.setOffset(baseOffsetX + hitbox.offsetX, baseOffsetY + hitbox.offsetY);
   }
 
   private handleHazardContact(sprite: Phaser.Physics.Arcade.Sprite) {
@@ -2455,6 +2662,59 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  private resolveYachtSolidContact(sprite: Phaser.Physics.Arcade.Sprite) {
+    if (!sprite.active || !this.yachtBody) {
+      return;
+    }
+
+    const yachtBody = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
+    const solidBody = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+    if (!yachtBody || !solidBody || !yachtBody.enable || !solidBody.enable) {
+      return;
+    }
+
+    const overlapX = Math.min(yachtBody.right, solidBody.right) - Math.max(yachtBody.x, solidBody.x);
+    const overlapY = Math.min(yachtBody.bottom, solidBody.bottom) - Math.max(yachtBody.y, solidBody.y);
+    if (overlapX <= 0 || overlapY <= 0) {
+      return;
+    }
+
+    const cfg = YACHT_SOLID_CONTACT_RESOLVE;
+    const pushX = Math.max(cfg.minSeparationPx, overlapX + cfg.minSeparationPx);
+    const pushY = Math.max(cfg.minSeparationPx, overlapY + cfg.minSeparationPx);
+
+    let resolveAxis: "x" | "y" = overlapX < overlapY ? "x" : "y";
+    if (Math.abs(overlapX - overlapY) <= cfg.axisTieEpsilonPx) {
+      const intendedX = this.desiredTargetX - this.yachtBody.x;
+      const intendedY = this.desiredTargetY + this.yMotionOffsetPx - this.yachtBody.y;
+      if (Math.abs(intendedX) > Math.abs(intendedY)) {
+        resolveAxis = "x";
+      } else if (Math.abs(intendedY) > Math.abs(intendedX)) {
+        resolveAxis = "y";
+      } else {
+        resolveAxis = Math.abs(yachtBody.center.x - solidBody.center.x) >= Math.abs(yachtBody.center.y - solidBody.center.y) ? "x" : "y";
+      }
+    }
+
+    if (resolveAxis === "x") {
+      const direction = yachtBody.center.x >= solidBody.center.x ? 1 : -1;
+      this.yachtBody.x += direction * pushX;
+    } else {
+      const direction = yachtBody.center.y >= solidBody.center.y ? 1 : -1;
+      this.yachtBody.y += direction * pushY;
+    }
+
+    this.yachtBody.x = Phaser.Math.Clamp(this.yachtBody.x, this.controlMinX, this.controlMaxX);
+    this.yachtBody.y = Phaser.Math.Clamp(this.yachtBody.y, this.controlMinY, this.controlMaxY);
+
+    if (cfg.syncTargetsAfterResolve) {
+      this.targetX = this.yachtBody.x;
+      this.targetY = this.yachtBody.y - this.yMotionOffsetPx;
+      this.desiredTargetX = this.targetX;
+      this.desiredTargetY = this.targetY;
+    }
+  }
+
   private updateActiveObjectSpeeds(deltaSec: number) {
     const baseFallSpeed = this.getBaseFallSpeedByKmh(this.speedKmh);
 
@@ -2738,94 +2998,6 @@ export default class GameScene extends Phaser.Scene {
     if (this.harborGate?.active) {
       this.harborGate.setVelocityY(speed);
     }
-  }
-
-  private resolveYachtVsSolidEllipses() {
-    if (!this.yachtBody) {
-      return;
-    }
-
-    const yachtEllipse = this.getYachtSolidEllipseParams();
-    if (!yachtEllipse) {
-      return;
-    }
-
-    this.solids.children.each((child) => {
-      const sprite = child as Phaser.Physics.Arcade.Sprite;
-      if (!sprite.active) {
-        return;
-      }
-
-      if (!this.canYachtBeBlockedBySolid(sprite)) {
-        return;
-      }
-
-      const ellipse = sprite.getData("solidEllipse") as EllipseHitbox | undefined;
-      if (!ellipse) {
-        return;
-      }
-
-      const blockerCenterX = sprite.x + sprite.displayWidth * (ellipse.centerXRatio - 0.5);
-      const blockerCenterY = sprite.y + sprite.displayHeight * (ellipse.centerYRatio - 0.5);
-      const blockerRadiusX = sprite.displayWidth * ellipse.radiusXRatio;
-      const blockerRadiusY = sprite.displayHeight * ellipse.radiusYRatio;
-
-      const combinedRadiusX = blockerRadiusX + yachtEllipse.radiusX;
-      const combinedRadiusY = blockerRadiusY + yachtEllipse.radiusY;
-
-      const dx = yachtEllipse.centerX - blockerCenterX;
-      const dy = yachtEllipse.centerY - blockerCenterY;
-      const nx = dx / Math.max(1e-6, combinedRadiusX);
-      const ny = dy / Math.max(1e-6, combinedRadiusY);
-      const distanceNormSq = nx * nx + ny * ny;
-
-      if (distanceNormSq >= 1) {
-        return;
-      }
-
-      let normalX = dx / (combinedRadiusX * combinedRadiusX);
-      let normalY = dy / (combinedRadiusY * combinedRadiusY);
-      let normalLen = Math.hypot(normalX, normalY);
-
-      if (normalLen < 1e-6) {
-        normalX = Phaser.Math.Between(0, 1) === 0 ? -1 : 1;
-        normalY = 0;
-        normalLen = 1;
-      }
-
-      normalX /= normalLen;
-      normalY /= normalLen;
-
-      const penetration = 1 - Math.sqrt(Math.max(0, distanceNormSq));
-      const pushDistance = Math.max(1, penetration * Math.max(combinedRadiusX, combinedRadiusY) + 1);
-
-      this.yachtBody!.x += normalX * pushDistance;
-      this.yachtBody!.y += normalY * pushDistance;
-      this.yachtBody!.x = Phaser.Math.Clamp(this.yachtBody!.x, this.controlMinX, this.controlMaxX);
-      this.yachtBody!.y = Phaser.Math.Clamp(this.yachtBody!.y, this.controlMinY, this.controlMaxY);
-
-      this.targetX = this.yachtBody!.x;
-      this.targetY = this.yachtBody!.y - this.yMotionOffsetPx;
-      this.desiredTargetX = this.targetX;
-      this.desiredTargetY = this.targetY;
-
-      this.handleSolidColliderContact(sprite);
-    });
-  }
-
-  private getYachtSolidEllipseParams(): EllipseHitboxParams | null {
-    if (!this.yachtBody) {
-      return null;
-    }
-
-    const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
-    const centerX = (body ? body.center.x : this.yachtBody.x) + YACHT_SOLID_COLLISION.centerOffsetX;
-    const centerY = (body ? body.center.y : this.yachtBody.y) + YACHT_SOLID_COLLISION.centerOffsetY;
-    const baseWidth = body ? body.width : OBJECT_SIZES.yacht.width;
-    const baseHeight = body ? body.height : OBJECT_SIZES.yacht.height;
-    const radiusX = Math.max(YACHT_SOLID_COLLISION.minRadiusX, baseWidth * YACHT_SOLID_COLLISION.radiusXRatio);
-    const radiusY = Math.max(YACHT_SOLID_COLLISION.minRadiusY, baseHeight * YACHT_SOLID_COLLISION.radiusYRatio);
-    return { centerX, centerY, radiusX, radiusY };
   }
 
   private cleanupFallingObjects() {
@@ -3642,7 +3814,21 @@ export default class GameScene extends Phaser.Scene {
     const dy = centerY - originY;
     const distance = Math.hypot(dx, dy);
     const radiusPx = Math.max(0, effectiveRadiusPx);
+    const wasInsideBoundary = (sprite.getData("shieldRepelBoundaryWasInside") as boolean | undefined) ?? false;
     if (distance > radiusPx || radiusPx <= 0) {
+      if (cfg.hardBoundary.enabled && wasInsideBoundary && radiusPx > 0 && distance > 0.0001) {
+        const outwardDirection = this.resolveShieldMagnetDirection(
+          sprite,
+          dx,
+          dy,
+          distance,
+          cfg.minEffectiveDistancePx,
+          cfg.centerDirection,
+          "shieldRepelDirX",
+          "shieldRepelDirY",
+        );
+        this.applyRepelBoundaryReleaseBoost(sprite, outwardDirection.x, outwardDirection.y, deltaSec, cfg);
+      }
       sprite.setData("shieldRepelBoundaryWasInside", false);
       return;
     }
@@ -3801,22 +3987,35 @@ export default class GameScene extends Phaser.Scene {
       return undefined;
     }
 
-    const isInside = distance < boundaryRadius;
+    const padding = Math.max(0, boundaryCfg.boundaryPaddingPx);
+    const targetBoundaryRadius = boundaryRadius + padding;
+    const penetrationPx = targetBoundaryRadius - distance;
+    const isInside = penetrationPx > 0;
     if (!isInside) {
+      const wasInside = (sprite.getData("shieldRepelBoundaryWasInside") as boolean | undefined) ?? false;
+      if (wasInside) {
+        this.applyRepelBoundaryReleaseBoost(sprite, outwardDirX, outwardDirY, deltaSec, cfg);
+      }
       sprite.setData("shieldRepelBoundaryWasInside", false);
       return undefined;
     }
 
     const wasInside = (sprite.getData("shieldRepelBoundaryWasInside") as boolean | undefined) ?? false;
     sprite.setData("shieldRepelBoundaryWasInside", true);
-    if (!boundaryCfg.projectEveryFrame && wasInside) {
-      return boundaryRadius;
+    const shouldProject = boundaryCfg.projectEveryFrame || !wasInside;
+    this.removeRepelInwardRadialPush(sprite, outwardDirX, outwardDirY, cfg.maxPushSpeedPxPerSec);
+    if (!shouldProject) {
+      return targetBoundaryRadius;
     }
 
-    if (boundaryCfg.projectOutMode === "hardSnap") {
-      const padding = Math.max(0, boundaryCfg.boundaryPaddingPx);
-      const targetCenterX = originX + outwardDirX * (boundaryRadius + padding);
-      const targetCenterY = originY + outwardDirY * (boundaryRadius + padding);
+    const emergencySnapThreshold = Math.max(0, boundaryCfg.emergencyHardSnapPenetrationPx);
+    const shouldHardSnap =
+      boundaryCfg.projectOutMode === "hardSnap" ||
+      (emergencySnapThreshold > 0 && penetrationPx >= emergencySnapThreshold);
+
+    if (shouldHardSnap) {
+      const targetCenterX = originX + outwardDirX * targetBoundaryRadius;
+      const targetCenterY = originY + outwardDirY * targetBoundaryRadius;
       const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
       const currentCenterX = body ? body.center.x : sprite.x;
       const currentCenterY = body ? body.center.y : sprite.y;
@@ -3824,6 +4023,21 @@ export default class GameScene extends Phaser.Scene {
         sprite.x + (targetCenterX - currentCenterX),
         sprite.y + (targetCenterY - currentCenterY),
       );
+    } else {
+      const baseSoftStep = penetrationPx * Math.max(0, boundaryCfg.penetrationGain);
+      const minSoftStep = Math.max(0, boundaryCfg.softProjectMinStepPx);
+      const maxSoftStep = Math.max(0, boundaryCfg.softProjectMaxStepPxPerSec) * deltaSec;
+      let softStep = Math.max(baseSoftStep, minSoftStep);
+      if (maxSoftStep > 0) {
+        softStep = Math.min(softStep, maxSoftStep);
+      }
+      softStep = Math.min(softStep, penetrationPx);
+      if (softStep > 0) {
+        sprite.setPosition(
+          sprite.x + outwardDirX * softStep,
+          sprite.y + outwardDirY * softStep,
+        );
+      }
     }
 
     const boundaryImpulse = Math.max(0, boundaryCfg.outwardImpulseAfterProjectPxPerSec) * deltaSec;
@@ -3839,9 +4053,64 @@ export default class GameScene extends Phaser.Scene {
       }
       sprite.setData("pushVx", nextPushVx);
       sprite.setData("pushVy", nextPushVy);
+      this.removeRepelInwardRadialPush(sprite, outwardDirX, outwardDirY, cfg.maxPushSpeedPxPerSec);
     }
 
-    return boundaryRadius;
+    return targetBoundaryRadius;
+  }
+
+  private removeRepelInwardRadialPush(
+    sprite: Phaser.Physics.Arcade.Sprite,
+    outwardDirX: number,
+    outwardDirY: number,
+    maxPushSpeedPxPerSec: number,
+  ) {
+    const currentPushVx = (sprite.getData("pushVx") as number | undefined) ?? 0;
+    const currentPushVy = (sprite.getData("pushVy") as number | undefined) ?? 0;
+    const radialSpeed = currentPushVx * outwardDirX + currentPushVy * outwardDirY;
+    if (radialSpeed >= 0) {
+      return;
+    }
+
+    const removeScale = -radialSpeed;
+    const nextPushVx = currentPushVx + outwardDirX * removeScale;
+    const nextPushVy = currentPushVy + outwardDirY * removeScale;
+    const maxPushSpeed = Math.max(10, maxPushSpeedPxPerSec);
+    sprite.setData("pushVx", Phaser.Math.Clamp(nextPushVx, -maxPushSpeed, maxPushSpeed));
+    sprite.setData("pushVy", Phaser.Math.Clamp(nextPushVy, -maxPushSpeed, maxPushSpeed));
+  }
+
+  private applyRepelBoundaryReleaseBoost(
+    sprite: Phaser.Physics.Arcade.Sprite,
+    outwardDirX: number,
+    outwardDirY: number,
+    deltaSec: number,
+    cfg: typeof ASSET_SHIELD_CONFIG.magnet.repel,
+  ) {
+    const boundaryCfg = cfg.hardBoundary;
+    const releaseBoost = Math.max(0, boundaryCfg.releaseOutwardBoostPxPerSec) * deltaSec;
+    const minOutwardSpeed = Math.max(0, boundaryCfg.releaseMinOutwardSpeedPxPerSec);
+    const currentPushVx = (sprite.getData("pushVx") as number | undefined) ?? 0;
+    const currentPushVy = (sprite.getData("pushVy") as number | undefined) ?? 0;
+    let nextPushVx = currentPushVx + outwardDirX * releaseBoost;
+    let nextPushVy = currentPushVy + outwardDirY * releaseBoost;
+
+    const currentOutwardSpeed = nextPushVx * outwardDirX + nextPushVy * outwardDirY;
+    if (currentOutwardSpeed < minOutwardSpeed) {
+      const add = minOutwardSpeed - currentOutwardSpeed;
+      nextPushVx += outwardDirX * add;
+      nextPushVy += outwardDirY * add;
+    }
+
+    if (boundaryCfg.clampMaxPushSpeedAfterProject) {
+      const maxPushSpeed = Math.max(10, cfg.maxPushSpeedPxPerSec);
+      nextPushVx = Phaser.Math.Clamp(nextPushVx, -maxPushSpeed, maxPushSpeed);
+      nextPushVy = Phaser.Math.Clamp(nextPushVy, -maxPushSpeed, maxPushSpeed);
+    }
+
+    sprite.setData("pushVx", nextPushVx);
+    sprite.setData("pushVy", nextPushVy);
+    this.removeRepelInwardRadialPush(sprite, outwardDirX, outwardDirY, cfg.maxPushSpeedPxPerSec);
   }
 
   private clampShieldMagnetSpritePosition(
@@ -4802,6 +5071,7 @@ export default class GameScene extends Phaser.Scene {
     this.topProgressFlag = undefined;
     this.coinsText?.destroy();
     this.coinsText = undefined;
+    this.destroyHitboxDebugOverlay();
 
     this.redOverlay?.destroy();
     this.redOverlay = undefined;
