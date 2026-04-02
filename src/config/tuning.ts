@@ -358,7 +358,7 @@ export const BUOY_COLLISION_LAYER = {
     dynamicBuoy: true,
     mine: true,
     pirate: true,
-    whirlpool: true,
+    whirlpool: false,
   },
   allowNonBlockingHazards: {
     moneyDown: false,
