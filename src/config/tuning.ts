@@ -5,11 +5,9 @@
 
 
 export const TUNING = {
-  SPEED_START_KMH: 30,
   FUEL_START: 0,
   FUEL_DRAIN_PER_SEC: 0,
   FUEL_PICKUP_VALUE: 0.1,
-  SPEED_PER_100M: 5,
 } as const;
 
 export const PLAY_AREA = {
@@ -29,40 +27,6 @@ export const WATER_SCROLL = {
 } as const;
 
 // UI и HUD
-
-
-export const UI_TEXT = {
-  hudFontFamily: "Fascinate",
-  hudSpeedSize: "28px",
-  hudDistanceSize: "40px",
-  hudSpeedWeight: "normal",
-  hudSpeedStyle: "bold",
-  hudDistanceWeight: "normal",
-  hudDistanceStyle: "bold",
-  hudColor: "#000000",
-  resultTitleSize: "28px",
-  resultBodySize: "22px",
-  resultSmallSize: "20px",
-  resultTitleColor: "#e8f1f2",
-  resultBodyColor: "#e8f1f2",
-  resultCoinsColor: "#f4d35e",
-} as const;
-
-export const HUD_LAYOUT = {
-  speedX: 75,
-  speedY: 18,
-  distanceX: 75,
-  distanceY: 60,
-  iconOffsetX: 40,
-  speedIconScale: 0.12,
-  distanceIconScale: 0.15,
-  speedIconYOffset: 10,
-  distanceIconYOffset: 30,
-  iconGap: 0,
-  progressXRatio: 0.5,
-  progressY: 12,
-  progressScale: 0.5,
-} as const;
 
 export const ASSETS_BAR_UI = {
   offsetX: -82,
@@ -229,13 +193,6 @@ export const INTRO_ONBOARDING_UI = {
   overlayDepth: 5,
 } as const;
 
-export const PROGRESS_BAR_KEYS = [
-  "progress-bar-0",
-  "progress-bar-1",
-  "progress-bar-2",
-  "progress-bar-3",
-] as const;
-
 // Debug
 
 
@@ -285,12 +242,7 @@ export const RUN_SPEED_RAMP = {
   addKmhPerStep: 5,
   maxKmh: 80,
   maxAtMeters: 1000,
-} as const;
-
-export const BRAKING = {
-  minDropFromStartKmh: 20,
-  decelKmhPerSec: 40,
-  recoverKmhPerSec: 24,
+  baseRecoverKmhPerSec: 24,
 } as const;
 
 export const OBSTACLE_SLOWDOWN = {
@@ -304,19 +256,9 @@ export const OBSTACLE_SLOWDOWN = {
 // Прогресс и чекпоинты
 
 
-export const DISTANCE_CHECKPOINTS = [400, 800, 1200] as const;
-
 export const LANDMARK_METERS = {
-  island1: 400,
-  island2: 800,
   harbor: 1250,
 } as const;
-
-export const COIN_PENDING_MILESTONES = [
-  { meters: 425, coins: 5 },
-  { meters: 825, coins: 10 },
-  { meters: 1200, coins: 15 },
-] as const;
 
 // Общие коллизии и урон
 
@@ -371,8 +313,6 @@ export const BUOY_COLLISION_LAYER = {
     rock1: true,
     rock2: true,
     rock3: true,
-    island1: true,
-    island2: true,
     harbor: true,
   },
 } as const;
@@ -392,13 +332,6 @@ export const SEGMENT_SPAWN = {
   objectSpawnY: -280,
   cleanupYExtra: 140,
   scheduleLookaheadMeters: 8,
-} as const;
-
-export const SEGMENT_POOL_RULES = {
-  poolSizeMeters: 100,
-  poolCount: 12,
-  finalStartMeters: 1200,
-  finalEndMeters: 1250,
 } as const;
 
 export const SEGMENT_PATTERN_RULES = {
@@ -507,24 +440,6 @@ export const SEGMENT_COIN_SAFETY = {
 } as const;
 
 // Анимации наград и сбора
-
-
-export const COIN_REWARD_ANIMATION = {
-  startDelayMs: 120,
-  enterDurationMs: 320,
-  holdMs: 360,
-  exitDurationMs: 260,
-  ease: "Sine.easeOut",
-  anchorXRatio: 0.5,
-  anchorYRatio: 0.35,
-  depth: 140,
-  scaleStart: 0.72,
-  scalePeak: 1,
-  scaleEnd: 1.08,
-  alphaStart: 0,
-  alphaPeak: 1,
-  alphaEnd: 0,
-} as const;
 
 export const COLLECT_ANIMATION_BUOY = {
   durationMs: 380,
@@ -663,8 +578,6 @@ export const YACHT_SOLID_BLOCKERS = {
   rock1: true,
   rock2: true,
   rock3: true,
-  island1: false,
-  island2: false,
   harbor: false,
 } as const;
 
@@ -777,7 +690,7 @@ export const ASSET_SHIELD_CONFIG = {
       },
       originOffsetX: 0,
       originOffsetY: 0,
-      radiusPx: 400,
+      radiusPx: 300,
       forcePxPerSec: 4200,
       forceDistribution: "uniform" as "uniform" | "falloff",
       falloffPower: 0.35,
@@ -1175,36 +1088,6 @@ export const PIRATE_CONFIG = {
   },
 } as const;
 
-export const TORNADO_CONFIG = {
-  textureKey: "obstacle-tornado",
-  width: 116,
-  height: 128,
-  depth: 16,
-  speedYMultiplier: 1.15,
-  wander: {
-    targetVxAbsMin: 120,
-    targetVxAbsMax: 260,
-    targetVyMin: -140,
-    targetVyMax: 210,
-    turnIntervalMinMs: 320,
-    turnIntervalMaxMs: 760,
-    turnLerpPerSec: 2.6,
-  },
-  pulse: {
-    scaleAmplitude: 0.1,
-    frequencyHz: 2.2,
-  },
-  hitbox: {
-    radiusXRatio: 0.25,
-    radiusYRatio: 0.34,
-    centerXRatio: 0.5,
-    centerYRatio: 0.66,
-  },
-  collisionCooldownMs: 240,
-  applyImpactAnimation: true,
-  cleanupXPaddingPx: 240,
-} as const;
-
 export const WHIRLPOOL_CONFIG = {
   textureKey: "obstacle-whirlpool",
   width: 150,
@@ -1407,30 +1290,6 @@ export const COIN_CONFIG = {
 
 
 export const LANDMARK_CONFIG = {
-  island1: {
-    textureKey: "earth-1",
-    width: 320,
-    height: 358,
-    depth: 15,
-    ellipse: {
-      radiusXRatio: 0.36,
-      radiusYRatio: 0.12,
-      centerXRatio: 0.52,
-      centerYRatio: 0.88,
-    },
-  },
-  island2: {
-    textureKey: "earth-2",
-    width: 430,
-    height: 406,
-    depth: 15,
-    ellipse: {
-      radiusXRatio: 0.35,
-      radiusYRatio: 0.12,
-      centerXRatio: 0.49,
-      centerYRatio: 0.87,
-    },
-  },
   harbor: {
     textureKey: "earth-3",
     width: 760,

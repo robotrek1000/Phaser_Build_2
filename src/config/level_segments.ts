@@ -11,8 +11,6 @@ export type SegmentObjectType =
   | "coin"
   | "speedBonus"
   | "timeBonus"
-  | "island1"
-  | "island2"
   | "harbor"
   | "harborGate";
 
@@ -214,40 +212,6 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
       moneyUp(35, 0.5),
       moneyUp(41, 0.3),
       moneyUp(48, 0.7),
-    ],
-    3,
-  ),
-  tpl(
-    "bonus_paradise_p3",
-    "bonus_paradise",
-    50,
-    0,
-    3,
-    3,
-    [
-    ],
-    3,
-  ),
-  tpl(
-    "bonus_paradise_p7",
-    "bonus_paradise",
-    50,
-    0,
-    7,
-    7,
-    [
-      coin(42, 0.5),
-    ],
-    3,
-  ),
-  tpl(
-    "bonus_paradise_p9",
-    "bonus_paradise",
-    50,
-    0,
-    9,
-    9,
-    [
     ],
     3,
   ),

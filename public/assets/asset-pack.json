@@ -32,41 +32,6 @@
                 "key": "money-change-down"
             },
             {
-                "url": "assets/speed_icon.png",
-                "type": "image",
-                "key": "icon-speed"
-            },
-            {
-                "url": "assets/flag_icon.png",
-                "type": "image",
-                "key": "icon-flag"
-            },
-            {
-                "url": "assets/progress_bar_0.png",
-                "type": "image",
-                "key": "progress-bar-0"
-            },
-            {
-                "url": "assets/progress_bar_1.png",
-                "type": "image",
-                "key": "progress-bar-1"
-            },
-            {
-                "url": "assets/progress_bar_2.png",
-                "type": "image",
-                "key": "progress-bar-2"
-            },
-            {
-                "url": "assets/progress_bar_3.png",
-                "type": "image",
-                "key": "progress-bar-3"
-            },
-            {
-                "url": "assets/time_bar.png",
-                "type": "image",
-                "key": "time-bar"
-            },
-            {
                 "url": "assets/time_bonus.png",
                 "type": "image",
                 "key": "time-bonus"
@@ -102,16 +67,6 @@
                 "key": "flag-new"
             },
             {
-                "url": "assets/earth_1.png",
-                "type": "image",
-                "key": "earth-1"
-            },
-            {
-                "url": "assets/earth_2.png",
-                "type": "image",
-                "key": "earth-2"
-            },
-            {
                 "url": "assets/earth_3.png",
                 "type": "image",
                 "key": "earth-3"
@@ -125,11 +80,6 @@
                 "url": "assets/obstacle_move_pirate.png",
                 "type": "image",
                 "key": "obstacle-pirate"
-            },
-            {
-                "url": "assets/obstacle_move_tornado.png",
-                "type": "image",
-                "key": "obstacle-tornado"
             },
             {
                 "url": "assets/obstacle_whirlpool.png",
@@ -185,21 +135,6 @@
                 "url": "assets/ship_5.png",
                 "type": "image",
                 "key": "ship-5"
-            },
-            {
-                "url": "assets/coin_animation_1.png",
-                "type": "image",
-                "key": "coin-animation-1"
-            },
-            {
-                "url": "assets/coin_animation_2.png",
-                "type": "image",
-                "key": "coin-animation-2"
-            },
-            {
-                "url": "assets/coin_animation_3.png",
-                "type": "image",
-                "key": "coin-animation-3"
             }
         ]
     },

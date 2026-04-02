@@ -2,7 +2,6 @@ import Phaser from "phaser";
 import {
   ASSET_SHIELD_CONFIG,
   ASSETS_BAR_UI,
-  BRAKING,
   BUOY_COLLISION_LAYER,
   COIN_CONFIG,
   COIN_UI_CONFIG,
@@ -72,7 +71,7 @@ type FailureReason = "out_of_time" | "hit_hazard";
 type ResultReason = FailureReason | SuccessReason;
 type ControlPlatform = "desktop" | "mobile";
 type HazardType = "mine" | "pirate" | "moneyDown" | "dynamicBuoy" | "whirlpool";
-type SolidType = "rock1" | "rock2" | "rock3" | "island1" | "island2" | "harbor";
+type SolidType = "rock1" | "rock2" | "rock3" | "harbor";
 type CollectAnimationType = "buoy" | "timeBonus" | "speedBonus";
 type AirBonusType = "time" | "speed";
 type DynamicBuoyGameplayState = "up" | "down";
@@ -200,7 +199,7 @@ export default class GameScene extends Phaser.Scene {
   private shieldVisualScaleFactor = 1;
 
   private isGameOver = false;
-  private speedKmh = Math.max(0, TUNING.SPEED_START_KMH - RUN_START_SPEED.startDropKmh);
+  private speedKmh = Math.max(0, RUN_SPEED_RAMP.startKmh - RUN_START_SPEED.startDropKmh);
   private distanceM = 0;
   private assetsValue = TUNING.FUEL_START;
   private remainingTimeMs = RUN_TIMER.initialMs;
@@ -313,7 +312,7 @@ export default class GameScene extends Phaser.Scene {
 
     const baseSpeedKmh = this.getBaseSpeedKmhByDistance(this.distanceM);
     let speedTargetKmh = baseSpeedKmh;
-    let speedStepKmh = BRAKING.recoverKmhPerSec * dt;
+    let speedStepKmh = RUN_SPEED_RAMP.baseRecoverKmhPerSec * dt;
 
     if (speedBonusIsActive) {
       const lockedBonusSpeed = this.speedBonusLockedKmh ?? baseSpeedKmh * SPEED_BONUS_CONFIG.speedMultiplier;
@@ -1866,8 +1865,6 @@ export default class GameScene extends Phaser.Scene {
       case "timeBonus":
         this.spawnTimeBonus(x);
         break;
-      case "island1":
-      case "island2":
       case "harbor":
         this.spawnLandmark(item.type, x);
         break;
@@ -2232,7 +2229,7 @@ export default class GameScene extends Phaser.Scene {
     sprite.setData("solidDamageCooldownMs", 0);
   }
 
-  private spawnLandmark(type: "island1" | "island2" | "harbor", x: number) {
+  private spawnLandmark(type: "harbor", x: number) {
     const cfg = LANDMARK_CONFIG[type];
     const sprite = this.solids.get(x, SEGMENT_SPAWN.objectSpawnY, cfg.textureKey) as Phaser.Physics.Arcade.Sprite | null;
     if (!sprite) {
@@ -4582,7 +4579,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private getInitialRunSpeedKmh() {
-    return Math.max(0, TUNING.SPEED_START_KMH - RUN_START_SPEED.startDropKmh);
+    return Math.max(0, RUN_SPEED_RAMP.startKmh - RUN_START_SPEED.startDropKmh);
   }
 
   private createAssetsBar() {
