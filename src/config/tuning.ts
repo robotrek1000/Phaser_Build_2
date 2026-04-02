@@ -197,7 +197,7 @@ export const INTRO_ONBOARDING_UI = {
 
 
 export const HITBOX_DEBUG = {
-  enabled: false,
+  enabled: true,
   depth: 300,
   lineWidth: 3,
   alpha: 1,
@@ -1157,7 +1157,7 @@ export const ROCK_CONFIG = {
     width: 280,
     height: 226,
     ellipse: {
-      radiusXRatio: 1,
+      radiusXRatio: 0.75,
       radiusYRatio: 0.5,
       centerXRatio: 1,
       centerYRatio: 1.6,
