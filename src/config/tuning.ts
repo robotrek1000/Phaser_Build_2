@@ -423,8 +423,6 @@ export const SEGMENT_PATTERN_RULES = {
     dynamicBuoyMinFromPoolIndex: 3,
     dynamicBuoyMinDefault: 1,
     rockMin: 1,
-    timeBonusMin: 1,
-    speedBonusMin: 1,
   },
   guaranteedSpawnPaddingMeters: {
     min: 6,
@@ -448,6 +446,51 @@ export const SEGMENT_PICKUP_RULES = {
   speedBonus: {
     xRatioMin: 0.22,
     xRatioMax: 0.78,
+  },
+} as const;
+
+export const SEGMENT_GLOBAL_BONUS_SPAWN = {
+  enabled: true,
+  fromSegments: false,
+  spawnStartMeters: 40,
+  spawnEndMeters: 1180,
+  maxPerPool: 1,
+  windows: [
+    { id: "early", fromMeters: 40, toMeters: 360, weight: 1 },
+    { id: "mid", fromMeters: 361, toMeters: 820, weight: 1.15 },
+    { id: "late", fromMeters: 821, toMeters: 1180, weight: 0.9 },
+  ],
+  safety: {
+    enabled: true,
+    blockingTypes: ["mine", "pirate", "whirlpool", "rock1", "rock2", "rock3"] as const,
+    minDeltaMeters: 7,
+    minDeltaXRatio: 0.12,
+    maxResampleAttempts: 18,
+    resampleMeterJitterMeters: 9,
+    safeXRatioMin: 0.2,
+    safeXRatioMax: 0.8,
+  },
+  timeBonus: {
+    targetPerRun: 3,
+    varianceMin: -1,
+    varianceMax: 1,
+    minPerRun: 2,
+    maxPerRun: 4,
+    xRatioMin: 0.22,
+    xRatioMax: 0.78,
+    minGapMeters: 130,
+    attemptsPerBonus: 36,
+  },
+  speedBonus: {
+    targetPerRun: 3,
+    varianceMin: -1,
+    varianceMax: 1,
+    minPerRun: 2,
+    maxPerRun: 4,
+    xRatioMin: 0.22,
+    xRatioMax: 0.78,
+    minGapMeters: 130,
+    attemptsPerBonus: 36,
   },
 } as const;
 

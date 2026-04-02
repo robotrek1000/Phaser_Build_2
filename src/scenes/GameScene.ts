@@ -35,6 +35,7 @@ import {
   RUN_SPEED_RAMP,
   RUN_START_SPEED,
   RUN_TIMER,
+  SEGMENT_GLOBAL_BONUS_SPAWN,
   SEGMENT_COIN_SAFETY,
   SEGMENT_PATTERN_RULES,
   SEGMENT_PICKUP_RULES,
@@ -80,6 +81,7 @@ type ShieldButtonState = "disabled" | "ready" | "active";
 type ShieldHazardKey = (typeof ASSET_SHIELD_CONFIG.invulnerability.affectedHazards)[number];
 type ShieldPickupMagnetTargetKey = "coin" | "timeBonus" | "speedBonus";
 type BuoyCollisionActorType = "moneyUp" | HazardType;
+type SegmentBonusType = "timeBonus" | "speedBonus";
 type ShieldPickupMagnetResolvedConfig = {
   enabled: boolean;
   radiusPx: number;
@@ -1223,6 +1225,7 @@ export default class GameScene extends Phaser.Scene {
     );
 
     this.appendMissingCoinsInFinalWindow();
+    this.scheduleGlobalBonuses();
 
     this.scheduledObjects.sort((a, b) => a.spawnMeter - b.spawnMeter);
     this.scheduledObjectCursor = 0;
@@ -1353,6 +1356,10 @@ export default class GameScene extends Phaser.Scene {
     poolIndex: number,
   ) {
     for (const item of template.objects) {
+      if (!SEGMENT_GLOBAL_BONUS_SPAWN.fromSegments && (item.type === "timeBonus" || item.type === "speedBonus")) {
+        continue;
+      }
+
       if (item.meterOffset < 0 || item.meterOffset > usedLength) {
         continue;
       }
@@ -1504,8 +1511,6 @@ export default class GameScene extends Phaser.Scene {
       moneyDown: 0,
       dynamicBuoy: 0,
       rocks: 0,
-      timeBonus: 0,
-      speedBonus: 0,
     };
 
     for (const item of poolObjects) {
@@ -1517,10 +1522,6 @@ export default class GameScene extends Phaser.Scene {
         counts.dynamicBuoy += 1;
       } else if (item.type === "rock1" || item.type === "rock2" || item.type === "rock3") {
         counts.rocks += 1;
-      } else if (item.type === "timeBonus") {
-        counts.timeBonus += 1;
-      } else if (item.type === "speedBonus") {
-        counts.speedBonus += 1;
       }
     }
 
@@ -1544,12 +1545,6 @@ export default class GameScene extends Phaser.Scene {
     }
     for (let i = counts.rocks; i < required.rockMin; i += 1) {
       this.scheduleGuaranteedObject(pool, "rock1", `guarantee-rock-${i}`);
-    }
-    for (let i = counts.timeBonus; i < required.timeBonusMin; i += 1) {
-      this.scheduleGuaranteedObject(pool, "timeBonus", `guarantee-time-${i}`);
-    }
-    for (let i = counts.speedBonus; i < required.speedBonusMin; i += 1) {
-      this.scheduleGuaranteedObject(pool, "speedBonus", `guarantee-speed-${i}`);
     }
   }
 
@@ -1642,6 +1637,179 @@ export default class GameScene extends Phaser.Scene {
       this.coinsScheduledTotal += 1;
       spawned += 1;
     }
+  }
+
+  private scheduleGlobalBonuses() {
+    const rules = SEGMENT_GLOBAL_BONUS_SPAWN;
+    if (!rules.enabled) {
+      return;
+    }
+
+    const poolBonusCounts = new Map<number, number>();
+    for (const item of this.scheduledObjects) {
+      if (item.type !== "timeBonus" && item.type !== "speedBonus") {
+        continue;
+      }
+      const poolIndex = this.getPoolIndexByMeter(item.spawnMeter);
+      if (!poolIndex) {
+        continue;
+      }
+      poolBonusCounts.set(poolIndex, (poolBonusCounts.get(poolIndex) ?? 0) + 1);
+    }
+
+    this.scheduleGlobalBonusType("timeBonus", rules.timeBonus, poolBonusCounts);
+    this.scheduleGlobalBonusType("speedBonus", rules.speedBonus, poolBonusCounts);
+  }
+
+  private scheduleGlobalBonusType(
+    type: SegmentBonusType,
+    cfg: (typeof SEGMENT_GLOBAL_BONUS_SPAWN)["timeBonus"],
+    poolBonusCounts: Map<number, number>,
+  ) {
+    const desiredCount = this.resolveGlobalBonusDesiredCount(cfg);
+    const existingCount = this.scheduledObjects.filter((item) => item.type === type).length;
+    const plannedCount = Math.max(0, Math.min(cfg.maxPerRun, desiredCount) - existingCount);
+    if (plannedCount <= 0) {
+      return;
+    }
+
+    for (let i = 0; i < plannedCount; i += 1) {
+      const candidate = this.findGlobalBonusPlacement(type, cfg, poolBonusCounts);
+      if (!candidate) {
+        continue;
+      }
+
+      this.scheduledObjects.push({
+        type,
+        meterOffset: 0,
+        xRatio: candidate.xRatio,
+        scheduleId: `global-${type}-${i}@${candidate.spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+        spawnMeter: candidate.spawnMeter,
+      });
+      poolBonusCounts.set(candidate.poolIndex, (poolBonusCounts.get(candidate.poolIndex) ?? 0) + 1);
+    }
+  }
+
+  private resolveGlobalBonusDesiredCount(cfg: (typeof SEGMENT_GLOBAL_BONUS_SPAWN)["timeBonus"]) {
+    const variance = Phaser.Math.Between(cfg.varianceMin, cfg.varianceMax);
+    const desired = cfg.targetPerRun + variance;
+    return Phaser.Math.Clamp(desired, cfg.minPerRun, cfg.maxPerRun);
+  }
+
+  private findGlobalBonusPlacement(
+    type: SegmentBonusType,
+    cfg: (typeof SEGMENT_GLOBAL_BONUS_SPAWN)["timeBonus"],
+    poolBonusCounts: Map<number, number>,
+  ) {
+    const rules = SEGMENT_GLOBAL_BONUS_SPAWN;
+    const safety = rules.safety;
+    const attempts = Math.max(1, Math.max(cfg.attemptsPerBonus, safety.maxResampleAttempts));
+    const xMin = Phaser.Math.Clamp(
+      Math.max(cfg.xRatioMin, safety.safeXRatioMin),
+      0,
+      1,
+    );
+    const xMax = Phaser.Math.Clamp(
+      Math.min(cfg.xRatioMax, safety.safeXRatioMax),
+      0,
+      1,
+    );
+    if (xMax <= xMin) {
+      return null;
+    }
+
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const window = this.pickGlobalBonusWindow();
+      if (!window) {
+        return null;
+      }
+
+      const meterMin = Math.max(rules.spawnStartMeters, window.fromMeters);
+      const meterMax = Math.min(rules.spawnEndMeters, window.toMeters);
+      if (meterMax <= meterMin) {
+        continue;
+      }
+
+      let spawnMeter = Phaser.Math.FloatBetween(meterMin, meterMax);
+      if (attempt > 0 && safety.resampleMeterJitterMeters > 0) {
+        spawnMeter = Phaser.Math.Clamp(
+          spawnMeter + Phaser.Math.FloatBetween(-safety.resampleMeterJitterMeters, safety.resampleMeterJitterMeters),
+          meterMin,
+          meterMax,
+        );
+      }
+      const xRatio = Phaser.Math.FloatBetween(xMin, xMax);
+      const poolIndex = this.getPoolIndexByMeter(spawnMeter);
+      if (!poolIndex) {
+        continue;
+      }
+      if ((poolBonusCounts.get(poolIndex) ?? 0) >= rules.maxPerPool) {
+        continue;
+      }
+      if (!this.isGlobalBonusPlacementSafe(type, spawnMeter, xRatio, cfg.minGapMeters)) {
+        continue;
+      }
+
+      return { spawnMeter, xRatio, poolIndex };
+    }
+
+    return null;
+  }
+
+  private isGlobalBonusPlacementSafe(type: SegmentBonusType, spawnMeter: number, xRatio: number, minGapMeters: number) {
+    const safety = SEGMENT_GLOBAL_BONUS_SPAWN.safety;
+    for (const item of this.scheduledObjects) {
+      if (item.type === type && Math.abs(item.spawnMeter - spawnMeter) < minGapMeters) {
+        return false;
+      }
+
+      if (!safety.enabled) {
+        continue;
+      }
+
+      if (!safety.blockingTypes.includes(item.type as (typeof safety.blockingTypes)[number])) {
+        continue;
+      }
+      if (Math.abs(item.spawnMeter - spawnMeter) > safety.minDeltaMeters) {
+        continue;
+      }
+      const itemXRatio = Phaser.Math.Clamp(item.xRatio ?? 0.5, 0, 1);
+      if (Math.abs(itemXRatio - xRatio) <= safety.minDeltaXRatio) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private pickGlobalBonusWindow() {
+    const rules = SEGMENT_GLOBAL_BONUS_SPAWN;
+    const windows = rules.windows.filter((window) => window.toMeters > rules.spawnStartMeters && window.fromMeters < rules.spawnEndMeters);
+    if (windows.length === 0) {
+      return null;
+    }
+
+    const totalWeight = windows.reduce((sum, window) => sum + Math.max(0, window.weight), 0);
+    if (totalWeight <= 0) {
+      return Phaser.Utils.Array.GetRandom(windows);
+    }
+
+    let random = Phaser.Math.FloatBetween(0, totalWeight);
+    for (const window of windows) {
+      random -= Math.max(0, window.weight);
+      if (random <= 0) {
+        return window;
+      }
+    }
+    return windows[windows.length - 1];
+  }
+
+  private getPoolIndexByMeter(spawnMeter: number) {
+    for (const pool of LEVEL_SEGMENT_POOLS) {
+      if (spawnMeter >= pool.startMeter && spawnMeter < pool.endMeter) {
+        return pool.poolIndex;
+      }
+    }
+    return null;
   }
 
   private processSegmentSchedule() {
