@@ -770,7 +770,7 @@ export const ASSET_SHIELD_CONFIG = {
     durationMs: 5_000,
     timerEnabled: false,
     drainEnabled: true,
-    drainPerSec: 0.1,
+    drainPerSec: 0.15,
     minFuelWhileActive: 0,
     autoStopOnFuelEmpty: true,
     autoStopOnFuelBelowReadyThreshold: false,
