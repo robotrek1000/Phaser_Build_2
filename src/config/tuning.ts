@@ -64,7 +64,7 @@ export const SEA_BACKGROUND_CONFIG = {
 } as const;
 
 export const WORLD_OBJECT_DARKENING_CONFIG = {
-  enabled: true,
+  enabled: false,
   darkenColor: 0x000000,
   intensityByStage: {
     sea1: 0,
@@ -349,7 +349,7 @@ export const HITBOX_DEBUG = {
 
 
 export const RUN_TIMER = {
-  initialMs: 60_000,
+  initialMs: 80_000,
   bonusMs: 10_000,
 } as const;
 
@@ -361,8 +361,8 @@ export const RUN_SPEED_RAMP = {
   startKmh: 30,
   everyMeters: 100,
   addKmhPerStep: 5,
-  maxKmh: 80,
-  maxAtMeters: 1000,
+  maxKmh: 60,
+  maxAtMeters: 1200,
   baseRecoverKmhPerSec: 24,
 } as const;
 
@@ -506,16 +506,17 @@ export const SEGMENT_PICKUP_RULES = {
 export const SEGMENT_GLOBAL_BONUS_SPAWN = {
   enabled: true,
   fromSegments: false,
-  spawnStartMeters: 40,
-  spawnEndMeters: 1180,
   maxPerPool: 1,
-  windows: [
-    { id: "early", fromMeters: 40, toMeters: 360, weight: 1 },
-    { id: "mid", fromMeters: 361, toMeters: 820, weight: 1.15 },
-    { id: "late", fromMeters: 821, toMeters: 1180, weight: 0.9 },
-  ],
+  maxPerPoolByType: {
+    speedBonus: 1,
+    timeBonus: 1,
+  },
   safety: {
     enabled: true,
+    perTypeEnabled: {
+      speedBonus: true,
+      timeBonus: true,
+    },
     blockingTypes: ["mine", "pirate", "whirlpool", "rock1", "rock2", "rock3"] as const,
     minDeltaMeters: 7,
     minDeltaXRatio: 0.12,
@@ -524,27 +525,66 @@ export const SEGMENT_GLOBAL_BONUS_SPAWN = {
     safeXRatioMin: 0.2,
     safeXRatioMax: 0.8,
   },
-  timeBonus: {
-    targetPerRun: 3,
-    varianceMin: -1,
-    varianceMax: 1,
-    minPerRun: 2,
-    maxPerRun: 4,
-    xRatioMin: 0.22,
-    xRatioMax: 0.78,
-    minGapMeters: 130,
-    attemptsPerBonus: 36,
-  },
-  speedBonus: {
-    targetPerRun: 3,
-    varianceMin: -1,
-    varianceMax: 1,
-    minPerRun: 2,
-    maxPerRun: 4,
-    xRatioMin: 0.22,
-    xRatioMax: 0.78,
-    minGapMeters: 130,
-    attemptsPerBonus: 36,
+  rulesByType: {
+    speedBonus: {
+      enabled: true,
+      spawnRange: {
+        fromMeters: 0,
+        toMeters: 600,
+        endExclusive: true,
+      },
+      windows: [
+        { id: "speed-early", fromMeters: 0, toMeters: 260, weight: 1.2 },
+        { id: "speed-mid", fromMeters: 260, toMeters: 600, weight: 1 },
+      ],
+      countMode: "hybrid" as "fixed" | "variable" | "hybrid",
+      defaultMode: "fixed" as "fixed" | "variable",
+      fixedCount: 3,
+      variable: {
+        targetPerRun: 3,
+        varianceMin: -1,
+        varianceMax: 1,
+        minPerRun: 2,
+        maxPerRun: 4,
+      },
+      placement: {
+        xRatioMin: 0.22,
+        xRatioMax: 0.78,
+        minGapMeters: 130,
+        attemptsPerBonus: 36,
+        maxPerPool: 1,
+      },
+    },
+    timeBonus: {
+      enabled: true,
+      spawnRange: {
+        fromMeters: 600,
+        toMeters: 1250,
+        endExclusive: false,
+      },
+      windows: [
+        { id: "time-early", fromMeters: 600, toMeters: 860, weight: 1 },
+        { id: "time-mid", fromMeters: 860, toMeters: 1080, weight: 1.15 },
+        { id: "time-late", fromMeters: 1080, toMeters: 1250, weight: 0.95 },
+      ],
+      countMode: "hybrid" as "fixed" | "variable" | "hybrid",
+      defaultMode: "fixed" as "fixed" | "variable",
+      fixedCount: 3,
+      variable: {
+        targetPerRun: 3,
+        varianceMin: -1,
+        varianceMax: 1,
+        minPerRun: 2,
+        maxPerRun: 4,
+      },
+      placement: {
+        xRatioMin: 0.22,
+        xRatioMax: 0.78,
+        minGapMeters: 130,
+        attemptsPerBonus: 36,
+        maxPerPool: 1,
+      },
+    },
   },
 } as const;
 
@@ -1356,8 +1396,12 @@ export const SPEED_BONUS_CONFIG = {
   effectDurationMs: 5_000,
   speedMultiplier: 1.5,
   transition: {
-    rampUpKmhPerSec: 34,
-    rampDownKmhPerSec: 18,
+    rampUpKmhPerSec: 12,
+    rampDownKmhPerSec: 16,
+    minRampUpKmhPerSec: 4,
+    maxRampUpKmhPerSec: 40,
+    minRampDownKmhPerSec: 4,
+    maxRampDownKmhPerSec: 40,
   },
   shadowBobScale: {
     baseScaleX: 0.25,

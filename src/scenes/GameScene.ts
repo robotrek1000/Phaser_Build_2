@@ -85,6 +85,7 @@ type BuoyCollisionActorType = "moneyUp" | HazardType;
 type SegmentBonusType = "timeBonus" | "speedBonus";
 type SeaStageId = (typeof SEA_BACKGROUND_CONFIG.stages)[number]["id"];
 type SeaTransitionMode = "alphaCrossfade" | "textureTransition" | "none";
+type SegmentGlobalBonusTypeRules = (typeof SEGMENT_GLOBAL_BONUS_SPAWN)["rulesByType"][SegmentBonusType];
 type ShieldPickupMagnetResolvedConfig = {
   enabled: boolean;
   radiusPx: number;
@@ -2262,7 +2263,12 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const poolBonusCounts = new Map<number, number>();
+    const poolBonusCountsTotal = new Map<number, number>();
+    const poolBonusCountsByType: Record<SegmentBonusType, Map<number, number>> = {
+      timeBonus: new Map<number, number>(),
+      speedBonus: new Map<number, number>(),
+    };
+
     for (const item of this.scheduledObjects) {
       if (item.type !== "timeBonus" && item.type !== "speedBonus") {
         continue;
@@ -2271,27 +2277,44 @@ export default class GameScene extends Phaser.Scene {
       if (!poolIndex) {
         continue;
       }
-      poolBonusCounts.set(poolIndex, (poolBonusCounts.get(poolIndex) ?? 0) + 1);
+      poolBonusCountsTotal.set(poolIndex, (poolBonusCountsTotal.get(poolIndex) ?? 0) + 1);
+      const typedMap = poolBonusCountsByType[item.type];
+      typedMap.set(poolIndex, (typedMap.get(poolIndex) ?? 0) + 1);
     }
 
-    this.scheduleGlobalBonusType("timeBonus", rules.timeBonus, poolBonusCounts);
-    this.scheduleGlobalBonusType("speedBonus", rules.speedBonus, poolBonusCounts);
+    this.scheduleGlobalBonusType(
+      "speedBonus",
+      rules.rulesByType.speedBonus,
+      poolBonusCountsTotal,
+      poolBonusCountsByType.speedBonus,
+    );
+    this.scheduleGlobalBonusType(
+      "timeBonus",
+      rules.rulesByType.timeBonus,
+      poolBonusCountsTotal,
+      poolBonusCountsByType.timeBonus,
+    );
   }
 
   private scheduleGlobalBonusType(
     type: SegmentBonusType,
-    cfg: (typeof SEGMENT_GLOBAL_BONUS_SPAWN)["timeBonus"],
-    poolBonusCounts: Map<number, number>,
+    cfg: SegmentGlobalBonusTypeRules,
+    poolBonusCountsTotal: Map<number, number>,
+    poolBonusCountsByType: Map<number, number>,
   ) {
+    if (!cfg.enabled) {
+      return;
+    }
+
     const desiredCount = this.resolveGlobalBonusDesiredCount(cfg);
     const existingCount = this.scheduledObjects.filter((item) => item.type === type).length;
-    const plannedCount = Math.max(0, Math.min(cfg.maxPerRun, desiredCount) - existingCount);
+    const plannedCount = Math.max(0, desiredCount - existingCount);
     if (plannedCount <= 0) {
       return;
     }
 
     for (let i = 0; i < plannedCount; i += 1) {
-      const candidate = this.findGlobalBonusPlacement(type, cfg, poolBonusCounts);
+      const candidate = this.findGlobalBonusPlacement(type, cfg, poolBonusCountsTotal, poolBonusCountsByType);
       if (!candidate) {
         continue;
       }
@@ -2303,31 +2326,47 @@ export default class GameScene extends Phaser.Scene {
         scheduleId: `global-${type}-${i}@${candidate.spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
         spawnMeter: candidate.spawnMeter,
       });
-      poolBonusCounts.set(candidate.poolIndex, (poolBonusCounts.get(candidate.poolIndex) ?? 0) + 1);
+      poolBonusCountsTotal.set(candidate.poolIndex, (poolBonusCountsTotal.get(candidate.poolIndex) ?? 0) + 1);
+      poolBonusCountsByType.set(candidate.poolIndex, (poolBonusCountsByType.get(candidate.poolIndex) ?? 0) + 1);
     }
   }
 
-  private resolveGlobalBonusDesiredCount(cfg: (typeof SEGMENT_GLOBAL_BONUS_SPAWN)["timeBonus"]) {
-    const variance = Phaser.Math.Between(cfg.varianceMin, cfg.varianceMax);
-    const desired = cfg.targetPerRun + variance;
-    return Phaser.Math.Clamp(desired, cfg.minPerRun, cfg.maxPerRun);
+  private resolveGlobalBonusDesiredCount(cfg: SegmentGlobalBonusTypeRules) {
+    const variableCfg = cfg.variable;
+    const resolveVariable = () => {
+      const variance = Phaser.Math.Between(variableCfg.varianceMin, variableCfg.varianceMax);
+      const desired = variableCfg.targetPerRun + variance;
+      return Phaser.Math.Clamp(desired, variableCfg.minPerRun, variableCfg.maxPerRun);
+    };
+
+    if (cfg.countMode === "fixed") {
+      return Math.max(0, Math.floor(cfg.fixedCount));
+    }
+    if (cfg.countMode === "variable") {
+      return resolveVariable();
+    }
+
+    return cfg.defaultMode === "variable" ? resolveVariable() : Math.max(0, Math.floor(cfg.fixedCount));
   }
 
   private findGlobalBonusPlacement(
     type: SegmentBonusType,
-    cfg: (typeof SEGMENT_GLOBAL_BONUS_SPAWN)["timeBonus"],
-    poolBonusCounts: Map<number, number>,
+    cfg: SegmentGlobalBonusTypeRules,
+    poolBonusCountsTotal: Map<number, number>,
+    poolBonusCountsByType: Map<number, number>,
   ) {
     const rules = SEGMENT_GLOBAL_BONUS_SPAWN;
     const safety = rules.safety;
-    const attempts = Math.max(1, Math.max(cfg.attemptsPerBonus, safety.maxResampleAttempts));
+    const safetyEnabled = safety.enabled && safety.perTypeEnabled[type];
+    const attempts = Math.max(1, Math.max(cfg.placement.attemptsPerBonus, safety.maxResampleAttempts));
+
     const xMin = Phaser.Math.Clamp(
-      Math.max(cfg.xRatioMin, safety.safeXRatioMin),
+      safetyEnabled ? Math.max(cfg.placement.xRatioMin, safety.safeXRatioMin) : cfg.placement.xRatioMin,
       0,
       1,
     );
     const xMax = Phaser.Math.Clamp(
-      Math.min(cfg.xRatioMax, safety.safeXRatioMax),
+      safetyEnabled ? Math.min(cfg.placement.xRatioMax, safety.safeXRatioMax) : cfg.placement.xRatioMax,
       0,
       1,
     );
@@ -2335,14 +2374,22 @@ export default class GameScene extends Phaser.Scene {
       return null;
     }
 
+    const maxPerPoolGlobal = Math.max(0, rules.maxPerPool);
+    const defaultPerType = rules.maxPerPoolByType[type] ?? maxPerPoolGlobal;
+    const maxPerPoolType = Math.max(0, cfg.placement.maxPerPool ?? defaultPerType);
+
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const window = this.pickGlobalBonusWindow();
+      const window = this.pickGlobalBonusWindowForType(cfg);
       if (!window) {
         return null;
       }
 
-      const meterMin = Math.max(rules.spawnStartMeters, window.fromMeters);
-      const meterMax = Math.min(rules.spawnEndMeters, window.toMeters);
+      const rangeMin = cfg.spawnRange.fromMeters;
+      const rangeMax = cfg.spawnRange.endExclusive
+        ? Math.max(rangeMin, cfg.spawnRange.toMeters - 0.001)
+        : cfg.spawnRange.toMeters;
+      const meterMin = Math.max(rangeMin, window.fromMeters);
+      const meterMax = Math.min(rangeMax, window.toMeters);
       if (meterMax <= meterMin) {
         continue;
       }
@@ -2360,10 +2407,13 @@ export default class GameScene extends Phaser.Scene {
       if (!poolIndex) {
         continue;
       }
-      if ((poolBonusCounts.get(poolIndex) ?? 0) >= rules.maxPerPool) {
+      if (maxPerPoolGlobal > 0 && (poolBonusCountsTotal.get(poolIndex) ?? 0) >= maxPerPoolGlobal) {
         continue;
       }
-      if (!this.isGlobalBonusPlacementSafe(type, spawnMeter, xRatio, cfg.minGapMeters)) {
+      if (maxPerPoolType > 0 && (poolBonusCountsByType.get(poolIndex) ?? 0) >= maxPerPoolType) {
+        continue;
+      }
+      if (!this.isGlobalBonusPlacementSafe(type, spawnMeter, xRatio, cfg.placement.minGapMeters, safetyEnabled)) {
         continue;
       }
 
@@ -2373,14 +2423,20 @@ export default class GameScene extends Phaser.Scene {
     return null;
   }
 
-  private isGlobalBonusPlacementSafe(type: SegmentBonusType, spawnMeter: number, xRatio: number, minGapMeters: number) {
+  private isGlobalBonusPlacementSafe(
+    type: SegmentBonusType,
+    spawnMeter: number,
+    xRatio: number,
+    minGapMeters: number,
+    safetyEnabled: boolean,
+  ) {
     const safety = SEGMENT_GLOBAL_BONUS_SPAWN.safety;
     for (const item of this.scheduledObjects) {
       if (item.type === type && Math.abs(item.spawnMeter - spawnMeter) < minGapMeters) {
         return false;
       }
 
-      if (!safety.enabled) {
+      if (!safetyEnabled) {
         continue;
       }
 
@@ -2398,9 +2454,12 @@ export default class GameScene extends Phaser.Scene {
     return true;
   }
 
-  private pickGlobalBonusWindow() {
-    const rules = SEGMENT_GLOBAL_BONUS_SPAWN;
-    const windows = rules.windows.filter((window) => window.toMeters > rules.spawnStartMeters && window.fromMeters < rules.spawnEndMeters);
+  private pickGlobalBonusWindowForType(cfg: SegmentGlobalBonusTypeRules) {
+    const rangeMin = cfg.spawnRange.fromMeters;
+    const rangeMax = cfg.spawnRange.endExclusive
+      ? Math.max(rangeMin, cfg.spawnRange.toMeters - 0.001)
+      : cfg.spawnRange.toMeters;
+    const windows = cfg.windows.filter((window) => window.toMeters > rangeMin && window.fromMeters < rangeMax);
     if (windows.length === 0) {
       return null;
     }
@@ -2425,6 +2484,10 @@ export default class GameScene extends Phaser.Scene {
       if (spawnMeter >= pool.startMeter && spawnMeter < pool.endMeter) {
         return pool.poolIndex;
       }
+    }
+    const finalPoolStart = LEVEL_SEGMENT_POOLS[LEVEL_SEGMENT_POOLS.length - 1]?.endMeter ?? LANDMARK_METERS.harbor;
+    if (spawnMeter >= finalPoolStart && spawnMeter <= LANDMARK_METERS.harbor) {
+      return LEVEL_SEGMENT_POOLS.length + 1;
     }
     return null;
   }
