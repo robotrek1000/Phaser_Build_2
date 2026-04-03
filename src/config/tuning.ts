@@ -7,7 +7,7 @@
 export const TUNING = {
   FUEL_START: 0,
   FUEL_DRAIN_PER_SEC: 0,
-  FUEL_PICKUP_VALUE: 0.1,
+  FUEL_PICKUP_VALUE: 0.05,
 } as const;
 
 export const PLAY_AREA = {
