@@ -53,6 +53,7 @@ import {
   YACHT_SOLID_BLOCKERS,
   YACHT_SOLID_CONTACT_RESOLVE,
   YACHT_SPEED_Y_ANIM,
+  YACHT_START_POSITION,
   YACHT_SWAY,
   YACHT_VISUAL_OFFSET,
   YACHT_VISUAL_SIZE,
@@ -1622,8 +1623,14 @@ export default class GameScene extends Phaser.Scene {
 
     this.updateControlBoundsForPlatform(this.activeControlPlatform);
 
-    const startX = Math.round(width * 0.5);
-    const startY = Math.round(height * 0.8);
+    const startXRaw = Math.round(width * YACHT_START_POSITION.xRatio + YACHT_START_POSITION.offsetX);
+    const startYRaw = Math.round(height * YACHT_START_POSITION.yRatio + YACHT_START_POSITION.offsetY);
+    const startX = YACHT_START_POSITION.clampToControlBounds
+      ? Phaser.Math.Clamp(startXRaw, this.controlMinX, this.controlMaxX)
+      : startXRaw;
+    const startY = YACHT_START_POSITION.clampToControlBounds
+      ? Phaser.Math.Clamp(startYRaw, this.controlMinY, this.controlMaxY)
+      : startYRaw;
 
     this.yachtBody = this.physics.add.sprite(startX, startY, "yacht-rect");
     this.yachtBody.body.setAllowGravity(false);

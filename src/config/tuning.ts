@@ -470,9 +470,9 @@ export const SEGMENT_PATTERN_RULES = {
     moneyUpMinEarly: 2,
     moneyDownMinByStage: {
       early: 1,
-      mid: 2,
-      late: 3,
-      endgame: 4,
+      mid: 1,
+      late: 2,
+      endgame: 3,
     },
     dynamicBuoyMinFromPoolIndex: 3,
     dynamicBuoyMinDefault: 1,
@@ -689,16 +689,24 @@ export const RELATIVE_TOUCH_CONTROL = {
 
 export const YACHT_VISUAL_SIZE = {
   targetHeightPx: 280,
-  hitboxWidthRatioToVisual: 0.56,
-  hitboxHeightRatioToVisual: 0.88,
+  hitboxWidthRatioToVisual: 0.32,
+  hitboxHeightRatioToVisual: 0.74,
   minHitboxWidthPx: 84,
   minHitboxHeightPx: 184,
-  hitboxOffsetX: 4,
+  hitboxOffsetX: 0,
   hitboxOffsetY: 30,
 } as const;
 
 export const YACHT_VISUAL_OFFSET = {
   y: 32,
+} as const;
+
+export const YACHT_START_POSITION = {
+  xRatio: 0.5,
+  yRatio: 0.66,
+  offsetX: 0,
+  offsetY: 0,
+  clampToControlBounds: true,
 } as const;
 
 export const YACHT_SWAY = {
@@ -727,11 +735,11 @@ export const SHIP_ASSET_STAGES = [
 // Хитбоксы и блокеры яхты
 
 export const YACHT_HAZARD_HITBOX = {
-  widthRatioToVisual: 0.56,
-  heightRatioToVisual: 0.88,
+  widthRatioToVisual: 0.32,
+  heightRatioToVisual: 0.74,
   minWidthPx: 84,
   minHeightPx: 184,
-  offsetX: 4,
+  offsetX: 0,
   offsetY: 30,
 } as const;
 
@@ -1191,8 +1199,8 @@ export const MINE_CONFIG = {
   swayAmplitudeDeg: 7,
   swayFrequencyHz: 1.15,
   hitbox: {
-    radiusXRatio: 1,
-    radiusYRatio: 1,
+    radiusXRatio: 0.75,
+    radiusYRatio: 0.75,
     centerXRatio: 1.2,
     centerYRatio: 1.25,
   },
@@ -1232,9 +1240,9 @@ export const PIRATE_CONFIG = {
   noseRotationOffsetDeg: 90,
   flipY: true,
   hitbox: {
-    radiusXRatio: 0.75,
-    radiusYRatio: 1,
-    centerXRatio: 1,
+    radiusXRatio: 0.5,
+    radiusYRatio: 0.75,
+    centerXRatio: 1.1,
     centerYRatio: 1,
   },
   collisionCooldownMs: 260,
