@@ -107,13 +107,18 @@ export const WORLD_OBJECT_DARKENING_CONFIG = {
     "obstacle-rock-1": { enabled: true, intensityMultiplier: 1 },
     "obstacle-rock-2": { enabled: true, intensityMultiplier: 1 },
     "obstacle-rock-3": { enabled: true, intensityMultiplier: 1 },
+    "obstacle-reef-1": { enabled: true, intensityMultiplier: 1 },
     "earth-3": { enabled: true, intensityMultiplier: 1 },
+    "earth-1": { enabled: true, intensityMultiplier: 1 },
+    "earth-2": { enabled: true, intensityMultiplier: 1 },
     coin: { enabled: true, intensityMultiplier: 1 },
     "time-bonus": { enabled: true, intensityMultiplier: 1 },
     "speed-bonus": { enabled: true, intensityMultiplier: 1 },
+    "wind-speed-bonus": { enabled: true, intensityMultiplier: 1 },
     "coin-shadow": { enabled: true, intensityMultiplier: 1 },
     "time-bonus-shadow": { enabled: true, intensityMultiplier: 1 },
     "speed-bonus-shadow": { enabled: true, intensityMultiplier: 1 },
+    "wind-speed-bonus-shadow": { enabled: true, intensityMultiplier: 1 },
     "sea-bg": { enabled: false, intensityMultiplier: 1 },
     "sea-bg-2": { enabled: false, intensityMultiplier: 1 },
     "sea-bg-3": { enabled: false, intensityMultiplier: 1 },
@@ -123,6 +128,15 @@ export const WORLD_OBJECT_DARKENING_CONFIG = {
     "start-bg": { enabled: false, intensityMultiplier: 1 },
     "onboarding-window": { enabled: false, intensityMultiplier: 1 },
     "flag-new": { enabled: false, intensityMultiplier: 1 },
+    "skill-wheel-sector-1": { enabled: false, intensityMultiplier: 1 },
+    "skill-wheel-sector-2": { enabled: false, intensityMultiplier: 1 },
+    "skill-wheel-sector-3": { enabled: false, intensityMultiplier: 1 },
+    "skill-wheel-bar-body": { enabled: false, intensityMultiplier: 1 },
+    "skill-wheel-arrow": { enabled: false, intensityMultiplier: 1 },
+    "skill-wheel-bonus-1": { enabled: false, intensityMultiplier: 1 },
+    "skill-wheel-bonus-2": { enabled: false, intensityMultiplier: 1 },
+    "skill-wheel-bonus-3": { enabled: false, intensityMultiplier: 1 },
+    "skill-wheel-bonus-4": { enabled: false, intensityMultiplier: 1 },
   } as const,
 } as const;
 
@@ -244,6 +258,124 @@ export const TOP_PROGRESS_BAR_CONFIG = {
   },
 } as const;
 
+export const SKILL_WHEEL_BONUS_HUD_CONFIG = {
+  enabled: true,
+  depth: 58,
+  rowAnchorMode: "progressBar" as "progressBar" | "screen",
+  rowXRatio: 0.5,
+  rowY: 112,
+  rowOffsetX: 0,
+  rowOffsetY: 42,
+  iconSizePx: 66,
+  iconScale: 1,
+  iconGapPx: 10,
+  layoutsByCount: {
+    1: [0],
+    2: [-38, 38],
+    3: [-76, 0, 76],
+    4: [-114, -38, 38, 114],
+  } as const,
+  slotFrame: {
+    enabled: true,
+    strokeColor: 0x0f1d3f,
+    strokeWidthPx: 3,
+    fillColor: 0x111111,
+    fillAlpha: 0.22,
+  },
+  radial: {
+    enabled: true,
+    radiusPaddingPx: 4,
+    startAngleDeg: -90,
+    clockwise: true,
+    trackColor: 0x0b0b0b,
+    trackAlpha: 0.35,
+    fillColor: 0xffffff,
+    fillAlpha: 0.3,
+  },
+  pulseOnRefresh: {
+    enabled: true,
+    durationMs: 180,
+    scaleUp: 1.12,
+    ease: "Sine.easeOut",
+  },
+} as const;
+
+export const SKILL_WHEEL_UI_CONFIG = {
+  enabled: true,
+  depth: 180,
+  overlay: {
+    enabled: true,
+    color: 0x000000,
+    alpha: 0.52,
+    glowColor: 0x65d8ff,
+    glowAlpha: 0.00,
+  },
+  intro: {
+    titleText: "ВЫБЕРИТЕ БОНУС",
+    titleFontFamily: "Fascinate",
+    titleFontSizePx: 56,
+    titleColor: "#ffffff",
+    titleOffsetY: 252,
+  },
+  result: {
+    continueText: "НАЖМИТЕ ДЛЯ\nПРОДОЛЖЕНИЯ",
+    continueFontFamily: "Fascinate",
+    continueFontSizePx: 52,
+    continueColor: "#ffffff",
+    continueAlpha: 0.68,
+    continueOffsetY: 332,
+    titleFontFamily: "Fascinate",
+    titleFontSizePx: 52,
+    titleColor: "#ffffff",
+    bodyFontFamily: "Fascinate",
+    bodyFontSizePx: 44,
+    bodyColor: "#ffffff",
+    titleOffsetX: 136,
+    titleOffsetY: -72,
+    bodyOffsetY: 170,
+    iconOffsetX: -38,
+    iconOffsetY: -88,
+    iconMaxWidthPx: 336,
+    iconMaxHeightPx: 248,
+  },
+  wheel: {
+    centerXRatio: 0.5,
+    centerYRatio: 0.43,
+    barKey: "skill-wheel-bar-body",
+    barScale: 0.5,
+    barOffsetX: 0,
+    barOffsetY: -110,
+    sectorRangesDeg: [
+      { minDeg: -85, maxDeg: -54 },
+      { minDeg: -54, maxDeg: -4 },
+      { minDeg: -4, maxDeg: 49 },
+      { minDeg: 49, maxDeg: 85 },
+    ] as const,
+    rewardBySectorIndex: [
+      "red_buoy_clear",
+      "assets_x2",
+      "time_x2",
+      "coin_x2",
+    ] as const,
+    spinInputEnabledAtMs: 150,
+    landingLockDelayMs: 120,
+    pointer: {
+      key: "skill-wheel-arrow",
+      scale: 0.74,
+      offsetX: 12,
+      offsetY: 38,
+      originX: 0.5,
+      originY: 0.84,
+      restAngleDeg: -90,
+      oscillationMinDeg: -85,
+      oscillationMaxDeg: 85,
+      oscillationFrequencyHz: 0.85,
+      stopDurationMs: 260,
+      stopEase: "Sine.easeOut",
+    },
+  },
+} as const;
+
 export const RESULT_SCREEN_UI = {
   titleYRatio: 0.34,
   distanceYRatio: 0.45,
@@ -353,6 +485,95 @@ export const RUN_TIMER = {
   bonusMs: 10_000,
 } as const;
 
+export const SKILL_WHEEL_EVENT_CONFIG = {
+  enabled: true,
+  guaranteedMeters: [600] as const,
+  triggerDistanceAheadMeters: -15,
+  maxEventsPerRun: 3,
+  extra: {
+    enabled: true,
+    maxExtraEvents: 2,
+    windows: [
+      { id: "extra-mid", fromMeters: 760, toMeters: 980, chance: 0.55 },
+      { id: "extra-late", fromMeters: 980, toMeters: 1180, chance: 0.45 },
+    ] as const,
+  },
+  pause: {
+    freezeRunTimer: true,
+    freezeWorldUpdates: true,
+  },
+  islandSpawn: {
+    enabled: true,
+    minPerRun: 1,
+    maxPerRun: 3,
+    distanceFromMeters: 400,
+    distanceToMeters: 1200,
+    minGapMeters: 140,
+    allowedPoolIndexFrom: 5,
+    allowedPoolIndexTo: 12,
+    variantMode: "alternate" as "alternate" | "random",
+    randomWeights: {
+      wheelIsland1: 1,
+      wheelIsland2: 1,
+    },
+  },
+} as const;
+
+export const SKILL_WHEEL_REWARD_CONFIG = {
+  enabled: true,
+  maxActiveRewards: 4,
+  defaultDurationMs: 15_000,
+  duplicatePolicy: "refreshOnly" as "refreshOnly" | "stackDuration",
+  removeOnRunEnd: true,
+  rewards: {
+    assets_x2: {
+      key: "skill-wheel-bonus-1",
+      resultKey: "skill-wheel-sector-1",
+      durationMs: 15_000,
+      multiplier: 2,
+      title: "x2",
+      bodyLine1: "Стоимость собранных активов\nувеличивается x2.",
+      bodyLine2: "Шкала активов заполняется быстрее!",
+    },
+    red_buoy_clear: {
+      key: "skill-wheel-bonus-2",
+      resultKey: "skill-wheel-sector-2",
+      durationMs: 15_000,
+      clearOnActivate: true,
+      title: "X",
+      bodyLine1: "Убытки от красных буйков\nвременно отключены.",
+      bodyLine2: "Динамические буйки в красном\nсостоянии не наносят ущерб.",
+    },
+    time_x2: {
+      key: "skill-wheel-bonus-3",
+      resultKey: "skill-wheel-sector-3",
+      durationMs: 15_000,
+      multiplier: 2,
+      title: "x2",
+      bodyLine1: "Бонус времени даёт\nв 2 раза больше секунд.",
+      bodyLine2: "Легче добраться до гавани.",
+    },
+    coin_x2: {
+      key: "skill-wheel-bonus-4",
+      resultKey: "coin",
+      durationMs: 15_000,
+      multiplier: 2,
+      title: "x2",
+      bodyLine1: "Каждая монета стоит в 2 раза дороже.",
+      bodyLine2: "Собирайте монеты эффективнее!",
+    },
+  } as const,
+} as const;
+
+export const WHEEL_ISLAND_CONFIG = {
+  damageEnabled: false,
+} as const;
+
+export const WHEEL_DEBUG_CONFIG = {
+  forceOpenOnCreate: false,
+  logRewards: false,
+} as const;
+
 export const RUN_START_SPEED = {
   startDropKmh: 0,
 } as const;
@@ -434,6 +655,9 @@ export const BUOY_COLLISION_LAYER = {
     rock1: true,
     rock2: true,
     rock3: true,
+    reef1: true,
+    wheelIsland1: true,
+    wheelIsland2: true,
     harbor: true,
   },
 } as const;
@@ -476,11 +700,21 @@ export const SEGMENT_PATTERN_RULES = {
     },
     dynamicBuoyMinFromPoolIndex: 3,
     dynamicBuoyMinDefault: 1,
-    rockMin: 1,
+    reefMin: 1,
   },
   guaranteedSpawnPaddingMeters: {
     min: 6,
     max: 6,
+  },
+  wheelIslandExclusion: {
+    enabled: true,
+    radiusMeters: 20,
+    minDeltaXRatio: 0.18,
+    blockedTypes: ["moneyDown", "dynamicBuoy", "mine", "pirate", "whirlpool", "reef1", "rock1", "rock2", "rock3"] as const,
+    allowTimeBonus: true,
+    allowSpeedBonus: true,
+    allowCoin: false,
+    resampleAttempts: 10,
   },
 } as const;
 
@@ -517,7 +751,7 @@ export const SEGMENT_GLOBAL_BONUS_SPAWN = {
       speedBonus: true,
       timeBonus: true,
     },
-    blockingTypes: ["mine", "pirate", "whirlpool", "rock1", "rock2", "rock3"] as const,
+    blockingTypes: ["mine", "pirate", "whirlpool", "reef1", "rock1", "rock2", "rock3"] as const,
     minDeltaMeters: 7,
     minDeltaXRatio: 0.12,
     maxResampleAttempts: 18,
@@ -590,7 +824,7 @@ export const SEGMENT_GLOBAL_BONUS_SPAWN = {
 
 export const SEGMENT_COIN_SAFETY = {
   enabled: true,
-  blockingTypes: ["mine", "pirate", "whirlpool", "rock1", "rock2", "rock3"] as const,
+  blockingTypes: ["mine", "pirate", "whirlpool", "reef1", "rock1", "rock2", "rock3", "wheelIsland1", "wheelIsland2"] as const,
   minDeltaMeters: 7,
   minDeltaXRatio: 0.12,
   maxResampleAttempts: 18,
@@ -645,6 +879,18 @@ export const COLLECT_ANIMATION_TIME_BONUS = {
 export const RELATIVE_TOUCH_ROUTING = {
   platformSource: "pointerType" as "manual" | "pointerType",
   manualPlatform: "desktop" as "desktop" | "mobile",
+  controlModelByPlatform: {
+    desktop: "anchorRebase" as "delta" | "anchorRebase",
+    mobile: "anchorRebase" as "delta" | "anchorRebase",
+  },
+  anchorRebase: {
+    enabled: true,
+    rebaseOnExternalDisplacement: true,
+    debug: {
+      logAnchorLifecycle: true,
+      logRebase: true,
+    },
+  },
 } as const;
 
 export const RELATIVE_TOUCH_CONTROL = {
@@ -652,35 +898,81 @@ export const RELATIVE_TOUCH_CONTROL = {
     requirePointerDown: true,
     gainX: 1,
     gainY: 1,
-    deadZonePx: 0,
+    deadZonePx: 1,
     maxDeltaXPerEventPx: 120,
     maxDeltaYPerEventPx: 120,
-    targetLerpPerSecX: 60,
-    targetLerpPerSecY: 60,
-    bodyLerpPerSecX: 18,
-    bodyLerpPerSecY: 18,
+    targetLerpPerSecX: 20,
+    targetLerpPerSecY: 20,
+    bodyLerpPerSecX: 34,
+    bodyLerpPerSecY: 34,
     snapDistancePx: 0,
     minXPaddingPx: 12,
     maxXPaddingPx: 12,
     minYPaddingPx: 12,
     maxYPaddingPx: 12,
+    anchor: {
+      pointerJitterDeadZonePx: 0,
+      pointerSmoothingLerpPerSec: 120,
+      recalcOffsetOnPointerDown: true,
+      clampDesiredTargetAfterAnchor: true,
+      keepAnchorDuringCollision: true,
+    },
+    rebase: {
+      minDisplacementPx: 0,
+      axisThresholdX: 0,
+      axisThresholdY: 0,
+      axisFactorX: 1.35,
+      axisFactorY: 1.2,
+      bodyDyToTargetDyFactor: 1.2,
+      maxRebasePerEventPxX: 260,
+      maxRebasePerEventPxY: 260,
+      clampAnchorOffset: true,
+      maxAnchorOffsetPxX: 900,
+      maxAnchorOffsetPxY: 1200,
+      immediateDesiredSync: true,
+      immediateTargetSync: true,
+      cooldownMs: 0,
+    },
   },
   mobile: {
     requirePointerDown: true,
     gainX: 1,
     gainY: 1,
-    deadZonePx: 0,
+    deadZonePx: 1,
     maxDeltaXPerEventPx: 120,
     maxDeltaYPerEventPx: 120,
-    targetLerpPerSecX: 80,
-    targetLerpPerSecY: 80,
-    bodyLerpPerSecX: 18,
-    bodyLerpPerSecY: 18,
+    targetLerpPerSecX: 40,
+    targetLerpPerSecY: 40,
+    bodyLerpPerSecX: 38,
+    bodyLerpPerSecY: 38,
     snapDistancePx: 0,
     minXPaddingPx: 0,
     maxXPaddingPx: 0,
     minYPaddingPx: 0,
     maxYPaddingPx: 0,
+    anchor: {
+      pointerJitterDeadZonePx: 0,
+      pointerSmoothingLerpPerSec: 140,
+      recalcOffsetOnPointerDown: true,
+      clampDesiredTargetAfterAnchor: true,
+      keepAnchorDuringCollision: true,
+    },
+    rebase: {
+      minDisplacementPx: 0,
+      axisThresholdX: 0,
+      axisThresholdY: 0,
+      axisFactorX: 1.5,
+      axisFactorY: 1.3,
+      bodyDyToTargetDyFactor: 1.25,
+      maxRebasePerEventPxX: 320,
+      maxRebasePerEventPxY: 320,
+      clampAnchorOffset: true,
+      maxAnchorOffsetPxX: 1200,
+      maxAnchorOffsetPxY: 1600,
+      immediateDesiredSync: true,
+      immediateTargetSync: true,
+      cooldownMs: 0,
+    },
   },
 } as const;
 
@@ -715,9 +1007,9 @@ export const YACHT_SWAY = {
 } as const;
 
 export const YACHT_SPEED_Y_ANIM = {
-  accelOffsetPx: 80,
-  accelDurationMs: 360,
-  accelReturnMs: 180,
+  accelOffsetPx: 160,
+  accelDurationMs: 270,
+  accelReturnMs: 720,
   brakeOffsetPx: -80,
   brakeDurationMs: 180,
   brakeReturnMs: 360,
@@ -732,6 +1024,15 @@ export const SHIP_ASSET_STAGES = [
   { maxPercent: 100, textureKey: "ship-5" },
 ] as const;
 
+export const SHIP_STAGE_TRANSITION = {
+  enabled: true,
+  durationMs: 220,
+  ease: "Sine.easeOut",
+  minIntervalMs: 120,
+  interruptPolicy: "replace" as "replace" | "skip",
+  respectShieldBlink: true,
+} as const;
+
 // Хитбоксы и блокеры яхты
 
 export const YACHT_HAZARD_HITBOX = {
@@ -744,9 +1045,12 @@ export const YACHT_HAZARD_HITBOX = {
 } as const;
 
 export const YACHT_SOLID_BLOCKERS = {
-  rock1: true,
-  rock2: true,
-  rock3: true,
+  rock1: false,
+  rock2: false,
+  rock3: false,
+  reef1: false,
+  wheelIsland1: true,
+  wheelIsland2: true,
   harbor: false,
 } as const;
 
@@ -754,6 +1058,21 @@ export const YACHT_SOLID_CONTACT_RESOLVE = {
   minSeparationPx: 1,
   axisTieEpsilonPx: 1.5,
   syncTargetsAfterResolve: true,
+} as const;
+
+export const SOLID_CONTACT_FEEDBACK = {
+  default: {
+    applySlowdown: true,
+    shipBlink: true,
+    redOverlay: true,
+  },
+  byType: {
+    reef1: {
+      applySlowdown: true,
+      shipBlink: true,
+      redOverlay: false,
+    },
+  },
 } as const;
 
 // Щит и feedback-эффекты
@@ -800,17 +1119,17 @@ export const ASSET_SHIELD_CONFIG = {
         cooldownMs: 120,
       },
       mine: {
-        impulsePxPerSec: 520,
-        separationPx: 14,
-        verticalImpulseFactor: 0.32,
-        maxVerticalPushPxPerSec: 180,
+        impulsePxPerSec: 0,
+        separationPx: 0,
+        verticalImpulseFactor: 0,
+        maxVerticalPushPxPerSec: 0,
         cooldownMs: 140,
       },
       pirate: {
-        impulsePxPerSec: 760,
-        separationPx: 18,
-        verticalImpulseFactor: 0.4,
-        maxVerticalPushPxPerSec: 260,
+        impulsePxPerSec: 0,
+        separationPx: 0,
+        verticalImpulseFactor: 0,
+        maxVerticalPushPxPerSec: 0,
         cooldownMs: 160,
       },
       whirlpool: {
@@ -856,6 +1175,8 @@ export const ASSET_SHIELD_CONFIG = {
       targets: {
         moneyDown: true,
         dynamicDown: true,
+        mine: true,
+        pirate: true,
       },
       originOffsetX: 0,
       originOffsetY: 0,
@@ -936,7 +1257,7 @@ export const ASSET_SHIELD_CONFIG = {
         axisFactorY: 1,
       },
       speedBonus: {
-        enabled: true,
+        enabled: false,
         radiusPx: 340,
         forcePxPerSec: 1600,
         falloffPower: 1.05,
@@ -1294,6 +1615,7 @@ export const ROCK_CONFIG = {
   common: {
     depth: 15,
     speedYMultiplier: 1,
+    damageEnabled: true,
     collisionCooldownMs: 220,
     allowPartialSpawn: true,
     partialSpawnMaxOffsetPx: 120,
@@ -1330,6 +1652,29 @@ export const ROCK_CONFIG = {
       radiusYRatio: 0.5,
       centerXRatio: 1,
       centerYRatio: 1.6,
+    },
+  },
+} as const;
+
+export const REEF_CONFIG = {
+  common: {
+    depth: 15,
+    speedYMultiplier: 1,
+    damageEnabled: true,
+    collisionCooldownMs: 220,
+    allowPartialSpawn: true,
+    partialSpawnMaxOffsetPx: 120,
+    applyImpactAnimation: false,
+  },
+  reef1: {
+    textureKey: "obstacle-reef-1",
+    width: 290,
+    height: 356,
+    ellipse: {
+      radiusXRatio: 1.1,
+      radiusYRatio: 0.5,
+      centerXRatio: 1,
+      centerYRatio: 1.75,
     },
   },
 } as const;
@@ -1375,7 +1720,100 @@ export const TIME_BONUS = {
   },
 } as const;
 
+export const WIND_SPEED_BONUS_CONFIG = {
+  textureKey: "wind-speed-bonus",
+  shadowTextureKey: "wind-speed-bonus-shadow",
+  spawnYOffset: -120,
+  width: 150,
+  height: 300,
+  shadowWidth: 150,
+  shadowHeight: 300,
+  shadowYOffset: 12,
+  shadowAlpha: 0.34,
+  depth: 20,
+  shadowDepth: 8,
+  speedYMultiplier: 1,
+  zigzagHorizontalSpeed: 0,
+  zigzagLeftBoundOffset: 0,
+  zigzagRightBoundOffset: 0,
+  yBobAmplitudePx: 8,
+  yBobFrequencyHz: 0.5,
+  yBobPhaseMin: 0,
+  yBobPhaseMax: Math.PI * 2,
+  hitbox: {
+    widthRatio: 1.25,
+    heightRatio: 1.75,
+    offsetX: 50,
+    offsetY: 100,
+  },
+  pulse: {
+    baseScale: 1,
+    amplitude: 0.035,
+    frequencyHz: 0.9,
+    phaseMin: 0,
+    phaseMax: Math.PI * 2,
+    minScale: 0.94,
+    maxScale: 1.08,
+    affectHitbox: true,
+  },
+  shadowBobScale: {
+    baseScaleX: 0.34,
+    baseScaleY: 0.34,
+    responseX: 0.045,
+    responseY: 0.06,
+    minScaleX: 0.22,
+    maxScaleX: 0.48,
+    minScaleY: 0.2,
+    maxScaleY: 0.5,
+  },
+  shadowPulse: {
+    amplitudeX: 0.03,
+    amplitudeY: 0.04,
+    frequencyHz: 0.9,
+    phaseOffsetRad: 0.6,
+    minScaleX: 0.92,
+    maxScaleX: 1.08,
+    minScaleY: 0.9,
+    maxScaleY: 1.1,
+  },
+  fadeOutOnCollect: {
+    enabled: true,
+    durationMs: 1_000,
+    delayMs: 0,
+    ease: "Linear",
+    freezeMotionOnStart: true,
+    disableBodyOnStart: true,
+    destroySpriteOnComplete: true,
+    sprite: {
+      useCurrentAlphaAsStart: true,
+      startAlpha: 1,
+      endAlpha: 0,
+      hideWhenComplete: true,
+      stopPulseDuringFade: false,
+      stopYBobDuringFade: false,
+    },
+    shadow: {
+      enabled: true,
+      useCurrentAlphaAsStart: true,
+      startAlpha: 0.34,
+      endAlpha: 0,
+      followSpriteDuringFade: true,
+      stopPulseDuringFade: true,
+      destroyOnComplete: true,
+      hideWhenComplete: true,
+    },
+    debug: {
+      logLifecycle: false,
+    },
+  },
+} as const;
+
 export const SPEED_BONUS_CONFIG = {
+  runtime: {
+    behaviorMode: "classic" as "classic" | "wind",
+    enabledInSpawn: true,
+    windEnabledInSpawn: false,
+  },
   textureKey: "speed-bonus",
   shadowTextureKey: "speed-bonus-shadow",
   spawnYOffset: -120,
@@ -1401,6 +1839,16 @@ export const SPEED_BONUS_CONFIG = {
     offsetX: 100,
     offsetY: 100,
   },
+  pulse: {
+    baseScale: 1,
+    amplitude: 0.035,
+    frequencyHz: 0.9,
+    phaseMin: 0,
+    phaseMax: Math.PI * 2,
+    minScale: 0.94,
+    maxScale: 1.08,
+    affectHitbox: true,
+  },
   effectDurationMs: 5_000,
   speedMultiplier: 1.5,
   transition: {
@@ -1420,6 +1868,46 @@ export const SPEED_BONUS_CONFIG = {
     maxScaleX: 1,
     minScaleY: 0.1,
     maxScaleY: 1,
+  },
+  shadowPulse: {
+    amplitudeX: 0.03,
+    amplitudeY: 0.04,
+    frequencyHz: 0.9,
+    phaseOffsetRad: 0.6,
+    minScaleX: 0.92,
+    maxScaleX: 1.08,
+    minScaleY: 0.9,
+    maxScaleY: 1.1,
+  },
+  fadeOutOnCollect: {
+    enabled: true,
+    durationMs: 1_000,
+    delayMs: 0,
+    ease: "Linear",
+    freezeMotionOnStart: true,
+    disableBodyOnStart: true,
+    destroySpriteOnComplete: true,
+    sprite: {
+      useCurrentAlphaAsStart: true,
+      startAlpha: 1,
+      endAlpha: 0,
+      hideWhenComplete: true,
+      stopPulseDuringFade: false,
+      stopYBobDuringFade: false,
+    },
+    shadow: {
+      enabled: true,
+      useCurrentAlphaAsStart: true,
+      startAlpha: 0.34,
+      endAlpha: 0,
+      followSpriteDuringFade: true,
+      stopPulseDuringFade: true,
+      destroyOnComplete: true,
+      hideWhenComplete: true,
+    },
+    debug: {
+      logLifecycle: false,
+    },
   },
 } as const;
 
@@ -1463,6 +1951,30 @@ export const COIN_CONFIG = {
 
 
 export const LANDMARK_CONFIG = {
+  wheelIsland1: {
+    textureKey: "earth-1",
+    width: 320,
+    height: 358,
+    depth: 15,
+    ellipse: {
+      radiusXRatio: 0.36,
+      radiusYRatio: 0.12,
+      centerXRatio: 0.52,
+      centerYRatio: 0.88,
+    },
+  },
+  wheelIsland2: {
+    textureKey: "earth-2",
+    width: 430,
+    height: 406,
+    depth: 15,
+    ellipse: {
+      radiusXRatio: 0.35,
+      radiusYRatio: 0.12,
+      centerXRatio: 0.49,
+      centerYRatio: 0.87,
+    },
+  },
   harbor: {
     textureKey: "earth-3",
     width: 760,

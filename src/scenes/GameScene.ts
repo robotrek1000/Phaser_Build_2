@@ -28,6 +28,7 @@ import {
   RED_HIT_INVULNERABILITY,
   RED_BUOY_HIT_FEEDBACK,
   RED_HIT_OVERLAY_EFFECT,
+  REEF_CONFIG,
   RELATIVE_TOUCH_CONTROL,
   RELATIVE_TOUCH_ROUTING,
   ROCK_CONFIG,
@@ -35,19 +36,28 @@ import {
   RUN_START_SPEED,
   RUN_TIMER,
   SEA_BACKGROUND_CONFIG,
+  SKILL_WHEEL_BONUS_HUD_CONFIG,
+  SKILL_WHEEL_EVENT_CONFIG,
+  SKILL_WHEEL_REWARD_CONFIG,
+  SKILL_WHEEL_UI_CONFIG,
   SEGMENT_GLOBAL_BONUS_SPAWN,
   SEGMENT_COIN_SAFETY,
   SEGMENT_PATTERN_RULES,
   SEGMENT_PICKUP_RULES,
   SEGMENT_SPAWN,
   SHIP_ASSET_STAGES,
+  SHIP_STAGE_TRANSITION,
+  SOLID_CONTACT_FEEDBACK,
   SPEED_BONUS_CONFIG,
   TIME_UI_CONFIG,
   TIME_BONUS,
   TOP_PROGRESS_BAR_CONFIG,
   TUNING,
+  WIND_SPEED_BONUS_CONFIG,
   WATER_SCROLL,
   WHIRLPOOL_CONFIG,
+  WHEEL_DEBUG_CONFIG,
+  WHEEL_ISLAND_CONFIG,
   WORLD_OBJECT_DARKENING_CONFIG,
   YACHT_HAZARD_HITBOX,
   YACHT_SOLID_BLOCKERS,
@@ -62,6 +72,7 @@ import {
   FINAL_SEGMENT_1200_1250,
   LEVEL_SEGMENT_POOLS,
   SEGMENT_TEMPLATE_CATALOG,
+  SKILL_WHEEL_ISLAND_SEGMENTS,
   type SegmentObjectDef,
   type SegmentObjectType,
   type SegmentPool,
@@ -73,8 +84,9 @@ type SuccessReason = "success_harbor_610";
 type FailureReason = "out_of_time" | "hit_hazard";
 type ResultReason = FailureReason | SuccessReason;
 type ControlPlatform = "desktop" | "mobile";
+type ControlModel = "delta" | "anchorRebase";
 type HazardType = "mine" | "pirate" | "moneyDown" | "dynamicBuoy" | "whirlpool";
-type SolidType = "rock1" | "rock2" | "rock3" | "harbor";
+type SolidType = "rock1" | "rock2" | "rock3" | "reef1" | "wheelIsland1" | "wheelIsland2" | "harbor";
 type CollectAnimationType = "buoy" | "timeBonus" | "speedBonus";
 type AirBonusType = "time" | "speed";
 type DynamicBuoyGameplayState = "up" | "down";
@@ -84,6 +96,19 @@ type ShieldHazardKey = (typeof ASSET_SHIELD_CONFIG.invulnerability.affectedHazar
 type ShieldPickupMagnetTargetKey = "coin" | "timeBonus" | "speedBonus";
 type BuoyCollisionActorType = "moneyUp" | HazardType;
 type SegmentBonusType = "timeBonus" | "speedBonus";
+type SkillWheelRewardId = keyof typeof SKILL_WHEEL_REWARD_CONFIG.rewards;
+type ActiveSkillWheelReward = {
+  id: SkillWheelRewardId;
+  startedAtMs: number;
+  expiresAtMs: number;
+  durationMs: number;
+};
+type ScheduledWheelEvent = {
+  meter: number;
+  islandType: "wheelIsland1" | "wheelIsland2";
+  source: "guaranteed" | "extra";
+  consumed: boolean;
+};
 type SeaStageId = (typeof SEA_BACKGROUND_CONFIG.stages)[number]["id"];
 type SeaTransitionMode = "alphaCrossfade" | "textureTransition" | "none";
 type SegmentGlobalBonusTypeRules = (typeof SEGMENT_GLOBAL_BONUS_SPAWN)["rulesByType"][SegmentBonusType];
@@ -148,10 +173,39 @@ export default class GameScene extends Phaser.Scene {
   private hitboxDebugGraphics?: Phaser.GameObjects.Graphics;
   private debugSpeedText?: Phaser.GameObjects.Text;
   private debugDistanceText?: Phaser.GameObjects.Text;
+  private skillWheelOverlay?: Phaser.GameObjects.Rectangle;
+  private skillWheelUiContainer?: Phaser.GameObjects.Container;
+  private skillWheelIntroText?: Phaser.GameObjects.Text;
+  private skillWheelContinueText?: Phaser.GameObjects.Text;
+  private skillWheelResultTitleText?: Phaser.GameObjects.Text;
+  private skillWheelResultBodyText?: Phaser.GameObjects.Text;
+  private skillWheelResultIcon?: Phaser.GameObjects.Image;
+  private skillWheelGlowNode?: Phaser.GameObjects.Arc;
+  private skillWheelBarNode?: Phaser.GameObjects.Image;
+  private skillWheelPointer?: Phaser.GameObjects.Container;
+  private skillWheelPointerAngleDeg = -90;
+  private skillWheelRewardHudContainer?: Phaser.GameObjects.Container;
+  private skillWheelRewardHudSlots: Array<{
+    id: SkillWheelRewardId;
+    container: Phaser.GameObjects.Container;
+    icon: Phaser.GameObjects.Image;
+    radialTrack: Phaser.GameObjects.Graphics;
+    radialFill: Phaser.GameObjects.Graphics;
+  }> = [];
+  private skillWheelModalState: "idle" | "intro" | "spinning" | "result" = "idle";
+  private skillWheelCurrentEvent?: ScheduledWheelEvent;
+  private skillWheelLastResultId?: SkillWheelRewardId;
+  private skillWheelSpinStartAtMs = 0;
+  private skillWheelSpinTargetAngleDeg = -90;
+  private skillWheelSelectedSectorIndex = -1;
+  private skillWheelPendingRewardId?: SkillWheelRewardId;
 
   private yachtBody?: Phaser.Physics.Arcade.Sprite;
   private yachtHazardCollider?: Phaser.Physics.Arcade.Sprite;
   private yachtVisual?: Phaser.GameObjects.Image;
+  private yachtStageTransitionOverlay?: Phaser.GameObjects.Image;
+  private yachtStageTransitionTween?: Phaser.Tweens.Tween;
+  private yachtStageTransitionLastAtMs = Number.NEGATIVE_INFINITY;
 
   private hazards!: Phaser.Physics.Arcade.Group;
   private moneyUps!: Phaser.Physics.Arcade.Group;
@@ -176,6 +230,11 @@ export default class GameScene extends Phaser.Scene {
   private pointerLastY = 0;
   private pointerFrameDeltaX = 0;
   private pointerFrameDeltaY = 0;
+  private pointerAnchorX = 0;
+  private pointerAnchorY = 0;
+  private pointerAnchorOffsetX = 0;
+  private pointerAnchorOffsetY = 0;
+  private pointerAnchorRebaseCooldownUntilMs = Number.NEGATIVE_INFINITY;
   private desiredTargetX = 0;
   private desiredTargetY = 0;
 
@@ -220,6 +279,9 @@ export default class GameScene extends Phaser.Scene {
   private speedBonusLockedKmh?: number;
   private speedBonusDecayActive = false;
   private obstacleSlowdownUntilMs = Number.NEGATIVE_INFINITY;
+  private activeSkillWheelRewards: ActiveSkillWheelReward[] = [];
+  private scheduledWheelEvents: ScheduledWheelEvent[] = [];
+  private wheelIslandVariantToggle = 0;
 
   private scheduledObjects: ScheduledSegmentObject[] = [];
   private scheduledObjectCursor = 0;
@@ -240,6 +302,10 @@ export default class GameScene extends Phaser.Scene {
   private readonly worldDarkeningAppliedIntensity = new WeakMap<object, number>();
 
   private readonly onPointerDown = (pointer: Phaser.Input.Pointer) => {
+    if (this.handleSkillWheelPointerDown(pointer)) {
+      return;
+    }
+
     if (this.pointerControlActive && this.pointerControlId !== pointer.id) {
       return;
     }
@@ -252,6 +318,10 @@ export default class GameScene extends Phaser.Scene {
   };
 
   private readonly onPointerUp = (pointer: Phaser.Input.Pointer) => {
+    if (this.isSkillWheelModalBlockingGameplay()) {
+      return;
+    }
+
     if (this.tryCompleteShieldTapCandidate(pointer)) {
       return;
     }
@@ -264,6 +334,10 @@ export default class GameScene extends Phaser.Scene {
   };
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
+    if (this.isSkillWheelModalBlockingGameplay()) {
+      return;
+    }
+
     if (this.tryPromoteShieldTapCandidateToControl(pointer)) {
       return;
     }
@@ -280,8 +354,10 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (platform !== this.activeControlPlatform) {
+      const previousPlatform = this.activeControlPlatform;
       this.activeControlPlatform = platform;
       this.updateControlBoundsForPlatform(platform);
+      this.handlePointerControlModelTransition(pointer, previousPlatform, platform);
     }
     this.updatePointerFrameDelta(pointer);
   };
@@ -309,6 +385,18 @@ export default class GameScene extends Phaser.Scene {
 
   update(_time: number, delta: number) {
     if (this.isGameOver) {
+      return;
+    }
+
+    this.updateSkillWheelBonusDurations(delta);
+    this.updateSkillWheelBonusHud();
+
+    if (this.isSkillWheelModalBlockingGameplay()) {
+      this.updateSkillWheelModal(delta);
+      this.updateTopProgressUi();
+      this.updateCoinsHud();
+      this.updateTimerHud();
+      this.updateHitboxDebugOverlay();
       return;
     }
 
@@ -357,22 +445,32 @@ export default class GameScene extends Phaser.Scene {
 
     const speedMps = (this.speedKmh * 1000) / 3600;
     this.distanceM += speedMps * dt;
+    this.tryTriggerSkillWheelEventByDistance();
 
     const controlProfile = this.getControlProfileForPlatform(this.activeControlPlatform);
-    if (this.pointerControlActive && (this.pointerFrameDeltaX !== 0 || this.pointerFrameDeltaY !== 0)) {
-      this.desiredTargetX = Phaser.Math.Clamp(
-        this.desiredTargetX + this.pointerFrameDeltaX * controlProfile.gainX,
-        this.controlMinX,
-        this.controlMaxX,
-      );
-      this.desiredTargetY = Phaser.Math.Clamp(
-        this.desiredTargetY + this.pointerFrameDeltaY * controlProfile.gainY,
-        this.controlMinY,
-        this.controlMaxY,
-      );
+    const controlModel = this.getControlModelForPlatform(this.activeControlPlatform);
+    if (this.pointerControlActive) {
+      if (controlModel === "anchorRebase") {
+        this.updateDesiredTargetFromAnchor(dt);
+        this.pointerFrameDeltaX = 0;
+        this.pointerFrameDeltaY = 0;
+      } else if (this.pointerFrameDeltaX !== 0 || this.pointerFrameDeltaY !== 0) {
+        this.desiredTargetX = Phaser.Math.Clamp(
+          this.desiredTargetX + this.pointerFrameDeltaX * controlProfile.gainX,
+          this.controlMinX,
+          this.controlMaxX,
+        );
+        this.desiredTargetY = Phaser.Math.Clamp(
+          this.desiredTargetY + this.pointerFrameDeltaY * controlProfile.gainY,
+          this.controlMinY,
+          this.controlMaxY,
+        );
+      }
     }
-    this.pointerFrameDeltaX = 0;
-    this.pointerFrameDeltaY = 0;
+    if (controlModel === "delta") {
+      this.pointerFrameDeltaX = 0;
+      this.pointerFrameDeltaY = 0;
+    }
 
     const targetLerpTx = Phaser.Math.Clamp(controlProfile.targetLerpPerSecX * dt, 0, 1);
     const targetLerpTy = Phaser.Math.Clamp(controlProfile.targetLerpPerSecY * dt, 0, 1);
@@ -415,7 +513,12 @@ export default class GameScene extends Phaser.Scene {
     if (this.yachtBody && this.yachtVisual) {
       this.swayTime += delta / 1000;
       const swayOffset = Math.sin(this.swayTime * YACHT_SWAY.frequencyHz) * YACHT_SWAY.amplitudePx;
-      this.yachtVisual.setPosition(this.yachtBody.x, this.yachtBody.y + YACHT_VISUAL_OFFSET.y + swayOffset);
+      const nextYachtX = this.yachtBody.x;
+      const nextYachtY = this.yachtBody.y + YACHT_VISUAL_OFFSET.y + swayOffset;
+      this.yachtVisual.setPosition(nextYachtX, nextYachtY);
+      if (this.yachtStageTransitionOverlay?.active) {
+        this.yachtStageTransitionOverlay.setPosition(nextYachtX, nextYachtY);
+      }
       if (this.yachtHazardCollider) {
         this.yachtHazardCollider.setPosition(
           this.yachtBody.x + (YACHT_HAZARD_HITBOX.offsetX ?? 0),
@@ -1304,6 +1407,8 @@ export default class GameScene extends Phaser.Scene {
       .image(progressLayout.flagX, progressLayout.flagY, progressCfg.flag.key)
       .setScale(progressLayout.flagScaleX, progressLayout.flagScaleY)
       .setDepth(progressCfg.depth + 2);
+    this.createSkillWheelRewardHud();
+    this.createSkillWheelModalUi();
 
     const timeUi = TIME_UI_CONFIG;
     const timeX = width * timeUi.xRatio - timeUi.width / 2;
@@ -1755,6 +1860,10 @@ export default class GameScene extends Phaser.Scene {
       if (!sprite.active || sprite.getData("collecting") || this.isGameOver) {
         return;
       }
+      const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
+      if (bonusType === "speed" && sprite.getData("speedBonusConsumed")) {
+        return;
+      }
       this.collectAirBonus(sprite);
     });
 
@@ -1767,6 +1876,17 @@ export default class GameScene extends Phaser.Scene {
         this.handleSolidColliderContact(sprite);
       },
       (_yacht, solidObj) => !this.isGameOver && this.canYachtBeBlockedBySolid(solidObj as Phaser.Physics.Arcade.Sprite),
+      this,
+    );
+
+    this.physics.add.overlap(
+      this.yachtBody,
+      this.solids,
+      (_yacht, solidObj) => {
+        const sprite = solidObj as Phaser.Physics.Arcade.Sprite;
+        this.handleSolidColliderContact(sprite);
+      },
+      (_yacht, solidObj) => !this.isGameOver && this.canYachtOverlapSolidForEffects(solidObj as Phaser.Physics.Arcade.Sprite),
       this,
     );
 
@@ -1851,6 +1971,8 @@ export default class GameScene extends Phaser.Scene {
 
     this.appendMissingCoinsInFinalWindow();
     this.scheduleGlobalBonuses();
+    this.scheduleSkillWheelEvents();
+    this.applyWheelIslandExclusionZone();
 
     this.scheduledObjects.sort((a, b) => a.spawnMeter - b.spawnMeter);
     this.scheduledObjectCursor = 0;
@@ -2135,7 +2257,7 @@ export default class GameScene extends Phaser.Scene {
       moneyUp: 0,
       moneyDown: 0,
       dynamicBuoy: 0,
-      rocks: 0,
+      reefs: 0,
     };
 
     for (const item of poolObjects) {
@@ -2145,8 +2267,8 @@ export default class GameScene extends Phaser.Scene {
         counts.moneyDown += 1;
       } else if (item.type === "dynamicBuoy") {
         counts.dynamicBuoy += 1;
-      } else if (item.type === "rock1" || item.type === "rock2" || item.type === "rock3") {
-        counts.rocks += 1;
+      } else if (item.type === "reef1") {
+        counts.reefs += 1;
       }
     }
 
@@ -2168,8 +2290,8 @@ export default class GameScene extends Phaser.Scene {
     for (let i = counts.dynamicBuoy; i < requiredDynamic; i += 1) {
       this.scheduleGuaranteedObject(pool, "dynamicBuoy", `guarantee-dynamic-${i}`);
     }
-    for (let i = counts.rocks; i < required.rockMin; i += 1) {
-      this.scheduleGuaranteedObject(pool, "rock1", `guarantee-rock-${i}`);
+    for (let i = counts.reefs; i < required.reefMin; i += 1) {
+      this.scheduleGuaranteedObject(pool, "reef1", `guarantee-reef-${i}`);
     }
   }
 
@@ -2180,12 +2302,12 @@ export default class GameScene extends Phaser.Scene {
     const spawnMeter = Phaser.Math.FloatBetween(meterMin, meterMax);
 
     let finalType: SegmentObjectType = type;
-    if (type === "rock1") {
-      finalType = Phaser.Utils.Array.GetRandom(["rock1", "rock2", "rock3"] as const);
+    if (type === "reef1") {
+      finalType = "reef1";
     }
 
     let xRatio = 0.5;
-    if (finalType === "rock1" || finalType === "rock2" || finalType === "rock3") {
+    if (finalType === "reef1") {
       xRatio = Phaser.Math.Between(0, 1) === 0 ? Phaser.Math.FloatBetween(0.08, 0.22) : Phaser.Math.FloatBetween(0.78, 0.92);
     } else if (finalType === "speedBonus") {
       xRatio = Phaser.Math.FloatBetween(SEGMENT_PICKUP_RULES.speedBonus.xRatioMin, SEGMENT_PICKUP_RULES.speedBonus.xRatioMax);
@@ -2541,6 +2663,9 @@ export default class GameScene extends Phaser.Scene {
       case "rock3":
         this.spawnRock(item.type, x);
         break;
+      case "reef1":
+        this.spawnReef(x);
+        break;
       case "moneyUp":
         this.spawnMoneyUp(x);
         break;
@@ -2553,6 +2678,8 @@ export default class GameScene extends Phaser.Scene {
       case "timeBonus":
         this.spawnTimeBonus(x);
         break;
+      case "wheelIsland1":
+      case "wheelIsland2":
       case "harbor":
         this.spawnLandmark(item.type, x);
         break;
@@ -2569,6 +2696,11 @@ export default class GameScene extends Phaser.Scene {
     const ratio = item.xRatio ?? 0.5;
     const baseX = this.playAreaLeft + range * Phaser.Math.Clamp(ratio, 0, 1);
     const x = baseX + (item.xOffsetPx ?? 0);
+
+    if (item.type === "reef1") {
+      const halfRange = REEF_CONFIG.common.partialSpawnMaxOffsetPx;
+      return Phaser.Math.Clamp(x, this.playAreaLeft - halfRange, this.playAreaRight + halfRange);
+    }
 
     if (item.type === "rock1" || item.type === "rock2" || item.type === "rock3") {
       const halfRange = ROCK_CONFIG.common.partialSpawnMaxOffsetPx;
@@ -2798,10 +2930,21 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private spawnSpeedBonus(x: number) {
-    this.spawnAirBonus("speed", SPEED_BONUS_CONFIG, x);
+    if (!SPEED_BONUS_CONFIG.runtime.enabledInSpawn) {
+      return;
+    }
+    if (SPEED_BONUS_CONFIG.runtime.behaviorMode === "wind" && !SPEED_BONUS_CONFIG.runtime.windEnabledInSpawn) {
+      return;
+    }
+    const speedBonusConfig = SPEED_BONUS_CONFIG.runtime.behaviorMode === "wind" ? WIND_SPEED_BONUS_CONFIG : SPEED_BONUS_CONFIG;
+    this.spawnAirBonus("speed", speedBonusConfig, x);
   }
 
-  private spawnAirBonus(type: AirBonusType, config: typeof TIME_BONUS | typeof SPEED_BONUS_CONFIG, x: number) {
+  private spawnAirBonus(
+    type: AirBonusType,
+    config: typeof TIME_BONUS | typeof SPEED_BONUS_CONFIG | typeof WIND_SPEED_BONUS_CONFIG,
+    x: number,
+  ) {
     const bonus = this.timeBonuses.get(x, SEGMENT_SPAWN.objectSpawnY + config.spawnYOffset, config.textureKey) as Phaser.Physics.Arcade.Sprite | null;
     if (!bonus) {
       return;
@@ -2814,6 +2957,9 @@ export default class GameScene extends Phaser.Scene {
     bonus.setRotation(0);
     bonus.setDepth(config.depth);
     bonus.setDisplaySize(config.width, config.height);
+    const baseScaleX = bonus.scaleX;
+    const baseScaleY = bonus.scaleY;
+    const isWindSpeedBonus = type === "speed" && config.textureKey === WIND_SPEED_BONUS_CONFIG.textureKey;
 
     const body = bonus.body as Phaser.Physics.Arcade.Body | undefined;
     if (!body) {
@@ -2822,10 +2968,18 @@ export default class GameScene extends Phaser.Scene {
     body.setAllowGravity(false);
     this.applyRectBody(bonus, config.hitbox);
 
-    const speedX = Phaser.Math.Between(0, 1) === 0 ? -config.zigzagHorizontalSpeed : config.zigzagHorizontalSpeed;
+    const speedX = isWindSpeedBonus
+      ? 0
+      : Phaser.Math.Between(0, 1) === 0
+        ? -config.zigzagHorizontalSpeed
+        : config.zigzagHorizontalSpeed;
     bonus.setVelocity(speedX, this.getBaseFallSpeedByKmh(this.speedKmh) * config.speedYMultiplier);
     bonus.setData("collecting", false);
     bonus.setData("bonusType", type);
+    bonus.setData("isWindSpeedBonus", isWindSpeedBonus);
+    bonus.setData("speedBonusConsumed", false);
+    bonus.setData("baseScaleX", baseScaleX);
+    bonus.setData("baseScaleY", baseScaleY);
     bonus.setData("speedYMultiplier", config.speedYMultiplier);
     bonus.setData("zigzagHorizontalSpeed", config.zigzagHorizontalSpeed);
     bonus.setData("zigzagLeftBoundOffset", config.zigzagLeftBoundOffset);
@@ -2846,6 +3000,32 @@ export default class GameScene extends Phaser.Scene {
     bonus.setData("yBobPhase", Phaser.Math.FloatBetween(config.yBobPhaseMin, config.yBobPhaseMax));
     bonus.setData("yBobOffsetPrev", 0);
     bonus.setData("shieldPickupMagnetLastAt", Number.NEGATIVE_INFINITY);
+    if (isWindSpeedBonus) {
+      bonus.setData("pulseBaseScale", WIND_SPEED_BONUS_CONFIG.pulse.baseScale);
+      bonus.setData("pulseAmplitude", WIND_SPEED_BONUS_CONFIG.pulse.amplitude);
+      bonus.setData("pulseFrequency", WIND_SPEED_BONUS_CONFIG.pulse.frequencyHz);
+      bonus.setData("pulseMinScale", WIND_SPEED_BONUS_CONFIG.pulse.minScale);
+      bonus.setData("pulseMaxScale", WIND_SPEED_BONUS_CONFIG.pulse.maxScale);
+      bonus.setData("pulseAffectHitbox", WIND_SPEED_BONUS_CONFIG.pulse.affectHitbox);
+      bonus.setData("pulsePhase", Phaser.Math.FloatBetween(WIND_SPEED_BONUS_CONFIG.pulse.phaseMin, WIND_SPEED_BONUS_CONFIG.pulse.phaseMax));
+      bonus.setData("hitboxConfig", WIND_SPEED_BONUS_CONFIG.hitbox);
+      bonus.setData("shadowPulseAmplitudeX", WIND_SPEED_BONUS_CONFIG.shadowPulse.amplitudeX);
+      bonus.setData("shadowPulseAmplitudeY", WIND_SPEED_BONUS_CONFIG.shadowPulse.amplitudeY);
+      bonus.setData("shadowPulseFrequency", WIND_SPEED_BONUS_CONFIG.shadowPulse.frequencyHz);
+      bonus.setData("shadowPulsePhaseOffset", WIND_SPEED_BONUS_CONFIG.shadowPulse.phaseOffsetRad);
+      bonus.setData("shadowPulseMinScaleX", WIND_SPEED_BONUS_CONFIG.shadowPulse.minScaleX);
+      bonus.setData("shadowPulseMaxScaleX", WIND_SPEED_BONUS_CONFIG.shadowPulse.maxScaleX);
+      bonus.setData("shadowPulseMinScaleY", WIND_SPEED_BONUS_CONFIG.shadowPulse.minScaleY);
+      bonus.setData("shadowPulseMaxScaleY", WIND_SPEED_BONUS_CONFIG.shadowPulse.maxScaleY);
+      bonus.setData("windFadeActive", false);
+      bonus.setData("windFadeStartedAtMs", 0);
+      bonus.setData("windFadeDelayMs", 0);
+      bonus.setData("windFadeDurationMs", 0);
+      bonus.setData("windFadeSpriteStartAlpha", 1);
+      bonus.setData("windFadeSpriteEndAlpha", 0);
+      bonus.setData("windFadeShadowStartAlpha", WIND_SPEED_BONUS_CONFIG.fadeOutOnCollect.shadow.startAlpha);
+      bonus.setData("windFadeShadowEndAlpha", 0);
+    }
 
     const shadow = this.add.image(bonus.x, bonus.y + config.shadowYOffset, config.shadowTextureKey);
     shadow.setDisplaySize(config.shadowWidth, config.shadowHeight);
@@ -2912,21 +3092,59 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.prepareSolidSprite(sprite, type, rockCfg.width, rockCfg.height, ROCK_CONFIG.common.depth, rockCfg.ellipse, false);
+    this.prepareSolidSprite(
+      sprite,
+      type,
+      rockCfg.width,
+      rockCfg.height,
+      ROCK_CONFIG.common.depth,
+      rockCfg.ellipse,
+      ROCK_CONFIG.common.damageEnabled,
+    );
     sprite.setVelocityY(this.getBaseFallSpeedByKmh(this.speedKmh) * ROCK_CONFIG.common.speedYMultiplier);
     sprite.setData("solidDamageCooldownMs", 0);
   }
 
-  private spawnLandmark(type: "harbor", x: number) {
+  private spawnReef(x: number) {
+    const reefCfg = REEF_CONFIG.reef1;
+    const sprite = this.solids.get(x, SEGMENT_SPAWN.objectSpawnY, reefCfg.textureKey) as Phaser.Physics.Arcade.Sprite | null;
+    if (!sprite) {
+      return;
+    }
+
+    this.prepareSolidSprite(
+      sprite,
+      "reef1",
+      reefCfg.width,
+      reefCfg.height,
+      REEF_CONFIG.common.depth,
+      reefCfg.ellipse,
+      REEF_CONFIG.common.damageEnabled,
+    );
+    sprite.setVelocityY(this.getBaseFallSpeedByKmh(this.speedKmh) * REEF_CONFIG.common.speedYMultiplier);
+    sprite.setData("solidDamageCooldownMs", REEF_CONFIG.common.collisionCooldownMs);
+  }
+
+  private spawnLandmark(type: "wheelIsland1" | "wheelIsland2" | "harbor", x: number) {
     const cfg = LANDMARK_CONFIG[type];
     const sprite = this.solids.get(x, SEGMENT_SPAWN.objectSpawnY, cfg.textureKey) as Phaser.Physics.Arcade.Sprite | null;
     if (!sprite) {
       return;
     }
 
-    this.prepareSolidSprite(sprite, type, cfg.width, cfg.height, cfg.depth, cfg.ellipse, false);
+    const wheelIsland = type === "wheelIsland1" || type === "wheelIsland2";
+    this.prepareSolidSprite(
+      sprite,
+      type,
+      cfg.width,
+      cfg.height,
+      cfg.depth,
+      cfg.ellipse,
+      wheelIsland ? WHEEL_ISLAND_CONFIG.damageEnabled : false,
+    );
     sprite.setVelocityY(this.getBaseFallSpeedByKmh(this.speedKmh));
     sprite.setData("solidDamageCooldownMs", 0);
+    sprite.setData("isWheelIsland", wheelIsland);
   }
 
   private spawnHarborGate(x: number) {
@@ -3051,6 +3269,11 @@ export default class GameScene extends Phaser.Scene {
     }
 
     if (hazardType === "moneyDown") {
+      if (this.isRedBuoyClearRewardActive()) {
+        this.triggerGreenHitFeedback();
+        this.collectFuel(sprite);
+        return;
+      }
       this.applyFuelDamage(HAZARD_DAMAGE.moneyDown, false);
       this.triggerRedBuoyHitFeedback();
     } else {
@@ -3073,7 +3296,8 @@ export default class GameScene extends Phaser.Scene {
   private handleDynamicBuoyContact(sprite: Phaser.Physics.Arcade.Sprite) {
     const state = this.getDynamicBuoyCollisionState(sprite);
     if (state === "up") {
-      this.assetsValue = Math.min(1, this.assetsValue + DYNAMIC_BUOY_STATES.up.fuelDelta);
+      const assetsMultiplier = this.getSkillWheelRewardMultiplier("assets_x2");
+      this.assetsValue = Math.min(1, this.assetsValue + DYNAMIC_BUOY_STATES.up.fuelDelta * assetsMultiplier);
       this.refreshShieldDurationByPickup("dynamicUp");
       this.triggerGreenHitFeedback();
       this.collectFuel(sprite);
@@ -3082,6 +3306,15 @@ export default class GameScene extends Phaser.Scene {
 
     if (this.isShieldInvulnerabilityActiveForHazard("dynamicDown")) {
       this.applyShieldContactPushByType(sprite, "dynamicDown");
+      return;
+    }
+
+    if (this.isRedBuoyClearRewardActive()) {
+      const assetsMultiplier = this.getSkillWheelRewardMultiplier("assets_x2");
+      this.assetsValue = Math.min(1, this.assetsValue + DYNAMIC_BUOY_STATES.up.fuelDelta * assetsMultiplier);
+      this.refreshShieldDurationByPickup("dynamicUp");
+      this.triggerGreenHitFeedback();
+      this.collectFuel(sprite);
       return;
     }
 
@@ -3327,6 +3560,19 @@ export default class GameScene extends Phaser.Scene {
     return YACHT_SOLID_BLOCKERS[solidType] ?? true;
   }
 
+  private canYachtOverlapSolidForEffects(solidSprite: Phaser.Physics.Arcade.Sprite) {
+    if (!solidSprite.active || this.canYachtBeBlockedBySolid(solidSprite)) {
+      return false;
+    }
+    const solidDamageEnabled = (solidSprite.getData("solidDamageEnabled") as boolean | undefined) ?? true;
+    if (!solidDamageEnabled) {
+      return false;
+    }
+    const solidType = solidSprite.getData("solidType") as SolidType | undefined;
+    const feedback = this.resolveSolidContactFeedback(solidType);
+    return feedback.applySlowdown || feedback.shipBlink || feedback.redOverlay;
+  }
+
   private getBuoyCollisionActorType(sprite: Phaser.Physics.Arcade.Sprite): BuoyCollisionActorType {
     const hazardType = sprite.getData("hazardType") as HazardType | undefined;
     if (hazardType) {
@@ -3506,13 +3752,45 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.solidDamageLastHit.set(id, this.time.now);
+    const solidDamageEnabled = (sprite.getData("solidDamageEnabled") as boolean | undefined) ?? true;
+    if (!solidDamageEnabled) {
+      return;
+    }
     if (this.shieldActive) {
       return;
     }
-    this.applyObstacleSlowdown();
-    if (!this.redInvulActive) {
-      this.triggerRedHitEffects();
+    const solidType = sprite.getData("solidType") as SolidType | undefined;
+    const feedback = this.resolveSolidContactFeedback(solidType);
+    if (feedback.applySlowdown) {
+      this.applyObstacleSlowdown();
     }
+    if (this.redInvulActive) {
+      return;
+    }
+    if (feedback.shipBlink && feedback.redOverlay) {
+      this.triggerRedHitEffects();
+      return;
+    }
+    if (feedback.shipBlink) {
+      this.triggerRedShipBlinkOnly();
+      return;
+    }
+    if (feedback.redOverlay) {
+      this.triggerRedOverlayEffect();
+    }
+  }
+
+  private resolveSolidContactFeedback(solidType: SolidType | undefined) {
+    const defaults = SOLID_CONTACT_FEEDBACK.default;
+    if (!solidType) {
+      return defaults;
+    }
+    const scoped = SOLID_CONTACT_FEEDBACK.byType[solidType as keyof typeof SOLID_CONTACT_FEEDBACK.byType];
+    return {
+      applySlowdown: scoped?.applySlowdown ?? defaults.applySlowdown,
+      shipBlink: scoped?.shipBlink ?? defaults.shipBlink,
+      redOverlay: scoped?.redOverlay ?? defaults.redOverlay,
+    };
   }
 
   private resolveYachtSolidContact(sprite: Phaser.Physics.Arcade.Sprite) {
@@ -3533,6 +3811,8 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const cfg = YACHT_SOLID_CONTACT_RESOLVE;
+    const preResolveBodyX = this.yachtBody.x;
+    const preResolveBodyY = this.yachtBody.y;
     const pushX = Math.max(cfg.minSeparationPx, overlapX + cfg.minSeparationPx);
     const pushY = Math.max(cfg.minSeparationPx, overlapY + cfg.minSeparationPx);
 
@@ -3560,12 +3840,17 @@ export default class GameScene extends Phaser.Scene {
     this.yachtBody.x = Phaser.Math.Clamp(this.yachtBody.x, this.controlMinX, this.controlMaxX);
     this.yachtBody.y = Phaser.Math.Clamp(this.yachtBody.y, this.controlMinY, this.controlMaxY);
 
+    const appliedBodyDx = this.yachtBody.x - preResolveBodyX;
+    const appliedBodyDy = this.yachtBody.y - preResolveBodyY;
+
     if (cfg.syncTargetsAfterResolve) {
       this.targetX = this.yachtBody.x;
       this.targetY = this.yachtBody.y - this.yMotionOffsetPx;
       this.desiredTargetX = this.targetX;
       this.desiredTargetY = this.targetY;
     }
+
+    this.applyAnchorRebaseFromExternalDisplacement(appliedBodyDx, appliedBodyDy);
   }
 
   private updateActiveObjectSpeeds(deltaSec: number) {
@@ -3614,6 +3899,13 @@ export default class GameScene extends Phaser.Scene {
     this.timeBonuses.children.each((child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
       if (!sprite.active || sprite.getData("collecting")) {
+        return;
+      }
+      const isWindFadeActive = (sprite.getData("windFadeActive") as boolean | undefined) ?? false;
+      if (isWindFadeActive) {
+        if (WIND_SPEED_BONUS_CONFIG.fadeOutOnCollect.freezeMotionOnStart) {
+          sprite.setVelocity(0, 0);
+        }
         return;
       }
       const speedYMultiplier = (sprite.getData("speedYMultiplier") as number | undefined) ?? TIME_BONUS.speedYMultiplier;
@@ -3758,7 +4050,7 @@ export default class GameScene extends Phaser.Scene {
       if (shadow && shadow.active) {
         const shadowYOffset = (sprite.getData("shadowYOffset") as number | undefined) ?? COIN_CONFIG.shadowYOffset;
         shadow.setPosition(sprite.x, sprite.y + shadowYOffset);
-        const shadowScale = this.getAirBonusShadowScaleByBob(sprite, normalizedBob);
+        const shadowScale = this.getAirBonusShadowScaleByBob(sprite, normalizedBob, timeSec);
         shadow.setScale(shadowScale.scaleX, shadowScale.scaleY);
       }
     });
@@ -3766,6 +4058,7 @@ export default class GameScene extends Phaser.Scene {
 
   private updateTimeBonuses() {
     const timeSec = this.time.now / 1000;
+    const now = this.time.now;
     this.timeBonuses.children.each((child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
       if (!sprite.active) {
@@ -3777,17 +4070,26 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
+      const isWindSpeedBonus = (sprite.getData("isWindSpeedBonus") as boolean | undefined) ?? false;
+      const windFadeActive = (sprite.getData("windFadeActive") as boolean | undefined) ?? false;
+      if (isWindSpeedBonus && windFadeActive) {
+        this.updateWindSpeedBonusFadeOut(sprite, now);
+        return;
+      }
+
       let normalizedBob = 0;
       if (!sprite.getData("collecting")) {
         const zigzagLeftOffset = (sprite.getData("zigzagLeftBoundOffset") as number | undefined) ?? TIME_BONUS.zigzagLeftBoundOffset;
         const zigzagRightOffset = (sprite.getData("zigzagRightBoundOffset") as number | undefined) ?? TIME_BONUS.zigzagRightBoundOffset;
         const zigzagSpeed = (sprite.getData("zigzagHorizontalSpeed") as number | undefined) ?? TIME_BONUS.zigzagHorizontalSpeed;
-        const leftBound = this.playAreaLeft - zigzagLeftOffset;
-        const rightBound = this.playAreaRight + zigzagRightOffset;
-        if (sprite.x <= leftBound && body.velocity.x < 0) {
-          sprite.setVelocityX(zigzagSpeed);
-        } else if (sprite.x >= rightBound && body.velocity.x > 0) {
-          sprite.setVelocityX(-zigzagSpeed);
+        if (zigzagSpeed > 0) {
+          const leftBound = this.playAreaLeft - zigzagLeftOffset;
+          const rightBound = this.playAreaRight + zigzagRightOffset;
+          if (sprite.x <= leftBound && body.velocity.x < 0) {
+            sprite.setVelocityX(zigzagSpeed);
+          } else if (sprite.x >= rightBound && body.velocity.x > 0) {
+            sprite.setVelocityX(-zigzagSpeed);
+          }
         }
 
         const yBobAmplitude = (sprite.getData("yBobAmplitude") as number | undefined) ?? 0;
@@ -3798,19 +4100,185 @@ export default class GameScene extends Phaser.Scene {
         sprite.y += nextOffset - prevOffset;
         sprite.setData("yBobOffsetPrev", nextOffset);
         normalizedBob = yBobAmplitude > 0 ? Phaser.Math.Clamp(nextOffset / yBobAmplitude, -1, 1) : 0;
+
+        const baseScaleX = (sprite.getData("baseScaleX") as number | undefined) ?? 1;
+        const baseScaleY = (sprite.getData("baseScaleY") as number | undefined) ?? 1;
+        if (isWindSpeedBonus) {
+          const pulseBaseScale = (sprite.getData("pulseBaseScale") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.pulse.baseScale;
+          const pulseAmplitude = (sprite.getData("pulseAmplitude") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.pulse.amplitude;
+          const pulseFrequency = (sprite.getData("pulseFrequency") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.pulse.frequencyHz;
+          const pulsePhase = (sprite.getData("pulsePhase") as number | undefined) ?? 0;
+          const pulseMinScale = (sprite.getData("pulseMinScale") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.pulse.minScale;
+          const pulseMaxScale = (sprite.getData("pulseMaxScale") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.pulse.maxScale;
+          const pulseRaw = pulseBaseScale + Math.sin(timeSec * pulseFrequency * Math.PI * 2 + pulsePhase) * pulseAmplitude;
+          const pulseScale = Phaser.Math.Clamp(pulseRaw, pulseMinScale, pulseMaxScale);
+          sprite.setScale(baseScaleX * pulseScale, baseScaleY * pulseScale);
+          const pulseAffectHitbox = (sprite.getData("pulseAffectHitbox") as boolean | undefined) ?? false;
+          if (pulseAffectHitbox) {
+            const hitbox = (sprite.getData("hitboxConfig") as RectHitbox | undefined) ?? WIND_SPEED_BONUS_CONFIG.hitbox;
+            this.applyRectBody(sprite, hitbox);
+          }
+        } else {
+          sprite.setScale(baseScaleX, baseScaleY);
+        }
       }
 
       const shadow = sprite.getData("shadow") as Phaser.GameObjects.Image | undefined;
       if (shadow && shadow.active) {
         const shadowYOffset = (sprite.getData("shadowYOffset") as number | undefined) ?? TIME_BONUS.shadowYOffset;
         shadow.setPosition(sprite.x, sprite.y + shadowYOffset);
-        const shadowScale = this.getAirBonusShadowScaleByBob(sprite, normalizedBob);
+        const shadowScale = this.getAirBonusShadowScaleByBob(sprite, normalizedBob, timeSec);
         shadow.setScale(shadowScale.scaleX, shadowScale.scaleY);
       }
     });
   }
 
-  private getAirBonusShadowScaleByBob(sprite: Phaser.Physics.Arcade.Sprite, normalizedBob: number) {
+  private startWindSpeedBonusFadeOut(sprite: Phaser.Physics.Arcade.Sprite) {
+    const fadeCfg = WIND_SPEED_BONUS_CONFIG.fadeOutOnCollect;
+    if (!fadeCfg.enabled || !sprite.active) {
+      return;
+    }
+
+    const alreadyActive = (sprite.getData("windFadeActive") as boolean | undefined) ?? false;
+    if (alreadyActive) {
+      return;
+    }
+
+    const shadow = sprite.getData("shadow") as Phaser.GameObjects.Image | undefined;
+    const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+    const now = this.time.now;
+
+    const spriteStartAlpha = fadeCfg.sprite.useCurrentAlphaAsStart ? sprite.alpha : fadeCfg.sprite.startAlpha;
+    const shadowStartAlpha = fadeCfg.shadow.useCurrentAlphaAsStart && shadow ? shadow.alpha : fadeCfg.shadow.startAlpha;
+
+    sprite.setData("windFadeActive", true);
+    sprite.setData("windFadeStartedAtMs", now);
+    sprite.setData("windFadeDelayMs", fadeCfg.delayMs);
+    sprite.setData("windFadeDurationMs", fadeCfg.durationMs);
+    sprite.setData("windFadeSpriteStartAlpha", spriteStartAlpha);
+    sprite.setData("windFadeSpriteEndAlpha", fadeCfg.sprite.endAlpha);
+    sprite.setData("windFadeShadowStartAlpha", shadowStartAlpha);
+    sprite.setData("windFadeShadowEndAlpha", fadeCfg.shadow.endAlpha);
+
+    sprite.setAlpha(spriteStartAlpha);
+    if (shadow && shadow.active) {
+      shadow.setAlpha(shadowStartAlpha);
+    }
+
+    if (fadeCfg.freezeMotionOnStart) {
+      sprite.setVelocity(0, 0);
+    }
+    if (body && fadeCfg.disableBodyOnStart) {
+      body.enable = false;
+    }
+
+    if (fadeCfg.debug.logLifecycle) {
+      console.debug("[GameScene] wind speed bonus fade started", { x: sprite.x, y: sprite.y, now });
+    }
+  }
+
+  private updateWindSpeedBonusFadeOut(sprite: Phaser.Physics.Arcade.Sprite, now: number) {
+    if (!sprite.active) {
+      return;
+    }
+
+    const fadeCfg = WIND_SPEED_BONUS_CONFIG.fadeOutOnCollect;
+    const active = (sprite.getData("windFadeActive") as boolean | undefined) ?? false;
+    if (!active || !fadeCfg.enabled) {
+      return;
+    }
+
+    const startedAt = (sprite.getData("windFadeStartedAtMs") as number | undefined) ?? now;
+    const delayMs = Math.max(0, (sprite.getData("windFadeDelayMs") as number | undefined) ?? fadeCfg.delayMs);
+    const durationMs = Math.max(0, (sprite.getData("windFadeDurationMs") as number | undefined) ?? fadeCfg.durationMs);
+    const spriteStartAlpha = (sprite.getData("windFadeSpriteStartAlpha") as number | undefined) ?? fadeCfg.sprite.startAlpha;
+    const spriteEndAlpha = (sprite.getData("windFadeSpriteEndAlpha") as number | undefined) ?? fadeCfg.sprite.endAlpha;
+    const shadowStartAlpha = (sprite.getData("windFadeShadowStartAlpha") as number | undefined) ?? fadeCfg.shadow.startAlpha;
+    const shadowEndAlpha = (sprite.getData("windFadeShadowEndAlpha") as number | undefined) ?? fadeCfg.shadow.endAlpha;
+
+    const elapsedMs = now - startedAt;
+    if (elapsedMs < delayMs) {
+      sprite.setAlpha(spriteStartAlpha);
+      const preDelayShadow = sprite.getData("shadow") as Phaser.GameObjects.Image | undefined;
+      if (preDelayShadow && preDelayShadow.active) {
+        if (fadeCfg.shadow.followSpriteDuringFade) {
+          const shadowYOffset = (sprite.getData("shadowYOffset") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.shadowYOffset;
+          preDelayShadow.setPosition(sprite.x, sprite.y + shadowYOffset);
+        }
+        if (fadeCfg.shadow.enabled) {
+          preDelayShadow.setAlpha(shadowStartAlpha);
+        }
+      }
+      return;
+    }
+
+    const rawProgress = durationMs <= 0 ? 1 : (elapsedMs - delayMs) / durationMs;
+    const clampedProgress = Phaser.Math.Clamp(rawProgress, 0, 1);
+    const easedProgress = this.getBlendValueWithEase(clampedProgress, fadeCfg.ease, true);
+    const spriteAlpha = Phaser.Math.Linear(spriteStartAlpha, spriteEndAlpha, easedProgress);
+    sprite.setAlpha(spriteAlpha);
+
+    const shadow = sprite.getData("shadow") as Phaser.GameObjects.Image | undefined;
+    if (shadow && shadow.active) {
+      if (fadeCfg.shadow.followSpriteDuringFade) {
+        const shadowYOffset = (sprite.getData("shadowYOffset") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.shadowYOffset;
+        shadow.setPosition(sprite.x, sprite.y + shadowYOffset);
+      }
+      if (fadeCfg.shadow.enabled) {
+        const shadowAlpha = Phaser.Math.Linear(shadowStartAlpha, shadowEndAlpha, easedProgress);
+        shadow.setAlpha(shadowAlpha);
+      }
+    }
+
+    if (clampedProgress >= 1) {
+      this.finishWindSpeedBonusFadeOut(sprite);
+    }
+  }
+
+  private finishWindSpeedBonusFadeOut(sprite: Phaser.Physics.Arcade.Sprite) {
+    const fadeCfg = WIND_SPEED_BONUS_CONFIG.fadeOutOnCollect;
+    if (!sprite.active) {
+      return;
+    }
+
+    const shadow = sprite.getData("shadow") as Phaser.GameObjects.Image | undefined;
+    const spriteEndAlpha = (sprite.getData("windFadeSpriteEndAlpha") as number | undefined) ?? fadeCfg.sprite.endAlpha;
+    const shadowEndAlpha = (sprite.getData("windFadeShadowEndAlpha") as number | undefined) ?? fadeCfg.shadow.endAlpha;
+
+    sprite.setData("windFadeActive", false);
+    sprite.setAlpha(spriteEndAlpha);
+    if (fadeCfg.sprite.hideWhenComplete) {
+      sprite.setVisible(false);
+    }
+
+    if (shadow && shadow.active && fadeCfg.shadow.enabled) {
+      shadow.setAlpha(shadowEndAlpha);
+      if (fadeCfg.shadow.hideWhenComplete) {
+        shadow.setVisible(false);
+      }
+    }
+
+    const shouldDestroyShadow = fadeCfg.shadow.destroyOnComplete || fadeCfg.destroySpriteOnComplete;
+    if (shouldDestroyShadow) {
+      this.destroyTimeBonusShadow(sprite);
+    }
+
+    if (fadeCfg.debug.logLifecycle) {
+      console.debug("[GameScene] wind speed bonus fade finished", { x: sprite.x, y: sprite.y, now: this.time.now });
+    }
+
+    if (fadeCfg.destroySpriteOnComplete) {
+      sprite.destroy();
+      return;
+    }
+
+    const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+    if (body) {
+      body.enable = false;
+    }
+  }
+
+  private getAirBonusShadowScaleByBob(sprite: Phaser.Physics.Arcade.Sprite, normalizedBob: number, timeSec: number) {
     const baseScaleX = (sprite.getData("shadowBaseScaleX") as number | undefined) ?? TIME_BONUS.shadowBobScale.baseScaleX;
     const baseScaleY = (sprite.getData("shadowBaseScaleY") as number | undefined) ?? TIME_BONUS.shadowBobScale.baseScaleY;
     const responseX = (sprite.getData("shadowResponseX") as number | undefined) ?? TIME_BONUS.shadowBobScale.responseX;
@@ -3820,10 +4288,30 @@ export default class GameScene extends Phaser.Scene {
     const minScaleY = (sprite.getData("shadowMinScaleY") as number | undefined) ?? TIME_BONUS.shadowBobScale.minScaleY;
     const maxScaleY = (sprite.getData("shadowMaxScaleY") as number | undefined) ?? TIME_BONUS.shadowBobScale.maxScaleY;
     const clampedBob = Phaser.Math.Clamp(normalizedBob, -1, 1);
+    let scaleX = Phaser.Math.Clamp(baseScaleX + clampedBob * responseX, minScaleX, maxScaleX);
+    let scaleY = Phaser.Math.Clamp(baseScaleY + clampedBob * responseY, minScaleY, maxScaleY);
+
+    const isWindSpeedBonus = (sprite.getData("isWindSpeedBonus") as boolean | undefined) ?? false;
+    if (isWindSpeedBonus) {
+      const pulseAmplitudeX = (sprite.getData("shadowPulseAmplitudeX") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.shadowPulse.amplitudeX;
+      const pulseAmplitudeY = (sprite.getData("shadowPulseAmplitudeY") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.shadowPulse.amplitudeY;
+      const pulseFrequency = (sprite.getData("shadowPulseFrequency") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.shadowPulse.frequencyHz;
+      const pulsePhase = (sprite.getData("pulsePhase") as number | undefined) ?? 0;
+      const phaseOffset = (sprite.getData("shadowPulsePhaseOffset") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.shadowPulse.phaseOffsetRad;
+      const pulseMinScaleX = (sprite.getData("shadowPulseMinScaleX") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.shadowPulse.minScaleX;
+      const pulseMaxScaleX = (sprite.getData("shadowPulseMaxScaleX") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.shadowPulse.maxScaleX;
+      const pulseMinScaleY = (sprite.getData("shadowPulseMinScaleY") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.shadowPulse.minScaleY;
+      const pulseMaxScaleY = (sprite.getData("shadowPulseMaxScaleY") as number | undefined) ?? WIND_SPEED_BONUS_CONFIG.shadowPulse.maxScaleY;
+      const pulseSin = Math.sin(timeSec * pulseFrequency * Math.PI * 2 + pulsePhase + phaseOffset);
+      const pulseScaleX = Phaser.Math.Clamp(1 + pulseSin * pulseAmplitudeX, pulseMinScaleX, pulseMaxScaleX);
+      const pulseScaleY = Phaser.Math.Clamp(1 + pulseSin * pulseAmplitudeY, pulseMinScaleY, pulseMaxScaleY);
+      scaleX *= pulseScaleX;
+      scaleY *= pulseScaleY;
+    }
 
     return {
-      scaleX: Phaser.Math.Clamp(baseScaleX + clampedBob * responseX, minScaleX, maxScaleX),
-      scaleY: Phaser.Math.Clamp(baseScaleY + clampedBob * responseY, minScaleY, maxScaleY),
+      scaleX,
+      scaleY,
     };
   }
 
@@ -3844,6 +4332,8 @@ export default class GameScene extends Phaser.Scene {
       let multiplier = 1;
       if (solidType === "rock1" || solidType === "rock2" || solidType === "rock3") {
         multiplier = ROCK_CONFIG.common.speedYMultiplier;
+      } else if (solidType === "reef1") {
+        multiplier = REEF_CONFIG.common.speedYMultiplier;
       }
       sprite.setVelocityY(speed * multiplier);
     });
@@ -3914,7 +4404,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private collectMoneyUp(sprite: Phaser.Physics.Arcade.Sprite) {
-    this.assetsValue = Math.min(1, this.assetsValue + TUNING.FUEL_PICKUP_VALUE);
+    const assetsMultiplier = this.getSkillWheelRewardMultiplier("assets_x2");
+    this.assetsValue = Math.min(1, this.assetsValue + TUNING.FUEL_PICKUP_VALUE * assetsMultiplier);
     this.refreshShieldDurationByPickup("moneyUp");
     this.triggerGreenHitFeedback();
     this.collectFuel(sprite);
@@ -3996,8 +4487,24 @@ export default class GameScene extends Phaser.Scene {
 
   private collectAirBonus(sprite: Phaser.Physics.Arcade.Sprite) {
     const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
-    this.destroyTimeBonusShadow(sprite);
     if (bonusType === "speed") {
+      const isWindSpeedBonus = (sprite.getData("isWindSpeedBonus") as boolean | undefined) ?? false;
+      if (isWindSpeedBonus) {
+        const alreadyConsumed = (sprite.getData("speedBonusConsumed") as boolean | undefined) ?? false;
+        if (alreadyConsumed) {
+          return;
+        }
+        sprite.setData("speedBonusConsumed", true);
+        if (this.speedBonusRemainingMs <= 0 || this.speedBonusLockedKmh === undefined) {
+          this.speedBonusLockedKmh = this.getBaseSpeedKmhByDistance(this.distanceM) * SPEED_BONUS_CONFIG.speedMultiplier;
+        }
+        this.speedBonusRemainingMs = SPEED_BONUS_CONFIG.effectDurationMs;
+        this.speedBonusDecayActive = false;
+        this.playYachtSpeedMotion("accel");
+        this.startWindSpeedBonusFadeOut(sprite);
+        return;
+      }
+
       if (this.speedBonusRemainingMs <= 0 || this.speedBonusLockedKmh === undefined) {
         this.speedBonusLockedKmh = this.getBaseSpeedKmhByDistance(this.distanceM) * SPEED_BONUS_CONFIG.speedMultiplier;
       }
@@ -4008,13 +4515,16 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.remainingTimeMs += RUN_TIMER.bonusMs;
+    this.destroyTimeBonusShadow(sprite);
+    const timeMultiplier = this.getSkillWheelRewardMultiplier("time_x2");
+    this.remainingTimeMs += RUN_TIMER.bonusMs * timeMultiplier;
     this.updateTimerHud();
     this.collectFuel(sprite, "timeBonus");
   }
 
   private collectCoin(sprite: Phaser.Physics.Arcade.Sprite) {
-    this.coinsCollected += 1;
+    const coinMultiplier = this.getSkillWheelRewardMultiplier("coin_x2");
+    this.coinsCollected += coinMultiplier;
     this.updateCoinsHud();
     this.collectFuel(sprite, "timeBonus");
   }
@@ -4102,8 +4612,25 @@ export default class GameScene extends Phaser.Scene {
     this.updateControlBoundsForPlatform(platform);
     this.pointerLastX = pointer.x;
     this.pointerLastY = pointer.y;
+    this.pointerAnchorX = pointer.x;
+    this.pointerAnchorY = pointer.y;
     this.pointerFrameDeltaX = 0;
     this.pointerFrameDeltaY = 0;
+    this.pointerAnchorRebaseCooldownUntilMs = Number.NEGATIVE_INFINITY;
+
+    if (this.getControlModelForPlatform(platform) === "anchorRebase") {
+      this.initializeAnchorOffsetForPointerDown(pointer, platform);
+      if (RELATIVE_TOUCH_ROUTING.anchorRebase.debug.logAnchorLifecycle) {
+        console.debug("[touch-anchor] pointerdown", {
+          platform,
+          pointerId: pointer.id,
+          pointerX: pointer.x,
+          pointerY: pointer.y,
+          anchorOffsetX: this.pointerAnchorOffsetX,
+          anchorOffsetY: this.pointerAnchorOffsetY,
+        });
+      }
+    }
   }
 
   private tryStartShieldTapCandidate(pointer: Phaser.Input.Pointer) {
@@ -4439,6 +4966,14 @@ export default class GameScene extends Phaser.Scene {
         this.applyRepelToSprite(sprite, originX, originY, repelEffectiveRadius, repelCfg, deltaSec);
         return;
       }
+      if (hazardType === "mine" && repelCfg.targets.mine) {
+        this.applyRepelToSprite(sprite, originX, originY, repelEffectiveRadius, repelCfg, deltaSec);
+        return;
+      }
+      if (hazardType === "pirate" && repelCfg.targets.pirate) {
+        this.applyRepelToSprite(sprite, originX, originY, repelEffectiveRadius, repelCfg, deltaSec);
+        return;
+      }
       if (hazardType !== "dynamicBuoy" || !repelCfg.targets.dynamicDown) {
         return;
       }
@@ -4472,15 +5007,16 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const timeBonusCfg = this.resolvePickupMagnetTargetConfig("timeBonus");
-    const speedBonusCfg = this.resolvePickupMagnetTargetConfig("speedBonus");
     this.timeBonuses.children.each((child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
       const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
-      const targetCfg = bonusType === "speed" ? speedBonusCfg : timeBonusCfg;
-      if (!targetCfg.enabled) {
+      if (bonusType === "speed") {
         return;
       }
-      this.applyShieldPickupMagnetToSprite(sprite, originX, originY, targetCfg, deltaSec);
+      if (!timeBonusCfg.enabled) {
+        return;
+      }
+      this.applyShieldPickupMagnetToSprite(sprite, originX, originY, timeBonusCfg, deltaSec);
     });
   }
 
@@ -5131,6 +5667,13 @@ export default class GameScene extends Phaser.Scene {
     return this.pointerControlActive && this.pointerControlId === pointer.id;
   }
 
+  private getControlModelForPlatform(platform: ControlPlatform): ControlModel {
+    if (!RELATIVE_TOUCH_ROUTING.anchorRebase.enabled) {
+      return "delta";
+    }
+    return RELATIVE_TOUCH_ROUTING.controlModelByPlatform[platform] === "anchorRebase" ? "anchorRebase" : "delta";
+  }
+
   private resolveControlPlatformForPointer(pointer: Phaser.Input.Pointer): ControlPlatform {
     if (RELATIVE_TOUCH_ROUTING.platformSource === "manual") {
       return RELATIVE_TOUCH_ROUTING.manualPlatform;
@@ -5148,6 +5691,171 @@ export default class GameScene extends Phaser.Scene {
     return RELATIVE_TOUCH_CONTROL[platform];
   }
 
+  private handlePointerControlModelTransition(
+    pointer: Phaser.Input.Pointer,
+    fromPlatform: ControlPlatform,
+    toPlatform: ControlPlatform,
+  ) {
+    const fromModel = this.getControlModelForPlatform(fromPlatform);
+    const toModel = this.getControlModelForPlatform(toPlatform);
+    this.pointerLastX = pointer.x;
+    this.pointerLastY = pointer.y;
+    this.pointerFrameDeltaX = 0;
+    this.pointerFrameDeltaY = 0;
+    this.pointerAnchorX = pointer.x;
+    this.pointerAnchorY = pointer.y;
+    this.pointerAnchorRebaseCooldownUntilMs = Number.NEGATIVE_INFINITY;
+    if (toModel === "anchorRebase") {
+      this.initializeAnchorOffsetForPointerDown(pointer, toPlatform);
+    }
+
+    if (RELATIVE_TOUCH_ROUTING.anchorRebase.debug.logAnchorLifecycle && fromModel !== toModel) {
+      console.debug("[touch-anchor] control-model-transition", {
+        fromPlatform,
+        toPlatform,
+        fromModel,
+        toModel,
+      });
+    }
+  }
+
+  private initializeAnchorOffsetForPointerDown(pointer: Phaser.Input.Pointer, platform: ControlPlatform) {
+    const controlProfile = this.getControlProfileForPlatform(platform);
+    this.pointerAnchorX = pointer.x;
+    this.pointerAnchorY = pointer.y;
+    if (controlProfile.anchor.recalcOffsetOnPointerDown) {
+      this.pointerAnchorOffsetX = this.desiredTargetX - pointer.x;
+      this.pointerAnchorOffsetY = this.desiredTargetY - pointer.y;
+    }
+    this.clampAnchorOffsetForPlatform(platform);
+  }
+
+  private clampAnchorOffsetForPlatform(platform: ControlPlatform) {
+    const rebaseCfg = this.getControlProfileForPlatform(platform).rebase;
+    if (!rebaseCfg.clampAnchorOffset) {
+      return;
+    }
+    this.pointerAnchorOffsetX = Phaser.Math.Clamp(
+      this.pointerAnchorOffsetX,
+      -Math.max(0, rebaseCfg.maxAnchorOffsetPxX),
+      Math.max(0, rebaseCfg.maxAnchorOffsetPxX),
+    );
+    this.pointerAnchorOffsetY = Phaser.Math.Clamp(
+      this.pointerAnchorOffsetY,
+      -Math.max(0, rebaseCfg.maxAnchorOffsetPxY),
+      Math.max(0, rebaseCfg.maxAnchorOffsetPxY),
+    );
+  }
+
+  private updateDesiredTargetFromAnchor(deltaSec: number) {
+    if (!this.pointerControlActive) {
+      return;
+    }
+
+    const controlProfile = this.getControlProfileForPlatform(this.activeControlPlatform);
+    const anchorCfg = controlProfile.anchor;
+    let anchoredDesiredX = this.pointerAnchorX + this.pointerAnchorOffsetX;
+    let anchoredDesiredY = this.pointerAnchorY + this.pointerAnchorOffsetY;
+    if (anchorCfg.clampDesiredTargetAfterAnchor) {
+      anchoredDesiredX = Phaser.Math.Clamp(anchoredDesiredX, this.controlMinX, this.controlMaxX);
+      anchoredDesiredY = Phaser.Math.Clamp(anchoredDesiredY, this.controlMinY, this.controlMaxY);
+    }
+
+    const pointerSmoothingPerSec = Math.max(0, anchorCfg.pointerSmoothingLerpPerSec);
+    if (pointerSmoothingPerSec > 0 && deltaSec > 0) {
+      const t = Phaser.Math.Clamp(pointerSmoothingPerSec * deltaSec, 0, 1);
+      this.desiredTargetX = Phaser.Math.Linear(this.desiredTargetX, anchoredDesiredX, t);
+      this.desiredTargetY = Phaser.Math.Linear(this.desiredTargetY, anchoredDesiredY, t);
+    } else {
+      this.desiredTargetX = anchoredDesiredX;
+      this.desiredTargetY = anchoredDesiredY;
+    }
+
+    if (anchorCfg.clampDesiredTargetAfterAnchor) {
+      this.desiredTargetX = Phaser.Math.Clamp(this.desiredTargetX, this.controlMinX, this.controlMaxX);
+      this.desiredTargetY = Phaser.Math.Clamp(this.desiredTargetY, this.controlMinY, this.controlMaxY);
+    }
+  }
+
+  private applyAnchorRebaseFromExternalDisplacement(appliedBodyDx: number, appliedBodyDy: number) {
+    if (!this.pointerControlActive || !this.yachtBody || !RELATIVE_TOUCH_ROUTING.anchorRebase.enabled) {
+      return;
+    }
+    if (!RELATIVE_TOUCH_ROUTING.anchorRebase.rebaseOnExternalDisplacement) {
+      return;
+    }
+    if (this.getControlModelForPlatform(this.activeControlPlatform) !== "anchorRebase") {
+      return;
+    }
+
+    const controlProfile = this.getControlProfileForPlatform(this.activeControlPlatform);
+    if (!controlProfile.anchor.keepAnchorDuringCollision) {
+      return;
+    }
+
+    const now = this.time.now;
+    if (now < this.pointerAnchorRebaseCooldownUntilMs) {
+      return;
+    }
+
+    const rebaseCfg = controlProfile.rebase;
+    const appliedTargetDx = appliedBodyDx;
+    const appliedTargetDy = appliedBodyDy * rebaseCfg.bodyDyToTargetDyFactor;
+    const displacement = Math.hypot(appliedTargetDx, appliedTargetDy);
+    if (displacement < Math.max(0, rebaseCfg.minDisplacementPx)) {
+      return;
+    }
+
+    let rebaseDx = Math.abs(appliedTargetDx) >= Math.max(0, rebaseCfg.axisThresholdX) ? appliedTargetDx * rebaseCfg.axisFactorX : 0;
+    let rebaseDy = Math.abs(appliedTargetDy) >= Math.max(0, rebaseCfg.axisThresholdY) ? appliedTargetDy * rebaseCfg.axisFactorY : 0;
+    if (rebaseDx === 0 && rebaseDy === 0) {
+      return;
+    }
+
+    const maxStepX = Math.max(0, rebaseCfg.maxRebasePerEventPxX);
+    const maxStepY = Math.max(0, rebaseCfg.maxRebasePerEventPxY);
+    if (maxStepX > 0) {
+      rebaseDx = Phaser.Math.Clamp(rebaseDx, -maxStepX, maxStepX);
+    }
+    if (maxStepY > 0) {
+      rebaseDy = Phaser.Math.Clamp(rebaseDy, -maxStepY, maxStepY);
+    }
+
+    this.pointerAnchorOffsetX += rebaseDx;
+    this.pointerAnchorOffsetY += rebaseDy;
+    this.clampAnchorOffsetForPlatform(this.activeControlPlatform);
+
+    const anchorDesiredX = this.pointerAnchorX + this.pointerAnchorOffsetX;
+    const anchorDesiredY = this.pointerAnchorY + this.pointerAnchorOffsetY;
+    const immediateDesiredX = controlProfile.anchor.clampDesiredTargetAfterAnchor
+      ? Phaser.Math.Clamp(anchorDesiredX, this.controlMinX, this.controlMaxX)
+      : anchorDesiredX;
+    const immediateDesiredY = controlProfile.anchor.clampDesiredTargetAfterAnchor
+      ? Phaser.Math.Clamp(anchorDesiredY, this.controlMinY, this.controlMaxY)
+      : anchorDesiredY;
+
+    if (rebaseCfg.immediateDesiredSync) {
+      this.desiredTargetX = immediateDesiredX;
+      this.desiredTargetY = immediateDesiredY;
+    }
+    if (rebaseCfg.immediateTargetSync) {
+      this.targetX = immediateDesiredX;
+      this.targetY = immediateDesiredY;
+    }
+
+    this.pointerAnchorRebaseCooldownUntilMs = now + Math.max(0, rebaseCfg.cooldownMs);
+    if (RELATIVE_TOUCH_ROUTING.anchorRebase.debug.logRebase) {
+      console.debug("[touch-anchor] collision-rebase", {
+        appliedBodyDx,
+        appliedBodyDy,
+        rebaseDx,
+        rebaseDy,
+        anchorOffsetX: this.pointerAnchorOffsetX,
+        anchorOffsetY: this.pointerAnchorOffsetY,
+      });
+    }
+  }
+
   private updateControlBoundsForPlatform(platform: ControlPlatform) {
     const controlProfile = this.getControlProfileForPlatform(platform);
     const { width, height } = this.scale;
@@ -5159,6 +5867,7 @@ export default class GameScene extends Phaser.Scene {
     this.desiredTargetY = Phaser.Math.Clamp(this.desiredTargetY, this.controlMinY, this.controlMaxY);
     this.targetX = Phaser.Math.Clamp(this.targetX, this.controlMinX, this.controlMaxX);
     this.targetY = Phaser.Math.Clamp(this.targetY, this.controlMinY, this.controlMaxY);
+    this.clampAnchorOffsetForPlatform(platform);
   }
 
   private updatePointerFrameDelta(pointer: Phaser.Input.Pointer) {
@@ -5166,7 +5875,24 @@ export default class GameScene extends Phaser.Scene {
     const deltaYRaw = pointer.y - this.pointerLastY;
     this.pointerLastX = pointer.x;
     this.pointerLastY = pointer.y;
+    if (this.getControlModelForPlatform(this.activeControlPlatform) === "anchorRebase") {
+      this.updateAnchorPointerFromMove(pointer, deltaXRaw, deltaYRaw);
+      return;
+    }
     this.applyPointerFrameDelta(deltaXRaw, deltaYRaw);
+  }
+
+  private updateAnchorPointerFromMove(pointer: Phaser.Input.Pointer, deltaXRaw: number, deltaYRaw: number) {
+    const controlProfile = this.getControlProfileForPlatform(this.activeControlPlatform);
+    const jitterDeadZone = Math.max(0, controlProfile.anchor.pointerJitterDeadZonePx);
+    if (jitterDeadZone > 0) {
+      const magnitude = Math.hypot(deltaXRaw, deltaYRaw);
+      if (magnitude < jitterDeadZone) {
+        return;
+      }
+    }
+    this.pointerAnchorX = pointer.x;
+    this.pointerAnchorY = pointer.y;
   }
 
   private applyPointerFrameDelta(deltaXRaw: number, deltaYRaw: number) {
@@ -5205,6 +5931,11 @@ export default class GameScene extends Phaser.Scene {
     this.updateControlBoundsForPlatform(this.activeControlPlatform);
     this.pointerLastX = 0;
     this.pointerLastY = 0;
+    this.pointerAnchorX = 0;
+    this.pointerAnchorY = 0;
+    this.pointerAnchorOffsetX = 0;
+    this.pointerAnchorOffsetY = 0;
+    this.pointerAnchorRebaseCooldownUntilMs = Number.NEGATIVE_INFINITY;
     this.pointerFrameDeltaX = 0;
     this.pointerFrameDeltaY = 0;
     if (this.yachtBody) {
@@ -5222,6 +5953,7 @@ export default class GameScene extends Phaser.Scene {
     const returnDurationMs = isAccel ? YACHT_SPEED_Y_ANIM.accelReturnMs : YACHT_SPEED_Y_ANIM.brakeReturnMs;
 
     this.stopYachtSpeedMotionTweens();
+    this.stopYachtStageTransition();
     this.yachtSpeedMotionOutTween = this.tweens.add({
       targets: this,
       yMotionOffsetPx: offsetPx,
@@ -5362,9 +6094,68 @@ export default class GameScene extends Phaser.Scene {
 
     const progressPercent = this.getAssetsProgress(fuel) * 100;
     const nextTexture = this.getShipTextureKeyByAssets(progressPercent);
-    if (this.yachtVisual.texture.key !== nextTexture) {
+    if (this.yachtVisual.texture.key === nextTexture) {
+      return;
+    }
+
+    const transitionCfg = SHIP_STAGE_TRANSITION;
+    if (!transitionCfg.enabled) {
       this.yachtVisual.setTexture(nextTexture);
       this.applyYachtVisualSizing();
+      return;
+    }
+
+    if (transitionCfg.respectShieldBlink && this.isYachtFeedbackTintActive()) {
+      this.yachtVisual.setTexture(nextTexture);
+      this.applyYachtVisualSizing();
+      return;
+    }
+
+    const now = this.time.now;
+    if (now - this.yachtStageTransitionLastAtMs < transitionCfg.minIntervalMs) {
+      this.yachtVisual.setTexture(nextTexture);
+      this.applyYachtVisualSizing();
+      return;
+    }
+
+    const hasRunningTransition = !!(this.yachtStageTransitionTween && this.yachtStageTransitionTween.isPlaying());
+    if (hasRunningTransition && transitionCfg.interruptPolicy === "skip") {
+      return;
+    }
+
+    this.stopYachtStageTransition();
+
+    const overlay = this.add.image(this.yachtVisual.x, this.yachtVisual.y, this.yachtVisual.texture.key);
+    overlay.setScale(this.yachtVisual.scaleX, this.yachtVisual.scaleY);
+    overlay.setDepth(this.yachtVisual.depth + 0.001);
+    overlay.setAlpha(this.yachtVisual.alpha);
+    this.yachtStageTransitionOverlay = overlay;
+
+    this.yachtVisual.setTexture(nextTexture);
+    this.applyYachtVisualSizing();
+    this.yachtStageTransitionLastAtMs = now;
+
+    this.yachtStageTransitionTween = this.tweens.add({
+      targets: overlay,
+      alpha: 0,
+      duration: transitionCfg.durationMs,
+      ease: transitionCfg.ease,
+      onComplete: () => {
+        overlay.destroy();
+        if (this.yachtStageTransitionOverlay === overlay) {
+          this.yachtStageTransitionOverlay = undefined;
+        }
+        this.yachtStageTransitionTween = undefined;
+      },
+    });
+  }
+
+  private stopYachtStageTransition() {
+    this.yachtStageTransitionTween?.stop();
+    this.yachtStageTransitionTween = undefined;
+    if (this.yachtStageTransitionOverlay) {
+      this.yachtStageTransitionOverlay.destroy();
+      this.yachtStageTransitionOverlay = undefined;
     }
   }
 
@@ -5398,6 +6189,29 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.triggerRedOverlayEffect();
+
+    this.redShipBlinkTween?.stop();
+    if (this.yachtVisual) {
+      this.yachtVisual.setAlpha(1);
+      this.redShipBlinkTween = this.tweens.add({
+        targets: this.yachtVisual,
+        alpha: RED_HIT_INVULNERABILITY.blinkAlphaMin,
+        duration: RED_HIT_INVULNERABILITY.blinkHalfCycleMs,
+        ease: RED_HIT_INVULNERABILITY.blinkEase,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+  }
+
+  private triggerRedShipBlinkOnly() {
+    this.redInvulActive = true;
+    this.redInvulTimer?.remove(false);
+    this.redInvulTimer = this.time.delayedCall(RED_HIT_INVULNERABILITY.durationMs, () => {
+      this.endRedInvulnerabilityEffects();
+    });
+
+    this.endRedOverlayEffect();
 
     this.redShipBlinkTween?.stop();
     if (this.yachtVisual) {
@@ -5747,6 +6561,824 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  private isSkillWheelModalBlockingGameplay() {
+    return SKILL_WHEEL_UI_CONFIG.enabled && this.skillWheelModalState !== "idle";
+  }
+
+  private getSkillWheelRewardIdBySectorIndex(sectorIndex: number): SkillWheelRewardId {
+    const map = SKILL_WHEEL_UI_CONFIG.wheel.rewardBySectorIndex as readonly SkillWheelRewardId[];
+    if (map.length === 0) {
+      return "assets_x2";
+    }
+    const safeIndex = Phaser.Math.Clamp(sectorIndex, 0, map.length - 1);
+    return map[safeIndex] ?? "assets_x2";
+  }
+
+  private normalizeSkillWheelAngleDeg(angleDeg: number) {
+    return Phaser.Math.Angle.WrapDegrees(angleDeg);
+  }
+
+  private isSkillWheelAngleInRange(angleDeg: number, minDeg: number, maxDeg: number) {
+    const angle = this.normalizeSkillWheelAngleDeg(angleDeg);
+    const min = this.normalizeSkillWheelAngleDeg(minDeg);
+    const max = this.normalizeSkillWheelAngleDeg(maxDeg);
+    if (min <= max) {
+      return angle >= min && angle <= max;
+    }
+    return angle >= min || angle <= max;
+  }
+
+  private getSkillWheelSectorCenterAngleDeg(sectorIndex: number) {
+    const ranges = SKILL_WHEEL_UI_CONFIG.wheel.sectorRangesDeg;
+    const safeIndex = Phaser.Math.Clamp(sectorIndex, 0, ranges.length - 1);
+    const range = ranges[safeIndex];
+    if (!range) {
+      return -90;
+    }
+    const min = this.normalizeSkillWheelAngleDeg(range.minDeg);
+    const max = this.normalizeSkillWheelAngleDeg(range.maxDeg);
+    if (min <= max) {
+      return (min + max) * 0.5;
+    }
+    const maxAdjusted = max + 360;
+    const center = (min + maxAdjusted) * 0.5;
+    return this.normalizeSkillWheelAngleDeg(center);
+  }
+
+  private getSkillWheelSectorIndexByAngle(angleDeg: number) {
+    const ranges = SKILL_WHEEL_UI_CONFIG.wheel.sectorRangesDeg;
+    for (let i = 0; i < ranges.length; i += 1) {
+      const range = ranges[i];
+      if (!range) {
+        continue;
+      }
+      if (this.isSkillWheelAngleInRange(angleDeg, range.minDeg, range.maxDeg)) {
+        return i;
+      }
+    }
+
+    const centers = ranges.map((_range, index) => this.getSkillWheelSectorCenterAngleDeg(index));
+    let closestIndex = 0;
+    let closestDelta = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < centers.length; i += 1) {
+      const centerAngle = centers[i] ?? 0;
+      const delta = Math.abs(Phaser.Math.Angle.ShortestBetween(angleDeg, centerAngle));
+      if (delta < closestDelta) {
+        closestDelta = delta;
+        closestIndex = i;
+      }
+    }
+    return closestIndex;
+  }
+
+  private hasActiveSkillWheelReward(id: SkillWheelRewardId) {
+    return this.activeSkillWheelRewards.some((reward) => reward.id === id);
+  }
+
+  private getSkillWheelRewardMultiplier(id: SkillWheelRewardId) {
+    if (!this.hasActiveSkillWheelReward(id)) {
+      return 1;
+    }
+    const rewardCfg = SKILL_WHEEL_REWARD_CONFIG.rewards[id];
+    return Math.max(1, rewardCfg.multiplier ?? 1);
+  }
+
+  private isRedBuoyClearRewardActive() {
+    return this.hasActiveSkillWheelReward("red_buoy_clear");
+  }
+
+  private createSkillWheelRewardHud() {
+    this.skillWheelRewardHudContainer?.destroy(true);
+    this.skillWheelRewardHudContainer = undefined;
+    this.skillWheelRewardHudSlots = [];
+
+    if (!SKILL_WHEEL_BONUS_HUD_CONFIG.enabled || !SKILL_WHEEL_REWARD_CONFIG.enabled) {
+      return;
+    }
+
+    this.skillWheelRewardHudContainer = this.add.container(0, 0);
+    this.skillWheelRewardHudContainer.setDepth(SKILL_WHEEL_BONUS_HUD_CONFIG.depth);
+    this.skillWheelRewardHudContainer.setVisible(false);
+
+    for (let i = 0; i < SKILL_WHEEL_REWARD_CONFIG.maxActiveRewards; i += 1) {
+      const container = this.add.container(0, 0);
+      const frame = this.add.graphics();
+      const radialTrack = this.add.graphics();
+      const radialFill = this.add.graphics();
+      const icon = this.add.image(0, 0, "skill-wheel-bonus-1");
+      icon.setDisplaySize(
+        SKILL_WHEEL_BONUS_HUD_CONFIG.iconSizePx * SKILL_WHEEL_BONUS_HUD_CONFIG.iconScale,
+        SKILL_WHEEL_BONUS_HUD_CONFIG.iconSizePx * SKILL_WHEEL_BONUS_HUD_CONFIG.iconScale,
+      );
+
+      container.add([frame, radialTrack, radialFill, icon]);
+      container.setVisible(false);
+      this.skillWheelRewardHudContainer.add(container);
+
+      this.skillWheelRewardHudSlots.push({
+        id: "coin_x2",
+        container,
+        icon,
+        radialTrack,
+        radialFill,
+      });
+    }
+  }
+
+  private updateSkillWheelBonusHud() {
+    if (!this.skillWheelRewardHudContainer || !SKILL_WHEEL_BONUS_HUD_CONFIG.enabled || !SKILL_WHEEL_REWARD_CONFIG.enabled) {
+      return;
+    }
+
+    const now = this.time.now;
+    const activeRewards = this.activeSkillWheelRewards
+      .slice()
+      .sort((a, b) => a.expiresAtMs - b.expiresAtMs)
+      .slice(0, SKILL_WHEEL_REWARD_CONFIG.maxActiveRewards);
+
+    if (activeRewards.length === 0) {
+      this.skillWheelRewardHudContainer.setVisible(false);
+      for (const slot of this.skillWheelRewardHudSlots) {
+        slot.container.setVisible(false);
+      }
+      return;
+    }
+
+    const cfg = SKILL_WHEEL_BONUS_HUD_CONFIG;
+    let anchorX = this.scale.width * cfg.rowXRatio;
+    let anchorY = cfg.rowY;
+    if (cfg.rowAnchorMode === "progressBar") {
+      const layout = this.getTopProgressLayout();
+      anchorX = layout.barLeft + layout.barWidth / 2;
+      anchorY = layout.barTop + layout.barHeight;
+    }
+    anchorX += cfg.rowOffsetX;
+    anchorY += cfg.rowOffsetY;
+
+    this.skillWheelRewardHudContainer.setVisible(true);
+    this.skillWheelRewardHudContainer.setPosition(anchorX, anchorY);
+
+    const layoutOffsets = cfg.layoutsByCount[activeRewards.length as 1 | 2 | 3 | 4];
+    const fallbackOffsets = activeRewards.map(
+      (_item, index) => (index - (activeRewards.length - 1) * 0.5) * (cfg.iconSizePx + cfg.iconGapPx),
+    );
+    const offsets = layoutOffsets ? [...layoutOffsets] : fallbackOffsets;
+    const iconSize = cfg.iconSizePx * cfg.iconScale;
+    const radius = iconSize * 0.5 + cfg.radial.radiusPaddingPx;
+    const strokeWidth = 6;
+    const startAngle = Phaser.Math.DegToRad(cfg.radial.startAngleDeg);
+
+    for (let i = 0; i < this.skillWheelRewardHudSlots.length; i += 1) {
+      const slot = this.skillWheelRewardHudSlots[i];
+      const reward = activeRewards[i];
+      if (!reward) {
+        slot.container.setVisible(false);
+        slot.radialTrack.clear();
+        slot.radialFill.clear();
+        continue;
+      }
+
+      const rewardCfg = SKILL_WHEEL_REWARD_CONFIG.rewards[reward.id];
+      const remaining = Math.max(0, reward.expiresAtMs - now);
+      const progress = reward.durationMs > 0 ? Phaser.Math.Clamp(remaining / reward.durationMs, 0, 1) : 0;
+      const slotX = offsets[i] ?? 0;
+
+      slot.id = reward.id;
+      slot.container.setVisible(true);
+      slot.container.setPosition(slotX, 0);
+      slot.icon.setTexture(rewardCfg.key);
+      slot.icon.setDisplaySize(iconSize, iconSize);
+
+      const frame = slot.container.list[0] as Phaser.GameObjects.Graphics | undefined;
+      if (frame) {
+        frame.clear();
+        if (cfg.slotFrame.enabled) {
+          frame.fillStyle(cfg.slotFrame.fillColor, cfg.slotFrame.fillAlpha);
+          frame.fillCircle(0, 0, radius);
+          frame.lineStyle(cfg.slotFrame.strokeWidthPx, cfg.slotFrame.strokeColor, 1);
+          frame.strokeCircle(0, 0, radius);
+        }
+      }
+
+      slot.radialTrack.clear();
+      slot.radialFill.clear();
+
+      if (cfg.radial.enabled) {
+        slot.radialTrack.lineStyle(strokeWidth, cfg.radial.trackColor, cfg.radial.trackAlpha);
+        slot.radialTrack.strokeCircle(0, 0, radius);
+
+        if (progress > 0) {
+          const direction = cfg.radial.clockwise ? 1 : -1;
+          const endAngle = startAngle + direction * Math.PI * 2 * progress;
+          slot.radialFill.lineStyle(strokeWidth, cfg.radial.fillColor, cfg.radial.fillAlpha);
+          slot.radialFill.beginPath();
+          slot.radialFill.arc(0, 0, radius, startAngle, endAngle, !cfg.radial.clockwise);
+          slot.radialFill.strokePath();
+        }
+      }
+    }
+  }
+
+  private pulseSkillWheelRewardHudSlot(id: SkillWheelRewardId) {
+    if (!SKILL_WHEEL_BONUS_HUD_CONFIG.pulseOnRefresh.enabled) {
+      return;
+    }
+    const slot = this.skillWheelRewardHudSlots.find((item) => item.id === id && item.container.visible);
+    if (!slot) {
+      return;
+    }
+    this.tweens.add({
+      targets: slot.container,
+      scaleX: SKILL_WHEEL_BONUS_HUD_CONFIG.pulseOnRefresh.scaleUp,
+      scaleY: SKILL_WHEEL_BONUS_HUD_CONFIG.pulseOnRefresh.scaleUp,
+      duration: SKILL_WHEEL_BONUS_HUD_CONFIG.pulseOnRefresh.durationMs,
+      ease: SKILL_WHEEL_BONUS_HUD_CONFIG.pulseOnRefresh.ease,
+      yoyo: true,
+      onComplete: () => {
+        slot.container.setScale(1);
+      },
+    });
+  }
+
+  private createSkillWheelModalUi() {
+    this.skillWheelOverlay?.destroy();
+    this.skillWheelUiContainer?.destroy(true);
+    this.skillWheelOverlay = undefined;
+    this.skillWheelUiContainer = undefined;
+    this.skillWheelIntroText = undefined;
+    this.skillWheelContinueText = undefined;
+    this.skillWheelResultTitleText = undefined;
+    this.skillWheelResultBodyText = undefined;
+    this.skillWheelResultIcon = undefined;
+    this.skillWheelGlowNode = undefined;
+    this.skillWheelBarNode = undefined;
+    this.skillWheelPointer = undefined;
+    this.skillWheelModalState = "idle";
+
+    if (!SKILL_WHEEL_UI_CONFIG.enabled) {
+      return;
+    }
+
+    const { width, height } = this.scale;
+    const cfg = SKILL_WHEEL_UI_CONFIG;
+    const centerX = width * cfg.wheel.centerXRatio;
+    const centerY = height * cfg.wheel.centerYRatio;
+
+    this.skillWheelOverlay = this.add.rectangle(0, 0, width, height, cfg.overlay.color, cfg.overlay.alpha);
+    this.skillWheelOverlay.setOrigin(0, 0);
+    this.skillWheelOverlay.setDepth(cfg.depth);
+    this.skillWheelOverlay.setVisible(false);
+
+    this.skillWheelUiContainer = this.add.container(centerX, centerY);
+    this.skillWheelUiContainer.setDepth(cfg.depth + 1);
+    this.skillWheelUiContainer.setVisible(false);
+
+    if (cfg.overlay.glowAlpha > 0) {
+      const glow = this.add.circle(0, 0, 240, cfg.overlay.glowColor, cfg.overlay.glowAlpha);
+      this.skillWheelGlowNode = glow;
+      this.skillWheelUiContainer.add(glow);
+    }
+
+    const bar = this.add.image(cfg.wheel.barOffsetX, cfg.wheel.barOffsetY, cfg.wheel.barKey);
+    bar.setOrigin(0.5, 0.5);
+    bar.setScale(cfg.wheel.barScale);
+    this.skillWheelBarNode = bar;
+    this.skillWheelUiContainer.add(bar);
+
+    this.skillWheelPointer = this.add.container(
+      cfg.wheel.pointer.offsetX,
+      cfg.wheel.pointer.offsetY,
+    );
+    const pointerImage = this.add.image(0, 0, cfg.wheel.pointer.key);
+    pointerImage.setOrigin(cfg.wheel.pointer.originX, cfg.wheel.pointer.originY);
+    pointerImage.setScale(cfg.wheel.pointer.scale);
+    this.skillWheelPointer.add(pointerImage);
+    this.skillWheelUiContainer.add(this.skillWheelPointer);
+
+    this.skillWheelIntroText = this.add.text(0, cfg.intro.titleOffsetY, cfg.intro.titleText, {
+      fontFamily: cfg.intro.titleFontFamily,
+      fontSize: `${cfg.intro.titleFontSizePx}px`,
+      fontStyle: "bold",
+      color: cfg.intro.titleColor,
+      align: "center",
+    });
+    this.skillWheelIntroText.setOrigin(0.5, 0.5);
+    this.skillWheelUiContainer.add(this.skillWheelIntroText);
+
+    this.skillWheelResultIcon = this.add.image(cfg.result.iconOffsetX, cfg.result.iconOffsetY, "skill-wheel-sector-1");
+    this.setSkillWheelResultIconSize(this.skillWheelResultIcon, cfg.result.iconMaxWidthPx, cfg.result.iconMaxHeightPx);
+    this.skillWheelResultIcon.setVisible(false);
+    this.skillWheelUiContainer.add(this.skillWheelResultIcon);
+
+    this.skillWheelResultTitleText = this.add.text(cfg.result.titleOffsetX, cfg.result.titleOffsetY, "", {
+      fontFamily: cfg.result.titleFontFamily,
+      fontSize: `${cfg.result.titleFontSizePx}px`,
+      fontStyle: "bold",
+      color: cfg.result.titleColor,
+      align: "center",
+    });
+    this.skillWheelResultTitleText.setOrigin(0.5, 0.5);
+    this.skillWheelResultTitleText.setVisible(false);
+    this.skillWheelUiContainer.add(this.skillWheelResultTitleText);
+
+    this.skillWheelResultBodyText = this.add.text(0, cfg.result.bodyOffsetY, "", {
+      fontFamily: cfg.result.bodyFontFamily,
+      fontSize: `${cfg.result.bodyFontSizePx}px`,
+      color: cfg.result.bodyColor,
+      align: "center",
+    });
+    this.skillWheelResultBodyText.setOrigin(0.5, 0.5);
+    this.skillWheelResultBodyText.setVisible(false);
+    this.skillWheelUiContainer.add(this.skillWheelResultBodyText);
+
+    this.skillWheelContinueText = this.add.text(0, cfg.result.continueOffsetY, cfg.result.continueText, {
+      fontFamily: cfg.result.continueFontFamily,
+      fontSize: `${cfg.result.continueFontSizePx}px`,
+      color: cfg.result.continueColor,
+      fontStyle: "bold",
+      align: "center",
+    });
+    this.skillWheelContinueText.setOrigin(0.5, 0.5);
+    this.skillWheelContinueText.setAlpha(cfg.result.continueAlpha);
+    this.skillWheelContinueText.setVisible(false);
+    this.skillWheelUiContainer.add(this.skillWheelContinueText);
+
+    this.setSkillWheelPointerAngle(cfg.wheel.pointer.restAngleDeg);
+  }
+
+  private updateSkillWheelModal(_deltaMs: number) {
+    if (!this.isSkillWheelModalBlockingGameplay() || !this.skillWheelPointer) {
+      return;
+    }
+
+    if (this.skillWheelModalState === "intro") {
+      this.setSkillWheelPointerAngle(this.getSkillWheelOscillationAngleDeg());
+      return;
+    }
+
+    if (this.skillWheelModalState === "spinning") {
+      return;
+    }
+
+    if (this.skillWheelModalState === "result" && this.skillWheelContinueText) {
+      const pulse = 0.5 + Math.sin((this.time.now / 1000) * (Math.PI * 2) * 1.2) * 0.5;
+      this.skillWheelContinueText.setAlpha(Phaser.Math.Linear(0.45, SKILL_WHEEL_UI_CONFIG.result.continueAlpha, pulse));
+    }
+  }
+
+  private getSkillWheelOscillationAngleDeg() {
+    const pointerCfg = SKILL_WHEEL_UI_CONFIG.wheel.pointer;
+    const wave = 0.5 + Math.sin((this.time.now / 1000) * Math.PI * 2 * pointerCfg.oscillationFrequencyHz) * 0.5;
+    return Phaser.Math.Linear(pointerCfg.oscillationMinDeg, pointerCfg.oscillationMaxDeg, wave);
+  }
+
+  private setSkillWheelPointerAngle(angleDeg: number) {
+    this.skillWheelPointerAngleDeg = angleDeg;
+    this.skillWheelPointer?.setAngle(angleDeg);
+  }
+
+  private handleSkillWheelPointerDown(_pointer: Phaser.Input.Pointer) {
+    if (!this.isSkillWheelModalBlockingGameplay()) {
+      return false;
+    }
+
+    if (this.skillWheelModalState === "intro") {
+      const introElapsed = this.time.now - this.skillWheelSpinStartAtMs;
+      if (introElapsed < SKILL_WHEEL_UI_CONFIG.wheel.spinInputEnabledAtMs) {
+        return true;
+      }
+      this.startSkillWheelSpinResolution();
+      return true;
+    }
+
+    if (this.skillWheelModalState === "spinning") {
+      return true;
+    }
+
+    if (this.skillWheelModalState === "result") {
+      this.closeSkillWheelModalAndResume();
+      return true;
+    }
+
+    return true;
+  }
+
+  private startSkillWheelSpinResolution() {
+    if (!this.skillWheelPointer || this.skillWheelModalState !== "intro") {
+      return;
+    }
+
+    const selectedIndex = this.getSkillWheelSectorIndexByAngle(this.skillWheelPointerAngleDeg);
+    this.skillWheelSelectedSectorIndex = selectedIndex;
+    this.skillWheelSpinTargetAngleDeg = this.getSkillWheelSectorCenterAngleDeg(selectedIndex);
+    this.skillWheelSpinStartAtMs = this.time.now;
+    this.skillWheelModalState = "spinning";
+
+    this.tweens.add({
+      targets: this.skillWheelPointer,
+      angle: this.skillWheelSpinTargetAngleDeg,
+      duration: SKILL_WHEEL_UI_CONFIG.wheel.pointer.stopDurationMs,
+      ease: SKILL_WHEEL_UI_CONFIG.wheel.pointer.stopEase,
+    });
+
+    this.time.delayedCall(
+      SKILL_WHEEL_UI_CONFIG.wheel.landingLockDelayMs + SKILL_WHEEL_UI_CONFIG.wheel.pointer.stopDurationMs,
+      () => {
+        this.resolveSkillWheelSpinResult();
+      },
+    );
+  }
+
+  private resolveSkillWheelSpinResult() {
+    if (this.skillWheelModalState !== "spinning") {
+      return;
+    }
+
+    const rewardId = this.getSkillWheelRewardIdBySectorIndex(this.skillWheelSelectedSectorIndex);
+    this.skillWheelLastResultId = rewardId;
+    this.skillWheelPendingRewardId = rewardId;
+
+    this.showSkillWheelResult(rewardId);
+    this.skillWheelModalState = "result";
+  }
+
+  private setSkillWheelIntroVisualVisible(visible: boolean) {
+    this.skillWheelGlowNode?.setVisible(visible);
+    this.skillWheelBarNode?.setVisible(visible);
+    this.skillWheelPointer?.setVisible(visible);
+  }
+
+  private setSkillWheelResultIconSize(icon: Phaser.GameObjects.Image, maxWidthPx: number, maxHeightPx: number) {
+    const textureFrame = icon.frame;
+    const sourceWidth = textureFrame?.realWidth ?? textureFrame?.width ?? 1;
+    const sourceHeight = textureFrame?.realHeight ?? textureFrame?.height ?? 1;
+    const widthScale = maxWidthPx / Math.max(1, sourceWidth);
+    const heightScale = maxHeightPx / Math.max(1, sourceHeight);
+    const uniformScale = Math.min(widthScale, heightScale);
+    icon.setScale(uniformScale);
+  }
+
+  private showSkillWheelResult(rewardId: SkillWheelRewardId) {
+    const rewardCfg = SKILL_WHEEL_REWARD_CONFIG.rewards[rewardId];
+    const resultCfg = SKILL_WHEEL_UI_CONFIG.result;
+
+    this.setSkillWheelIntroVisualVisible(false);
+    this.skillWheelIntroText?.setVisible(false);
+    this.skillWheelResultIcon?.setVisible(true);
+    this.skillWheelResultTitleText?.setVisible(true);
+    this.skillWheelResultBodyText?.setVisible(true);
+    this.skillWheelContinueText?.setVisible(true);
+
+    if (this.skillWheelResultIcon) {
+      this.skillWheelResultIcon.setTexture(rewardCfg.resultKey ?? rewardCfg.key);
+      this.setSkillWheelResultIconSize(this.skillWheelResultIcon, resultCfg.iconMaxWidthPx, resultCfg.iconMaxHeightPx);
+      this.skillWheelResultIcon.clearTint();
+      this.skillWheelResultIcon.setAlpha(1);
+    }
+    this.skillWheelResultTitleText?.setText(`${rewardCfg.title}`);
+    this.skillWheelResultBodyText?.setText(`${rewardCfg.bodyLine1}\n\n${rewardCfg.bodyLine2}`);
+  }
+
+  private openSkillWheelModalForEvent(event: ScheduledWheelEvent) {
+    if (!SKILL_WHEEL_UI_CONFIG.enabled || !this.skillWheelOverlay || !this.skillWheelUiContainer) {
+      return;
+    }
+
+    event.consumed = true;
+    this.skillWheelCurrentEvent = event;
+    this.skillWheelSelectedSectorIndex = -1;
+    this.skillWheelSpinTargetAngleDeg = SKILL_WHEEL_UI_CONFIG.wheel.pointer.restAngleDeg;
+    this.skillWheelSpinStartAtMs = this.time.now;
+    this.skillWheelPendingRewardId = undefined;
+    this.skillWheelModalState = "intro";
+
+    this.skillWheelOverlay.setVisible(SKILL_WHEEL_UI_CONFIG.overlay.enabled);
+    this.skillWheelUiContainer.setVisible(true);
+    this.setSkillWheelIntroVisualVisible(true);
+    this.skillWheelIntroText?.setVisible(true);
+    this.skillWheelContinueText?.setVisible(false);
+    this.skillWheelResultTitleText?.setVisible(false);
+    this.skillWheelResultBodyText?.setVisible(false);
+    this.skillWheelResultIcon?.setVisible(false);
+
+    this.setSkillWheelPointerAngle(this.getSkillWheelOscillationAngleDeg());
+    this.resetPointerControlState();
+    if (this.shieldActive) {
+      this.stopShieldShipBlink();
+    }
+
+    if (SKILL_WHEEL_EVENT_CONFIG.pause.freezeWorldUpdates) {
+      this.physics.world.pause();
+    }
+  }
+
+  private closeSkillWheelModalAndResume() {
+    if (!SKILL_WHEEL_UI_CONFIG.enabled) {
+      return;
+    }
+
+    const pendingRewardId = this.skillWheelPendingRewardId;
+    this.skillWheelPendingRewardId = undefined;
+
+    this.skillWheelModalState = "idle";
+    this.skillWheelCurrentEvent = undefined;
+    this.skillWheelSelectedSectorIndex = -1;
+    this.skillWheelSpinTargetAngleDeg = SKILL_WHEEL_UI_CONFIG.wheel.pointer.restAngleDeg;
+
+    this.skillWheelOverlay?.setVisible(false);
+    this.skillWheelUiContainer?.setVisible(false);
+    this.skillWheelIntroText?.setVisible(false);
+    this.skillWheelContinueText?.setVisible(false);
+    this.skillWheelResultTitleText?.setVisible(false);
+    this.skillWheelResultBodyText?.setVisible(false);
+    this.skillWheelResultIcon?.setVisible(false);
+    if (this.shieldActive) {
+      this.startShieldShipBlink();
+    }
+
+    if (SKILL_WHEEL_EVENT_CONFIG.pause.freezeWorldUpdates) {
+      this.physics.world.resume();
+    }
+
+    if (pendingRewardId) {
+      this.applySkillWheelReward(pendingRewardId);
+      this.updateSkillWheelBonusHud();
+    }
+  }
+
+  private applySkillWheelReward(id: SkillWheelRewardId) {
+    if (!SKILL_WHEEL_REWARD_CONFIG.enabled) {
+      return;
+    }
+
+    const now = this.time.now;
+    const rewardCfg = SKILL_WHEEL_REWARD_CONFIG.rewards[id];
+    const durationMs = Math.max(1, rewardCfg.durationMs ?? SKILL_WHEEL_REWARD_CONFIG.defaultDurationMs);
+    const existing = this.activeSkillWheelRewards.find((reward) => reward.id === id);
+    if (existing) {
+      if (SKILL_WHEEL_REWARD_CONFIG.duplicatePolicy === "stackDuration") {
+        existing.expiresAtMs += durationMs;
+        existing.durationMs += durationMs;
+      } else {
+        existing.startedAtMs = now;
+        existing.durationMs = durationMs;
+        existing.expiresAtMs = now + durationMs;
+      }
+      this.pulseSkillWheelRewardHudSlot(id);
+      return;
+    }
+
+    if (this.activeSkillWheelRewards.length >= SKILL_WHEEL_REWARD_CONFIG.maxActiveRewards) {
+      this.activeSkillWheelRewards.sort((a, b) => a.expiresAtMs - b.expiresAtMs);
+      this.activeSkillWheelRewards.shift();
+    }
+
+    this.activeSkillWheelRewards.push({
+      id,
+      startedAtMs: now,
+      expiresAtMs: now + durationMs,
+      durationMs,
+    });
+
+    if (id === "red_buoy_clear" && rewardCfg.clearOnActivate) {
+      this.clearRedBuoysOnScreenForReward();
+    }
+    this.pulseSkillWheelRewardHudSlot(id);
+    if (WHEEL_DEBUG_CONFIG.logRewards) {
+      // eslint-disable-next-line no-console
+      console.log("[skill-wheel] reward:", id);
+    }
+  }
+
+  private clearRedBuoysOnScreenForReward() {
+    if (!this.isPhysicsGroupUsable(this.hazards)) {
+      return;
+    }
+
+    this.hazards.children.each((child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      if (!sprite.active || sprite.getData("collecting")) {
+        return;
+      }
+      const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "mine";
+      if (hazardType === "moneyDown") {
+        const applyImpact = (sprite.getData("applyImpactAnimation") as boolean | undefined) ?? true;
+        if (applyImpact) {
+          this.playImpactDestroyAnimation(sprite);
+        } else {
+          sprite.destroy();
+        }
+        return;
+      }
+      if (hazardType !== "dynamicBuoy") {
+        return;
+      }
+      this.stopDynamicBuoyStateTimer(sprite);
+      sprite.setData("dynamicState", "up");
+      sprite.setData("dynamicBlinkSourceState", "up");
+      sprite.setData("dynamicBlinkTargetState", "down");
+      this.applyDynamicBuoyVisualState(sprite, "up");
+      this.scheduleDynamicBuoyDwell(sprite, "up");
+    });
+  }
+
+  private updateSkillWheelBonusDurations(deltaMs: number) {
+    if (!SKILL_WHEEL_REWARD_CONFIG.enabled || this.activeSkillWheelRewards.length === 0) {
+      return;
+    }
+    if (this.isSkillWheelModalBlockingGameplay() && SKILL_WHEEL_EVENT_CONFIG.pause.freezeRunTimer) {
+      return;
+    }
+
+    const now = this.time.now;
+    const before = this.activeSkillWheelRewards.length;
+    this.activeSkillWheelRewards = this.activeSkillWheelRewards.filter((reward) => reward.expiresAtMs > now);
+    if (before !== this.activeSkillWheelRewards.length && deltaMs > 0) {
+      this.updateSkillWheelBonusHud();
+    }
+  }
+
+  private tryTriggerSkillWheelEventByDistance() {
+    if (!SKILL_WHEEL_EVENT_CONFIG.enabled || this.isSkillWheelModalBlockingGameplay()) {
+      return;
+    }
+    if (this.scheduledWheelEvents.length === 0) {
+      return;
+    }
+
+    const triggerAhead = SKILL_WHEEL_EVENT_CONFIG.triggerDistanceAheadMeters;
+    for (const event of this.scheduledWheelEvents) {
+      if (event.consumed) {
+        continue;
+      }
+      if (this.distanceM + triggerAhead < event.meter) {
+        break;
+      }
+      this.openSkillWheelModalForEvent(event);
+      break;
+    }
+  }
+
+  private scheduleSkillWheelEvents() {
+    this.scheduledWheelEvents = [];
+    if (!SKILL_WHEEL_EVENT_CONFIG.enabled) {
+      return;
+    }
+
+    const cfg = SKILL_WHEEL_EVENT_CONFIG;
+    const islandCfg = cfg.islandSpawn;
+    const distanceMin = islandCfg.distanceFromMeters;
+    const distanceMax = islandCfg.distanceToMeters;
+    const maxEvents = Math.max(1, Math.min(cfg.maxEventsPerRun, islandCfg.maxPerRun));
+    const events: ScheduledWheelEvent[] = [];
+
+    const islandTemplateTypes = SKILL_WHEEL_ISLAND_SEGMENTS.map((template) => template.objects[0]?.type).filter(
+      (type): type is "wheelIsland1" | "wheelIsland2" => type === "wheelIsland1" || type === "wheelIsland2",
+    );
+    const fallbackIslandTypes: Array<"wheelIsland1" | "wheelIsland2"> =
+      islandTemplateTypes.length > 0 ? islandTemplateTypes : ["wheelIsland1", "wheelIsland2"];
+
+    const pickIslandVariant = () => {
+      if (islandCfg.variantMode === "alternate") {
+        const index = this.wheelIslandVariantToggle % fallbackIslandTypes.length;
+        this.wheelIslandVariantToggle += 1;
+        return fallbackIslandTypes[index];
+      }
+      const weights = islandCfg.randomWeights;
+      const totalWeight = Math.max(0, weights.wheelIsland1) + Math.max(0, weights.wheelIsland2);
+      if (totalWeight <= 0) {
+        return fallbackIslandTypes[0] ?? ("wheelIsland1" as const);
+      }
+      const random = Phaser.Math.FloatBetween(0, totalWeight);
+      return random <= Math.max(0, weights.wheelIsland1) ? ("wheelIsland1" as const) : ("wheelIsland2" as const);
+    };
+
+    const canPlaceAtMeter = (meter: number) => {
+      if (meter < distanceMin || meter > distanceMax) {
+        return false;
+      }
+      const poolIndex = this.getPoolIndexByMeter(meter);
+      if (!poolIndex || poolIndex < islandCfg.allowedPoolIndexFrom || poolIndex > islandCfg.allowedPoolIndexTo) {
+        return false;
+      }
+      for (const existing of events) {
+        if (Math.abs(existing.meter - meter) < islandCfg.minGapMeters) {
+          return false;
+        }
+      }
+      return true;
+    };
+
+    const pushEvent = (meter: number, source: "guaranteed" | "extra") => {
+      if (events.length >= maxEvents) {
+        return;
+      }
+      if (!canPlaceAtMeter(meter)) {
+        return;
+      }
+      events.push({
+        meter,
+        islandType: pickIslandVariant(),
+        source,
+        consumed: false,
+      });
+    };
+
+    for (const guaranteedMeter of cfg.guaranteedMeters) {
+      pushEvent(guaranteedMeter, "guaranteed");
+    }
+
+    if (cfg.extra.enabled) {
+      const maxExtras = Math.max(0, cfg.extra.maxExtraEvents);
+      let extrasAdded = 0;
+      for (const window of cfg.extra.windows) {
+        if (extrasAdded >= maxExtras || events.length >= maxEvents) {
+          break;
+        }
+        if (Phaser.Math.FloatBetween(0, 1) > window.chance) {
+          continue;
+        }
+        const meter = Phaser.Math.FloatBetween(window.fromMeters, window.toMeters);
+        if (!canPlaceAtMeter(meter)) {
+          continue;
+        }
+        pushEvent(meter, "extra");
+        extrasAdded += 1;
+      }
+    }
+
+    if (events.length < islandCfg.minPerRun) {
+      const attempts = 20;
+      for (let i = 0; i < attempts && events.length < islandCfg.minPerRun && events.length < maxEvents; i += 1) {
+        const meter = Phaser.Math.FloatBetween(distanceMin, distanceMax);
+        pushEvent(meter, "extra");
+      }
+    }
+
+    events.sort((a, b) => a.meter - b.meter);
+    this.scheduledWheelEvents = events.slice(0, maxEvents);
+
+    if (islandCfg.enabled) {
+      for (const event of this.scheduledWheelEvents) {
+        this.scheduledObjects.push({
+          type: event.islandType,
+          meterOffset: 0,
+          xRatio: 0.5,
+          scheduleId: `skill-wheel-island@${event.meter.toFixed(2)}@${event.source}@${this.scheduledObjects.length}`,
+          spawnMeter: event.meter,
+        });
+      }
+    }
+
+    if (WHEEL_DEBUG_CONFIG.forceOpenOnCreate && this.scheduledWheelEvents.length > 0 && this.skillWheelModalState === "idle") {
+      this.openSkillWheelModalForEvent(this.scheduledWheelEvents[0]);
+    }
+  }
+
+  private applyWheelIslandExclusionZone() {
+    const cfg = SEGMENT_PATTERN_RULES.wheelIslandExclusion;
+    if (!cfg.enabled) {
+      return;
+    }
+
+    const islands = this.scheduledObjects.filter(
+      (item) => item.type === "wheelIsland1" || item.type === "wheelIsland2",
+    );
+    if (islands.length === 0) {
+      return;
+    }
+
+    const blockedTypes = new Set<SegmentObjectType>(cfg.blockedTypes as unknown as SegmentObjectType[]);
+    if (!cfg.allowCoin) {
+      blockedTypes.add("coin");
+    }
+    if (!cfg.allowTimeBonus) {
+      blockedTypes.add("timeBonus");
+    }
+    if (!cfg.allowSpeedBonus) {
+      blockedTypes.add("speedBonus");
+    }
+
+    this.scheduledObjects = this.scheduledObjects.filter((item) => {
+      if (item.type === "wheelIsland1" || item.type === "wheelIsland2") {
+        return true;
+      }
+      if (!blockedTypes.has(item.type)) {
+        return true;
+      }
+      const itemX = Phaser.Math.Clamp(item.xRatio ?? 0.5, 0, 1);
+      for (const island of islands) {
+        const islandX = Phaser.Math.Clamp(island.xRatio ?? 0.5, 0, 1);
+        const nearByMeter = Math.abs(item.spawnMeter - island.spawnMeter) <= cfg.radiusMeters;
+        const nearByX = Math.abs(itemX - islandX) <= cfg.minDeltaXRatio;
+        if (nearByMeter && nearByX) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
   private updateAutoShieldState() {
     if (!ASSET_SHIELD_CONFIG.enable) {
       return;
@@ -5854,6 +7486,7 @@ export default class GameScene extends Phaser.Scene {
 
   private resetState() {
     this.isGameOver = false;
+    this.physics.world.resume();
     this.stopCoinRewardAnimations();
     this.resetPointerControlState();
     this.swayTime = 0;
@@ -5870,9 +7503,20 @@ export default class GameScene extends Phaser.Scene {
     this.shieldTapCandidate = undefined;
     this.coinsCollected = 0;
     this.coinsScheduledTotal = 0;
+    this.activeSkillWheelRewards = [];
+    this.scheduledWheelEvents = [];
+    this.wheelIslandVariantToggle = 0;
+    this.skillWheelCurrentEvent = undefined;
+    this.skillWheelLastResultId = undefined;
+    this.skillWheelPendingRewardId = undefined;
+    this.skillWheelModalState = "idle";
+    this.skillWheelSpinStartAtMs = 0;
+    this.skillWheelSpinTargetAngleDeg = -90;
+    this.skillWheelSelectedSectorIndex = -1;
     this.speedBonusRemainingMs = 0;
     this.speedBonusLockedKmh = undefined;
     this.speedBonusDecayActive = false;
+    this.yachtStageTransitionLastAtMs = Number.NEGATIVE_INFINITY;
     this.obstacleSlowdownUntilMs = Number.NEGATIVE_INFINITY;
     this.seaStageIndex = 0;
     this.seaTransitionIndex = -1;
@@ -5910,9 +7554,12 @@ export default class GameScene extends Phaser.Scene {
     this.yachtBody?.destroy();
     this.yachtHazardCollider?.destroy();
     this.yachtVisual?.destroy();
+    this.yachtStageTransitionOverlay?.destroy();
     this.yachtBody = undefined;
     this.yachtHazardCollider = undefined;
     this.yachtVisual = undefined;
+    this.yachtStageTransitionOverlay = undefined;
+    this.yachtStageTransitionTween = undefined;
 
     this.assetsBarGraphics?.destroy();
     this.assetsBarGraphics = undefined;
@@ -5934,6 +7581,23 @@ export default class GameScene extends Phaser.Scene {
     this.coinsText?.destroy();
     this.coinsText = undefined;
     this.destroyHitboxDebugOverlay();
+
+    this.skillWheelRewardHudContainer?.destroy(true);
+    this.skillWheelRewardHudContainer = undefined;
+    this.skillWheelRewardHudSlots = [];
+    this.skillWheelOverlay?.destroy();
+    this.skillWheelOverlay = undefined;
+    this.skillWheelUiContainer?.destroy(true);
+    this.skillWheelUiContainer = undefined;
+    this.skillWheelPointer = undefined;
+    this.skillWheelIntroText = undefined;
+    this.skillWheelContinueText = undefined;
+    this.skillWheelResultTitleText = undefined;
+    this.skillWheelResultBodyText = undefined;
+    this.skillWheelResultIcon = undefined;
+    this.skillWheelGlowNode = undefined;
+    this.skillWheelBarNode = undefined;
+    this.skillWheelPendingRewardId = undefined;
 
     this.redOverlay?.destroy();
     this.redOverlay = undefined;

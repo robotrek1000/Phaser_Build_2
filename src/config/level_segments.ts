@@ -7,10 +7,13 @@ export type SegmentObjectType =
   | "rock1"
   | "rock2"
   | "rock3"
+  | "reef1"
   | "moneyUp"
   | "coin"
   | "speedBonus"
   | "timeBonus"
+  | "wheelIsland1"
+  | "wheelIsland2"
   | "harbor"
   | "harborGate";
 
@@ -88,22 +91,8 @@ const whirlpool = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentO
   xOffsetPx,
 });
 
-const rock1 = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
-  type: "rock1",
-  meterOffset,
-  xRatio,
-  xOffsetPx,
-});
-
-const rock2 = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
-  type: "rock2",
-  meterOffset,
-  xRatio,
-  xOffsetPx,
-});
-
-const rock3 = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
-  type: "rock3",
+const reef1 = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
+  type: "reef1",
   meterOffset,
   xRatio,
   xOffsetPx,
@@ -111,6 +100,20 @@ const rock3 = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjec
 
 const coin = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
   type: "coin",
+  meterOffset,
+  xRatio,
+  xOffsetPx,
+});
+
+const wheelIsland1 = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
+  type: "wheelIsland1",
+  meterOffset,
+  xRatio,
+  xOffsetPx,
+});
+
+const wheelIsland2 = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
+  type: "wheelIsland2",
   meterOffset,
   xRatio,
   xOffsetPx,
@@ -263,7 +266,7 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
       moneyDown(12, 0.58),
       moneyUp(18, 0.42),
       moneyDown(24, 0.72),
-      rock1(30, 0.14, -52),
+      reef1(30, 0.14, -52),
       moneyUp(36, 0.6),
       moneyDown(42, 0.3),
     ],
@@ -282,7 +285,7 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
       moneyDown(16, 0.62),
       moneyUp(24, 0.4),
       moneyDown(32, 0.76),
-      rock2(40, 0.88, 58),
+      reef1(40, 0.88, 58),
       moneyUp(50, 0.3),
       moneyDown(60, 0.68),
       moneyUp(70, 0.48),
@@ -334,9 +337,9 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     2,
     12,
     [
-      rock1(6, 0.1, -78),
-      rock2(14, 0.88, 74),
-      rock3(22, 0.52),
+      reef1(6, 0.1, -78),
+      reef1(14, 0.88, 74),
+      reef1(22, 0.52),
       moneyDown(30, 0.32),
       moneyUp(36, 0.7),
       whirlpool(42, 0.5),
@@ -353,13 +356,13 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     2,
     12,
     [
-      rock1(8, 0.1, -82),
-      rock2(18, 0.9, 70),
+      reef1(8, 0.1, -82),
+      reef1(18, 0.9, 70),
       moneyUp(28, 0.28),
-      rock3(38, 0.52),
+      reef1(38, 0.52),
       moneyDown(48, 0.72),
       whirlpool(54, 0.45),
-      rock1(68, 0.12, -82),
+      reef1(68, 0.12, -82),
       moneyDown(78, 0.32),
       coin(88, 0.68),
     ],
@@ -410,11 +413,11 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     8,
     12,
     [
-      rock1(6, 0.1, -78),
+      reef1(6, 0.1, -78),
       whirlpool(20, 0.46),
       coin(16, 0.36),
       coin(24, 0.64),
-      rock2(34, 0.9, 72),
+      reef1(34, 0.9, 72),
       whirlpool(46, 0.5),
       coin(44, 0.58),
     ],
@@ -429,15 +432,15 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     8,
     12,
     [
-      rock1(8, 0.1, -82),
+      reef1(8, 0.1, -82),
       whirlpool(20, 0.42),
       coin(22, 0.34),
       whirlpool(30, 0.58),
       coin(32, 0.66),
-      rock2(42, 0.9, 74),
+      reef1(42, 0.9, 74),
       whirlpool(58, 0.48),
       coin(60, 0.38),
-      rock3(76, 0.12, -76),
+      reef1(76, 0.12, -76),
       whirlpool(88, 0.5),
       coin(90, 0.56),
     ],
@@ -452,10 +455,10 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     2,
     12,
     [
-      rock1(7, 0.12, -72),
+      reef1(7, 0.12, -72),
       moneyUp(14, 0.42),
       moneyDown(21, 0.64),
-      rock2(28, 0.88, 66),
+      reef1(28, 0.88, 66),
       moneyUp(35, 0.32),
       moneyDown(42, 0.56),
     ],
@@ -502,8 +505,8 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     [
       whirlpool(8, 0.5),
       moneyDown(16, 0.5),
-      rock3(24, 0.14, -62),
-      rock2(32, 0.86, 62),
+      reef1(24, 0.14, -62),
+      reef1(32, 0.86, 62),
       moneyUp(40, 0.5),
       coin(48, 0.72),
     ],
@@ -516,11 +519,11 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     3,
     12,
     [
-      rock1(10, 0.08, -82),
+      reef1(10, 0.08, -82),
       mine(20, 0.2),
       dynamicBuoy(30, 0.8),
       moneyDown(40, 0.24),
-      rock2(50, 0.92, 70),
+      reef1(50, 0.92, 70),
       dynamicBuoy(70, 0.22),
       moneyUp(80, 0.74),
     ],
@@ -558,7 +561,7 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
       coin(50, 0.3),
       coin(80, 0.54),
       moneyDown(90, 0.74),
-      rock3(98, 0.12, -70),
+      reef1(98, 0.12, -70),
     ],
   ),
   tpl(
@@ -569,8 +572,8 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     2,
     12,
     [
-      rock1(8, 0.16, -66),
-      rock2(16, 0.84, 62),
+      reef1(8, 0.16, -66),
+      reef1(16, 0.84, 62),
       moneyDown(24, 0.52),
       moneyUp(32, 0.36),
       whirlpool(40, 0.64),
@@ -619,9 +622,34 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     [
       moneyUp(8, 0.28),
       moneyDown(16, 0.62),
-      rock1(24, 0.12, -64),
-      rock2(32, 0.88, 64),
+      reef1(24, 0.12, -64),
+      reef1(32, 0.88, 64),
     ],
+  ),
+];
+
+export const SKILL_WHEEL_ISLAND_SEGMENTS: SegmentTemplate[] = [
+  tpl(
+    "skill_wheel_island_earth1_50",
+    "skill_wheel_island_event",
+    50,
+    1,
+    5,
+    12,
+    [wheelIsland1(25, 0.5)],
+    3,
+    { early: 0, mid: 1, late: 1, endgame: 1 },
+  ),
+  tpl(
+    "skill_wheel_island_earth2_50",
+    "skill_wheel_island_event",
+    50,
+    1,
+    5,
+    12,
+    [wheelIsland2(25, 0.5)],
+    3,
+    { early: 0, mid: 1, late: 1, endgame: 1 },
   ),
 ];
 

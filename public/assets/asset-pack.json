@@ -62,19 +62,29 @@
                 "key": "time-bonus"
             },
             {
-                "url": "assets/speed_bonus.png",
-                "type": "image",
-                "key": "speed-bonus"
-            },
-            {
                 "url": "assets/time_bonus_shadow.png",
                 "type": "image",
                 "key": "time-bonus-shadow"
             },
             {
+                "url": "assets/speed_bonus.png",
+                "type": "image",
+                "key": "speed-bonus"
+            },
+            {
                 "url": "assets/speed_bonus_shadow.png",
                 "type": "image",
                 "key": "speed-bonus-shadow"
+            },
+            {
+                "url": "assets/wind_speed_bonus.png",
+                "type": "image",
+                "key": "wind-speed-bonus"
+            },
+            {
+                "url": "assets/wind_speed_bonus_shadow.png",
+                "type": "image",
+                "key": "wind-speed-bonus-shadow"
             },
             {
                 "url": "assets/coin.png",
@@ -95,6 +105,61 @@
                 "url": "assets/earth_3.png",
                 "type": "image",
                 "key": "earth-3"
+            },
+            {
+                "url": "assets/earth_1.png",
+                "type": "image",
+                "key": "earth-1"
+            },
+            {
+                "url": "assets/earth_2.png",
+                "type": "image",
+                "key": "earth-2"
+            },
+            {
+                "url": "assets/skill_wheel_sector_1.png",
+                "type": "image",
+                "key": "skill-wheel-sector-1"
+            },
+            {
+                "url": "assets/skill_wheel_sector_2.png",
+                "type": "image",
+                "key": "skill-wheel-sector-2"
+            },
+            {
+                "url": "assets/skill_wheel_sector_3.png",
+                "type": "image",
+                "key": "skill-wheel-sector-3"
+            },
+            {
+                "url": "assets/skill_wheel_bar_body.png",
+                "type": "image",
+                "key": "skill-wheel-bar-body"
+            },
+            {
+                "url": "assets/skill_wheel_arrow.png",
+                "type": "image",
+                "key": "skill-wheel-arrow"
+            },
+            {
+                "url": "assets/skill_wheel_bonus_1.png",
+                "type": "image",
+                "key": "skill-wheel-bonus-1"
+            },
+            {
+                "url": "assets/skill_wheel_bonus_2.png",
+                "type": "image",
+                "key": "skill-wheel-bonus-2"
+            },
+            {
+                "url": "assets/skill_wheel_bonus_3.png",
+                "type": "image",
+                "key": "skill-wheel-bonus-3"
+            },
+            {
+                "url": "assets/skill_wheel_bonus_4.png",
+                "type": "image",
+                "key": "skill-wheel-bonus-4"
             },
             {
                 "url": "assets/obstacle_move_mine.png",
@@ -125,6 +190,11 @@
                 "url": "assets/obstacle_static_rock_3.png",
                 "type": "image",
                 "key": "obstacle-rock-3"
+            },
+            {
+                "url": "assets/obstacle_static_reef_1.png",
+                "type": "image",
+                "key": "obstacle-reef-1"
             },
             {
                 "url": "assets/start_background.png",
