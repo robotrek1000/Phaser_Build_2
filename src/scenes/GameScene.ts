@@ -206,13 +206,20 @@ export default class GameScene extends Phaser.Scene {
   private yachtBody?: Phaser.Physics.Arcade.Sprite;
   private yachtHazardCollider?: Phaser.Physics.Arcade.Sprite;
   private yachtVisual?: Phaser.GameObjects.Image;
-  private yachtStageTransitionOverlay?: Phaser.GameObjects.Image;
+  private yachtStageTransitionOutgoingOverlay?: Phaser.GameObjects.Image;
+  private yachtStageTransitionIncomingOverlay?: Phaser.GameObjects.Image;
   private yachtStageTransitionTween?: Phaser.Tweens.Tween;
   private yachtStageTransitionLastAtMs = Number.NEGATIVE_INFINITY;
+  private yachtStagePendingTextureKey?: string;
   private introCinematicTravelTween?: Phaser.Tweens.Tween;
   private introCinematicVisualTween?: Phaser.Tweens.Tween;
   private introCinematicSpeedRampTween?: Phaser.Tweens.Tween;
   private introCinematicHoldTimer?: Phaser.Time.TimerEvent;
+  private introGoText?: Phaser.GameObjects.Text;
+  private introGoTextShowTimer?: Phaser.Time.TimerEvent;
+  private introGoTextScaleTween?: Phaser.Tweens.Tween;
+  private introGoTextMoveTween?: Phaser.Tweens.Tween;
+  private introGoTextFadeTween?: Phaser.Tweens.Tween;
   private deathCinematicLiftTween?: Phaser.Tweens.Tween;
   private deathCinematicFallTween?: Phaser.Tweens.Tween;
   private deathCinematicRotationTween?: Phaser.Tweens.Tween;
@@ -608,9 +615,7 @@ export default class GameScene extends Phaser.Scene {
     const nextYachtX = this.yachtBody.x;
     const nextYachtY = this.yachtBody.y + YACHT_VISUAL_OFFSET.y + swayOffset;
     this.yachtVisual.setPosition(nextYachtX, nextYachtY);
-    if (this.yachtStageTransitionOverlay?.active) {
-      this.yachtStageTransitionOverlay.setPosition(nextYachtX, nextYachtY);
-    }
+    this.syncYachtStageTransitionOverlays(nextYachtX, nextYachtY);
     if (this.yachtHazardCollider) {
       this.yachtHazardCollider.setPosition(
         this.yachtBody.x + (YACHT_HAZARD_HITBOX.offsetX ?? 0),
@@ -618,6 +623,35 @@ export default class GameScene extends Phaser.Scene {
       );
     }
     this.updateShieldVisualPosition();
+  }
+
+  private syncYachtStageTransitionOverlays(x: number, y: number) {
+    const outgoing = this.yachtStageTransitionOutgoingOverlay;
+    if (outgoing?.active) {
+      outgoing.setPosition(x, y);
+      outgoing.setScale(this.getYachtScaleForTextureKey(outgoing.texture.key, this.yachtVisual?.scaleX ?? 1));
+      if (this.yachtVisual) {
+        outgoing.setDepth(this.yachtVisual.depth + 0.001);
+      }
+    }
+
+    const incoming = this.yachtStageTransitionIncomingOverlay;
+    if (incoming?.active) {
+      incoming.setPosition(x, y);
+      incoming.setScale(this.getYachtScaleForTextureKey(incoming.texture.key, this.yachtVisual?.scaleX ?? 1));
+      if (this.yachtVisual) {
+        incoming.setDepth(this.yachtVisual.depth + 0.002);
+      }
+    }
+  }
+
+  private getYachtScaleForTextureKey(textureKey: string, fallbackScale: number) {
+    const frame = this.textures.getFrame(textureKey);
+    const frameHeight = frame?.realHeight ?? frame?.height ?? 0;
+    if (frameHeight <= 0) {
+      return fallbackScale;
+    }
+    return YACHT_VISUAL_SIZE.targetHeightPx / frameHeight;
   }
 
   private setRunFlowGameplayFrozen(frozen: boolean) {
@@ -657,10 +691,191 @@ export default class GameScene extends Phaser.Scene {
     this.introCinematicVisualTween?.stop();
     this.introCinematicSpeedRampTween?.stop();
     this.introCinematicHoldTimer?.remove(false);
+    this.stopIntroGoTextCinematic(RUN_CINEMATIC_CONFIG.intro.goText.lifecycle.killOnIntroStop);
     this.introCinematicTravelTween = undefined;
     this.introCinematicVisualTween = undefined;
     this.introCinematicSpeedRampTween = undefined;
     this.introCinematicHoldTimer = undefined;
+  }
+
+  private startIntroGoTextCinematic() {
+    const cfg = RUN_CINEMATIC_CONFIG.intro.goText;
+    if (!cfg.enabled) {
+      this.stopIntroGoTextCinematic(true);
+      return;
+    }
+
+    this.stopIntroGoTextCinematic(true);
+    this.introGoTextShowTimer = this.time.delayedCall(Math.max(0, cfg.showDelayMs), () => {
+      this.introGoTextShowTimer = undefined;
+      const text = this.createIntroGoTextNode();
+      if (!text) {
+        return;
+      }
+
+      if (cfg.debug.logLifecycle) {
+        // eslint-disable-next-line no-console
+        console.log("[run-cinematic] intro-go-text-show");
+      }
+
+      const startY = text.y;
+      if (cfg.yHop.enabled) {
+        this.introGoTextMoveTween = this.tweens.add({
+          targets: text,
+          y: startY - Math.max(0, cfg.yHop.upPx),
+          duration: Math.max(1, cfg.yHop.upDurationMs),
+          ease: cfg.yHop.upEase,
+          yoyo: !cfg.yHop.settleToStartY,
+          hold: 0,
+          onComplete: () => {
+            this.introGoTextMoveTween = undefined;
+            if (cfg.yHop.settleToStartY && text.active) {
+              this.introGoTextMoveTween = this.tweens.add({
+                targets: text,
+                y: startY,
+                duration: Math.max(1, cfg.yHop.downDurationMs),
+                ease: cfg.yHop.downEase,
+                onComplete: () => {
+                  this.introGoTextMoveTween = undefined;
+                },
+              });
+            }
+          },
+        });
+      }
+
+      this.introGoTextScaleTween = this.tweens.add({
+        targets: text,
+        scaleX: cfg.scale.to,
+        scaleY: cfg.scale.to,
+        alpha: cfg.alpha.to,
+        duration: Math.max(1, cfg.scale.inDurationMs),
+        ease: cfg.scale.inEase,
+        onComplete: () => {
+          this.introGoTextScaleTween = undefined;
+          this.introGoTextShowTimer = this.time.delayedCall(Math.max(0, cfg.scale.holdDurationMs), () => {
+            this.introGoTextShowTimer = undefined;
+            if (!text.active) {
+              return;
+            }
+
+            this.introGoTextScaleTween = this.tweens.add({
+              targets: text,
+              scaleX: cfg.scale.outTo,
+              scaleY: cfg.scale.outTo,
+              duration: Math.max(1, cfg.scale.outDurationMs),
+              ease: cfg.scale.outEase,
+              onComplete: () => {
+                this.introGoTextScaleTween = undefined;
+                if (cfg.lifecycle.autoDestroyOnComplete) {
+                  this.stopIntroGoTextCinematic(true);
+                }
+              },
+            });
+
+            if (cfg.alpha.linkToScaleTimeline) {
+              this.introGoTextFadeTween = this.tweens.add({
+                targets: text,
+                alpha: cfg.alpha.outTo,
+                duration: Math.max(1, cfg.scale.outDurationMs),
+                ease: cfg.scale.outEase,
+                onComplete: () => {
+                  this.introGoTextFadeTween = undefined;
+                },
+              });
+            }
+          });
+        },
+      });
+    });
+  }
+
+  private createIntroGoTextNode() {
+    const cfg = RUN_CINEMATIC_CONFIG.intro.goText;
+    const { x, y } = this.resolveIntroGoTextPosition();
+    const text = this.add.text(x, y, cfg.text, {
+      fontFamily: cfg.style.fontFamily,
+      fontSize: `${cfg.style.fontSizePx}px`,
+      fontStyle: cfg.style.fontStyle,
+      color: cfg.style.color,
+      align: cfg.style.align,
+    });
+    text.setDepth(cfg.depth);
+    text.setOrigin(cfg.style.originX, cfg.style.originY);
+    text.setScale(cfg.scale.from);
+    text.setAlpha(cfg.alpha.from);
+
+    if (cfg.style.stroke.enabled) {
+      text.setStroke(this.toCssColorWithAlpha(cfg.style.stroke.color, cfg.style.stroke.alpha), cfg.style.stroke.thicknessPx);
+    }
+    if (cfg.style.shadow.enabled) {
+      text.setShadow(
+        cfg.style.shadow.offsetX,
+        cfg.style.shadow.offsetY,
+        this.toCssColorWithAlpha(cfg.style.shadow.color, cfg.style.shadow.alpha),
+        cfg.style.shadow.blurPx,
+        false,
+        true,
+      );
+    }
+    this.introGoText = text;
+    return text;
+  }
+
+  private resolveIntroGoTextPosition() {
+    const cfg = RUN_CINEMATIC_CONFIG.intro.goText.position;
+    let x = this.scale.width * cfg.xRatio + cfg.offsetX;
+    let y = this.scale.height * cfg.yRatio + cfg.offsetY;
+
+    if (cfg.mode === "relativeToYacht" && this.yachtVisual) {
+      x = this.yachtVisual.x + cfg.offsetX;
+      y = this.yachtVisual.y + cfg.offsetY;
+    }
+
+    if (cfg.clampToViewport) {
+      x = Phaser.Math.Clamp(x, 0, this.scale.width);
+      y = Phaser.Math.Clamp(y, 0, this.scale.height);
+    }
+
+    return { x, y };
+  }
+
+  private stopIntroGoTextCinematic(destroyNode: boolean) {
+    this.introGoTextShowTimer?.remove(false);
+    this.introGoTextShowTimer = undefined;
+
+    this.introGoTextScaleTween?.stop();
+    this.introGoTextScaleTween = undefined;
+    this.introGoTextMoveTween?.stop();
+    this.introGoTextMoveTween = undefined;
+    this.introGoTextFadeTween?.stop();
+    this.introGoTextFadeTween = undefined;
+
+    if (destroyNode) {
+      this.introGoText?.destroy();
+      this.introGoText = undefined;
+      return;
+    }
+
+    this.introGoText?.setVisible(false);
+  }
+
+  private toCssColorWithAlpha(color: string, alpha: number) {
+    const a = Phaser.Math.Clamp(alpha, 0, 1);
+    if (!color.startsWith("#")) {
+      return color;
+    }
+    const normalized = color.replace("#", "");
+    if (normalized.length !== 6) {
+      return color;
+    }
+    const r = Number.parseInt(normalized.slice(0, 2), 16);
+    const g = Number.parseInt(normalized.slice(2, 4), 16);
+    const b = Number.parseInt(normalized.slice(4, 6), 16);
+    if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) {
+      return color;
+    }
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
   }
 
   private stopDeathCinematicRuntimes() {
@@ -698,6 +913,10 @@ export default class GameScene extends Phaser.Scene {
     this.stopYachtStageTransition();
     this.stopYachtSpeedMotionTweens();
     this.resetPointerControlState();
+    this.yachtStagePendingTextureKey = undefined;
+    this.yachtVisual.setVisible(true);
+    this.yachtVisual.setTexture("ship-1");
+    this.applyYachtVisualSizing();
     if (cfg.freezeGameplay) {
       this.setRunFlowGameplayFrozen(true);
     }
@@ -760,6 +979,7 @@ export default class GameScene extends Phaser.Scene {
         this.introCinematicVisualTween = undefined;
       },
     });
+    this.startIntroGoTextCinematic();
 
     if (cfg.debug.logLifecycle) {
       // eslint-disable-next-line no-console
@@ -6563,68 +6783,140 @@ export default class GameScene extends Phaser.Scene {
 
     const progressPercent = this.getAssetsProgress(fuel) * 100;
     const nextTexture = this.getShipTextureKeyByAssets(progressPercent);
-    if (this.yachtVisual.texture.key === nextTexture) {
+    const hasRunningTransition = !!(this.yachtStageTransitionTween && this.yachtStageTransitionTween.isPlaying());
+    const activeTransitionTexture = this.yachtStageTransitionIncomingOverlay?.texture.key;
+    if (!hasRunningTransition && this.yachtVisual.texture.key === nextTexture && !this.yachtStagePendingTextureKey) {
+      return;
+    }
+    if (hasRunningTransition && activeTransitionTexture === nextTexture && !this.yachtStagePendingTextureKey) {
       return;
     }
 
     const transitionCfg = SHIP_STAGE_TRANSITION;
     if (!transitionCfg.enabled) {
+      this.stopYachtStageTransition(true);
       this.yachtVisual.setTexture(nextTexture);
       this.applyYachtVisualSizing();
+      this.yachtVisual.setVisible(true);
+      this.yachtVisual.setAlpha(1);
+      this.yachtStagePendingTextureKey = undefined;
       return;
     }
 
     if (transitionCfg.respectShieldBlink && this.isYachtFeedbackTintActive()) {
-      this.yachtVisual.setTexture(nextTexture);
-      this.applyYachtVisualSizing();
+      this.yachtStagePendingTextureKey = nextTexture;
       return;
     }
 
     const now = this.time.now;
     if (now - this.yachtStageTransitionLastAtMs < transitionCfg.minIntervalMs) {
+      if (transitionCfg.minIntervalBehavior === "queue") {
+        this.yachtStagePendingTextureKey = nextTexture;
+        return;
+      }
+
+      this.stopYachtStageTransition(true);
       this.yachtVisual.setTexture(nextTexture);
       this.applyYachtVisualSizing();
+      this.yachtVisual.setVisible(true);
+      this.yachtVisual.setAlpha(1);
+      this.yachtStagePendingTextureKey = undefined;
+      this.yachtStageTransitionLastAtMs = now;
       return;
     }
 
-    const hasRunningTransition = !!(this.yachtStageTransitionTween && this.yachtStageTransitionTween.isPlaying());
     if (hasRunningTransition && transitionCfg.interruptPolicy === "skip") {
+      this.yachtStagePendingTextureKey = nextTexture;
       return;
     }
 
-    this.stopYachtStageTransition();
+    if (hasRunningTransition && transitionCfg.interruptPolicy === "replace") {
+      this.stopYachtStageTransition(true);
+    }
 
-    const overlay = this.add.image(this.yachtVisual.x, this.yachtVisual.y, this.yachtVisual.texture.key);
-    overlay.setScale(this.yachtVisual.scaleX, this.yachtVisual.scaleY);
-    overlay.setDepth(this.yachtVisual.depth + 0.001);
-    overlay.setAlpha(this.yachtVisual.alpha);
-    this.yachtStageTransitionOverlay = overlay;
+    const pendingTexture = this.yachtStagePendingTextureKey;
+    const targetTexture = pendingTexture ?? nextTexture;
+    if (this.yachtVisual.texture.key === targetTexture) {
+      this.yachtStagePendingTextureKey = undefined;
+      return;
+    }
 
-    this.yachtVisual.setTexture(nextTexture);
-    this.applyYachtVisualSizing();
+    this.startYachtStageTransition(targetTexture, now);
+    this.yachtStagePendingTextureKey = undefined;
+  }
+
+  private startYachtStageTransition(nextTexture: string, now: number) {
+    if (!this.yachtVisual) {
+      return;
+    }
+
+    this.stopYachtStageTransition(true);
+    const transitionCfg = SHIP_STAGE_TRANSITION;
+
+    const outgoing = this.add.image(this.yachtVisual.x, this.yachtVisual.y, this.yachtVisual.texture.key);
+    outgoing.setScale(this.getYachtScaleForTextureKey(outgoing.texture.key, this.yachtVisual.scaleX));
+    outgoing.setDepth(this.yachtVisual.depth + 0.001);
+    outgoing.setAlpha(transitionCfg.outgoingAlphaFrom);
+
+    const incoming = this.add.image(this.yachtVisual.x, this.yachtVisual.y, nextTexture);
+    incoming.setScale(this.getYachtScaleForTextureKey(nextTexture, this.yachtVisual.scaleX));
+    incoming.setDepth(this.yachtVisual.depth + 0.002);
+    incoming.setAlpha(transitionCfg.incomingAlphaFrom);
+
+    this.yachtStageTransitionOutgoingOverlay = outgoing;
+    this.yachtStageTransitionIncomingOverlay = incoming;
+    this.yachtVisual.setVisible(false);
     this.yachtStageTransitionLastAtMs = now;
 
+    const blendState = { t: 0 };
     this.yachtStageTransitionTween = this.tweens.add({
-      targets: overlay,
-      alpha: 0,
+      targets: blendState,
+      t: 1,
       duration: transitionCfg.durationMs,
       ease: transitionCfg.ease,
+      onUpdate: () => {
+        const t = Phaser.Math.Clamp(blendState.t, 0, 1);
+        outgoing.setAlpha(Phaser.Math.Linear(transitionCfg.outgoingAlphaFrom, transitionCfg.outgoingAlphaTo, t));
+        incoming.setAlpha(Phaser.Math.Linear(transitionCfg.incomingAlphaFrom, transitionCfg.incomingAlphaTo, t));
+      },
       onComplete: () => {
-        overlay.destroy();
-        if (this.yachtStageTransitionOverlay === overlay) {
-          this.yachtStageTransitionOverlay = undefined;
+        if (this.yachtVisual) {
+          this.yachtVisual.setTexture(nextTexture);
+          this.applyYachtVisualSizing();
+          this.yachtVisual.setVisible(true);
+          this.yachtVisual.setAlpha(1);
+        }
+        outgoing.destroy();
+        incoming.destroy();
+        if (this.yachtStageTransitionOutgoingOverlay === outgoing) {
+          this.yachtStageTransitionOutgoingOverlay = undefined;
+        }
+        if (this.yachtStageTransitionIncomingOverlay === incoming) {
+          this.yachtStageTransitionIncomingOverlay = undefined;
         }
         this.yachtStageTransitionTween = undefined;
       },
     });
   }
 
-  private stopYachtStageTransition() {
+  private stopYachtStageTransition(commitIncomingTexture = false) {
     this.yachtStageTransitionTween?.stop();
     this.yachtStageTransitionTween = undefined;
-    if (this.yachtStageTransitionOverlay) {
-      this.yachtStageTransitionOverlay.destroy();
-      this.yachtStageTransitionOverlay = undefined;
+
+    if (commitIncomingTexture && this.yachtVisual && this.yachtStageTransitionIncomingOverlay?.active) {
+      this.yachtVisual.setTexture(this.yachtStageTransitionIncomingOverlay.texture.key);
+      this.applyYachtVisualSizing();
+    }
+
+    this.yachtVisual?.setVisible(true);
+
+    if (this.yachtStageTransitionOutgoingOverlay) {
+      this.yachtStageTransitionOutgoingOverlay.destroy();
+      this.yachtStageTransitionOutgoingOverlay = undefined;
+    }
+    if (this.yachtStageTransitionIncomingOverlay) {
+      this.yachtStageTransitionIncomingOverlay.destroy();
+      this.yachtStageTransitionIncomingOverlay = undefined;
     }
   }
 
@@ -7926,6 +8218,7 @@ export default class GameScene extends Phaser.Scene {
 
   private resetState() {
     this.stopRunFlowCinematics();
+    this.stopIntroGoTextCinematic(RUN_CINEMATIC_CONFIG.intro.goText.lifecycle.killOnSceneShutdown);
     this.isGameOver = false;
     this.runFlowState = "normal";
     this.pendingFailureReason = undefined;
@@ -7962,6 +8255,7 @@ export default class GameScene extends Phaser.Scene {
     this.speedBonusLockedKmh = undefined;
     this.speedBonusDecayActive = false;
     this.yachtStageTransitionLastAtMs = Number.NEGATIVE_INFINITY;
+    this.yachtStagePendingTextureKey = undefined;
     this.obstacleSlowdownUntilMs = Number.NEGATIVE_INFINITY;
     this.seaStageIndex = 0;
     this.seaTransitionIndex = -1;
@@ -7999,12 +8293,15 @@ export default class GameScene extends Phaser.Scene {
     this.yachtBody?.destroy();
     this.yachtHazardCollider?.destroy();
     this.yachtVisual?.destroy();
-    this.yachtStageTransitionOverlay?.destroy();
+    this.yachtStageTransitionOutgoingOverlay?.destroy();
+    this.yachtStageTransitionIncomingOverlay?.destroy();
     this.yachtBody = undefined;
     this.yachtHazardCollider = undefined;
     this.yachtVisual = undefined;
-    this.yachtStageTransitionOverlay = undefined;
+    this.yachtStageTransitionOutgoingOverlay = undefined;
+    this.yachtStageTransitionIncomingOverlay = undefined;
     this.yachtStageTransitionTween = undefined;
+    this.yachtStagePendingTextureKey = undefined;
 
     this.assetsBarGraphics?.destroy();
     this.assetsBarGraphics = undefined;
