@@ -587,7 +587,7 @@ export const RUN_CINEMATIC_CONFIG = {
     disableRunTimer: true,
     disableSkillWheel: true,
     spawnOffsetFromBottomPx: 180,
-    travelDurationMs: 900,
+    travelDurationMs: 1800,
     travelEase: "Sine.easeOut",
     startAlpha: 1,
     endAlpha: 1,
@@ -602,7 +602,7 @@ export const RUN_CINEMATIC_CONFIG = {
     goText: {
       enabled: true,
       text: "ВПЕРЁД!",
-      showDelayMs: 120,
+      showDelayMs: 1200,
       depth: 260,
       position: {
         mode: "screenRatio" as "screenRatio" | "relativeToYacht",
@@ -653,7 +653,7 @@ export const RUN_CINEMATIC_CONFIG = {
       },
       yHop: {
         enabled: true,
-        upPx: 26,
+        upPx: 64,
         upDurationMs: 150,
         downDurationMs: 230,
         upEase: "Sine.easeOut",
