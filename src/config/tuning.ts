@@ -578,6 +578,73 @@ export const RUN_START_SPEED = {
   startDropKmh: 0,
 } as const;
 
+export const RUN_CINEMATIC_CONFIG = {
+  intro: {
+    enabled: true,
+    freezeGameplay: true,
+    disableInput: true,
+    disableCollisions: true,
+    disableRunTimer: true,
+    disableSkillWheel: true,
+    spawnOffsetFromBottomPx: 180,
+    travelDurationMs: 900,
+    travelEase: "Sine.easeOut",
+    startAlpha: 1,
+    endAlpha: 1,
+    startScale: 0.96,
+    endScale: 1,
+    speedRampEnabled: true,
+    speedRampDurationMs: 1_000,
+    speedRampEase: "Sine.easeInOut",
+    startWorldSpeedScale: 0,
+    endWorldSpeedScale: 1,
+    holdAfterArrivalMs: 0,
+    debug: {
+      logLifecycle: false,
+    },
+  },
+  death: {
+    enabled: true,
+    freezeGameplay: true,
+    disableInput: true,
+    disableCollisions: true,
+    disableRunTimer: true,
+    disableSkillWheel: true,
+    triggerReasons: {
+      hit_hazard: true,
+      out_of_time: true,
+    },
+    preLiftY: 72,
+    preLiftDurationMs: 220,
+    preLiftEase: "Sine.easeOut",
+    rotationTurns: 2.2,
+    rotationDirection: "auto" as "cw" | "ccw" | "auto",
+    rotationDurationMs: 900,
+    rotationEase: "Sine.easeIn",
+    fallDistanceToOffscreenPx: 520,
+    fallExtraBottomPaddingPx: 120,
+    fallDurationMs: 900,
+    fallEase: "Sine.easeIn",
+    fadeOutEnabled: false,
+    fadeOutStartMs: 520,
+    fadeOutDurationMs: 380,
+    fallSpeedDampen: {
+      enabled: true,
+      durationMs: 1_000,
+      ease: "Sine.easeOut",
+      fromScale: 1,
+      toScale: 0,
+    },
+    resultTransition: {
+      onCompleteOnly: true,
+      fallbackTimeoutMs: 4_000,
+    },
+    debug: {
+      logLifecycle: false,
+    },
+  },
+} as const;
+
 export const RUN_SPEED_RAMP = {
   startKmh: 30,
   everyMeters: 100,
@@ -992,6 +1059,8 @@ export const YACHT_VISUAL_SIZE = {
 export const YACHT_VISUAL_OFFSET = {
   y: 32,
 } as const;
+
+export const YACHT_VISUAL_DEPTH = 14;
 
 export const YACHT_START_POSITION = {
   xRatio: 0.5,
@@ -1658,7 +1727,7 @@ export const ROCK_CONFIG = {
 
 export const REEF_CONFIG = {
   common: {
-    depth: 15,
+    depth: 13,
     speedYMultiplier: 1,
     damageEnabled: true,
     collisionCooldownMs: 220,

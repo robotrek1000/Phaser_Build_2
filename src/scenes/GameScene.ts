@@ -32,6 +32,7 @@ import {
   RELATIVE_TOUCH_CONTROL,
   RELATIVE_TOUCH_ROUTING,
   ROCK_CONFIG,
+  RUN_CINEMATIC_CONFIG,
   RUN_SPEED_RAMP,
   RUN_START_SPEED,
   RUN_TIMER,
@@ -65,6 +66,7 @@ import {
   YACHT_SPEED_Y_ANIM,
   YACHT_START_POSITION,
   YACHT_SWAY,
+  YACHT_VISUAL_DEPTH,
   YACHT_VISUAL_OFFSET,
   YACHT_VISUAL_SIZE,
 } from "../config/tuning";
@@ -83,6 +85,7 @@ import {
 type SuccessReason = "success_harbor_610";
 type FailureReason = "out_of_time" | "hit_hazard";
 type ResultReason = FailureReason | SuccessReason;
+type RunFlowState = "normal" | "intro" | "death" | "result_pending";
 type ControlPlatform = "desktop" | "mobile";
 type ControlModel = "delta" | "anchorRebase";
 type HazardType = "mine" | "pirate" | "moneyDown" | "dynamicBuoy" | "whirlpool";
@@ -206,6 +209,16 @@ export default class GameScene extends Phaser.Scene {
   private yachtStageTransitionOverlay?: Phaser.GameObjects.Image;
   private yachtStageTransitionTween?: Phaser.Tweens.Tween;
   private yachtStageTransitionLastAtMs = Number.NEGATIVE_INFINITY;
+  private introCinematicTravelTween?: Phaser.Tweens.Tween;
+  private introCinematicVisualTween?: Phaser.Tweens.Tween;
+  private introCinematicSpeedRampTween?: Phaser.Tweens.Tween;
+  private introCinematicHoldTimer?: Phaser.Time.TimerEvent;
+  private deathCinematicLiftTween?: Phaser.Tweens.Tween;
+  private deathCinematicFallTween?: Phaser.Tweens.Tween;
+  private deathCinematicRotationTween?: Phaser.Tweens.Tween;
+  private deathCinematicFadeTween?: Phaser.Tweens.Tween;
+  private deathCinematicSpeedDampenTween?: Phaser.Tweens.Tween;
+  private deathCinematicFallbackTimer?: Phaser.Time.TimerEvent;
 
   private hazards!: Phaser.Physics.Arcade.Group;
   private moneyUps!: Phaser.Physics.Arcade.Group;
@@ -267,6 +280,10 @@ export default class GameScene extends Phaser.Scene {
   private shieldVisualScaleFactor = 1;
 
   private isGameOver = false;
+  private runFlowState: RunFlowState = "normal";
+  private pendingFailureReason?: FailureReason;
+  private cinematicWorldSpeedScale = 1;
+  private runFlowPhysicsPaused = false;
   private speedKmh = Math.max(0, RUN_SPEED_RAMP.startKmh - RUN_START_SPEED.startDropKmh);
   private distanceM = 0;
   private assetsValue = TUNING.FUEL_START;
@@ -302,6 +319,10 @@ export default class GameScene extends Phaser.Scene {
   private readonly worldDarkeningAppliedIntensity = new WeakMap<object, number>();
 
   private readonly onPointerDown = (pointer: Phaser.Input.Pointer) => {
+    if (!this.isRunInputAllowed()) {
+      return;
+    }
+
     if (this.handleSkillWheelPointerDown(pointer)) {
       return;
     }
@@ -318,6 +339,10 @@ export default class GameScene extends Phaser.Scene {
   };
 
   private readonly onPointerUp = (pointer: Phaser.Input.Pointer) => {
+    if (!this.isRunInputAllowed()) {
+      return;
+    }
+
     if (this.isSkillWheelModalBlockingGameplay()) {
       return;
     }
@@ -334,6 +359,10 @@ export default class GameScene extends Phaser.Scene {
   };
 
   private readonly onPointerMove = (pointer: Phaser.Input.Pointer) => {
+    if (!this.isRunInputAllowed()) {
+      return;
+    }
+
     if (this.isSkillWheelModalBlockingGameplay()) {
       return;
     }
@@ -381,9 +410,36 @@ export default class GameScene extends Phaser.Scene {
     this.setupCollisions();
     this.buildRunSegmentSchedule();
     this.updateTimerHud();
+    this.startIntroCinematic();
   }
 
   update(_time: number, delta: number) {
+    if (this.runFlowState === "intro") {
+      this.updateIntroCinematic(delta);
+      this.updateCinematicWorldScroll(delta);
+      this.updateAssetsBar(this.assetsValue);
+      this.updateTopProgressUi();
+      this.updateCoinsHud();
+      this.updateTimerHud();
+      this.updateShieldButtonState();
+      this.updateShieldVisualPresentation();
+      this.updateHitboxDebugOverlay();
+      return;
+    }
+
+    if (this.runFlowState === "death" || this.runFlowState === "result_pending") {
+      this.updateDeathCinematic(delta);
+      this.updateCinematicWorldScroll(delta);
+      this.updateAssetsBar(this.assetsValue);
+      this.updateTopProgressUi();
+      this.updateCoinsHud();
+      this.updateTimerHud();
+      this.updateShieldButtonState();
+      this.updateShieldVisualPresentation();
+      this.updateHitboxDebugOverlay();
+      return;
+    }
+
     if (this.isGameOver) {
       return;
     }
@@ -504,29 +560,14 @@ export default class GameScene extends Phaser.Scene {
     this.cleanupFallingObjects();
     this.pruneOldCollisionMaps();
 
+    const worldSpeedScale = Phaser.Math.Clamp(this.cinematicWorldSpeedScale, 0, 1);
     const extra = Math.max(0, this.speedKmh - 20) * WATER_SCROLL.extraPerKmhAfter20;
-    const scrollSpeed = WATER_SCROLL.baseSpeed + this.speedKmh * WATER_SCROLL.perKmh + extra;
+    const scrollSpeed = (WATER_SCROLL.baseSpeed + this.speedKmh * WATER_SCROLL.perKmh + extra) * worldSpeedScale;
     const scrollDeltaPx = delta * scrollSpeed;
     this.updateSeaBackgroundState(scrollDeltaPx, speedMps * dt);
     this.scrollWaterBackground(scrollDeltaPx);
 
-    if (this.yachtBody && this.yachtVisual) {
-      this.swayTime += delta / 1000;
-      const swayOffset = Math.sin(this.swayTime * YACHT_SWAY.frequencyHz) * YACHT_SWAY.amplitudePx;
-      const nextYachtX = this.yachtBody.x;
-      const nextYachtY = this.yachtBody.y + YACHT_VISUAL_OFFSET.y + swayOffset;
-      this.yachtVisual.setPosition(nextYachtX, nextYachtY);
-      if (this.yachtStageTransitionOverlay?.active) {
-        this.yachtStageTransitionOverlay.setPosition(nextYachtX, nextYachtY);
-      }
-      if (this.yachtHazardCollider) {
-        this.yachtHazardCollider.setPosition(
-          this.yachtBody.x + (YACHT_HAZARD_HITBOX.offsetX ?? 0),
-          this.yachtBody.y + (YACHT_HAZARD_HITBOX.offsetY ?? 0),
-        );
-      }
-      this.updateShieldVisualPosition();
-    }
+    this.syncYachtVisualFromBody(true, delta);
 
     this.updateYachtStageTextureByAssets(this.assetsValue);
     this.updateAssetsBar(this.assetsValue);
@@ -537,6 +578,431 @@ export default class GameScene extends Phaser.Scene {
     this.updateShieldVisualPresentation();
     this.applyWorldDarkening(this.seaCurrentDarkeningIntensity);
     this.updateHitboxDebugOverlay();
+  }
+
+  private isRunInputAllowed() {
+    if (this.runFlowState === "intro") {
+      return !RUN_CINEMATIC_CONFIG.intro.disableInput;
+    }
+    if (this.runFlowState === "death" || this.runFlowState === "result_pending") {
+      return !RUN_CINEMATIC_CONFIG.death.disableInput;
+    }
+    return true;
+  }
+
+  private isGameplayInteractionAllowed() {
+    return this.runFlowState === "normal" && !this.isGameOver;
+  }
+
+  private syncYachtVisualFromBody(applySway: boolean, deltaMs = 0) {
+    if (!this.yachtBody || !this.yachtVisual) {
+      return;
+    }
+
+    if (applySway) {
+      this.swayTime += deltaMs / 1000;
+    }
+    const swayOffset = applySway
+      ? Math.sin(this.swayTime * YACHT_SWAY.frequencyHz) * YACHT_SWAY.amplitudePx
+      : 0;
+    const nextYachtX = this.yachtBody.x;
+    const nextYachtY = this.yachtBody.y + YACHT_VISUAL_OFFSET.y + swayOffset;
+    this.yachtVisual.setPosition(nextYachtX, nextYachtY);
+    if (this.yachtStageTransitionOverlay?.active) {
+      this.yachtStageTransitionOverlay.setPosition(nextYachtX, nextYachtY);
+    }
+    if (this.yachtHazardCollider) {
+      this.yachtHazardCollider.setPosition(
+        this.yachtBody.x + (YACHT_HAZARD_HITBOX.offsetX ?? 0),
+        this.yachtBody.y + (YACHT_HAZARD_HITBOX.offsetY ?? 0),
+      );
+    }
+    this.updateShieldVisualPosition();
+  }
+
+  private setRunFlowGameplayFrozen(frozen: boolean) {
+    if (frozen) {
+      if (!this.runFlowPhysicsPaused) {
+        this.physics.world.pause();
+        this.runFlowPhysicsPaused = true;
+      }
+      return;
+    }
+
+    if (!this.runFlowPhysicsPaused) {
+      return;
+    }
+
+    const shouldRemainPausedForWheel =
+      this.isSkillWheelModalBlockingGameplay() && SKILL_WHEEL_EVENT_CONFIG.pause.freezeWorldUpdates;
+    if (!shouldRemainPausedForWheel) {
+      this.physics.world.resume();
+    }
+    this.runFlowPhysicsPaused = false;
+  }
+
+  private setYachtCollisionBodiesEnabled(enabled: boolean) {
+    const yachtBody = this.yachtBody?.body as Phaser.Physics.Arcade.Body | undefined;
+    if (yachtBody) {
+      yachtBody.enable = enabled;
+    }
+    const hazardBody = this.yachtHazardCollider?.body as Phaser.Physics.Arcade.Body | undefined;
+    if (hazardBody) {
+      hazardBody.enable = enabled;
+    }
+  }
+
+  private stopIntroCinematicRuntimes() {
+    this.introCinematicTravelTween?.stop();
+    this.introCinematicVisualTween?.stop();
+    this.introCinematicSpeedRampTween?.stop();
+    this.introCinematicHoldTimer?.remove(false);
+    this.introCinematicTravelTween = undefined;
+    this.introCinematicVisualTween = undefined;
+    this.introCinematicSpeedRampTween = undefined;
+    this.introCinematicHoldTimer = undefined;
+  }
+
+  private stopDeathCinematicRuntimes() {
+    this.deathCinematicLiftTween?.stop();
+    this.deathCinematicFallTween?.stop();
+    this.deathCinematicRotationTween?.stop();
+    this.deathCinematicFadeTween?.stop();
+    this.deathCinematicSpeedDampenTween?.stop();
+    this.deathCinematicFallbackTimer?.remove(false);
+    this.deathCinematicLiftTween = undefined;
+    this.deathCinematicFallTween = undefined;
+    this.deathCinematicRotationTween = undefined;
+    this.deathCinematicFadeTween = undefined;
+    this.deathCinematicSpeedDampenTween = undefined;
+    this.deathCinematicFallbackTimer = undefined;
+  }
+
+  private stopRunFlowCinematics() {
+    this.stopIntroCinematicRuntimes();
+    this.stopDeathCinematicRuntimes();
+  }
+
+  private startIntroCinematic() {
+    this.stopIntroCinematicRuntimes();
+
+    const cfg = RUN_CINEMATIC_CONFIG.intro;
+    if (!cfg.enabled || !this.yachtBody || !this.yachtVisual) {
+      this.runFlowState = "normal";
+      this.cinematicWorldSpeedScale = 1;
+      return;
+    }
+
+    this.runFlowState = "intro";
+    this.pendingFailureReason = undefined;
+    this.stopYachtStageTransition();
+    this.stopYachtSpeedMotionTweens();
+    this.resetPointerControlState();
+    if (cfg.freezeGameplay) {
+      this.setRunFlowGameplayFrozen(true);
+    }
+    if (cfg.disableCollisions) {
+      this.setYachtCollisionBodiesEnabled(false);
+    }
+
+    this.cinematicWorldSpeedScale = Phaser.Math.Clamp(cfg.startWorldSpeedScale, 0, 1);
+
+    const targetBodyX = this.yachtBody.x;
+    const targetBodyY = this.yachtBody.y;
+    const spawnVisualY = this.scale.height + Math.max(0, cfg.spawnOffsetFromBottomPx);
+    const spawnBodyY = spawnVisualY - YACHT_VISUAL_OFFSET.y;
+
+    this.yachtBody.setPosition(targetBodyX, spawnBodyY);
+    if (this.yachtHazardCollider) {
+      this.yachtHazardCollider.setPosition(
+        targetBodyX + (YACHT_HAZARD_HITBOX.offsetX ?? 0),
+        spawnBodyY + (YACHT_HAZARD_HITBOX.offsetY ?? 0),
+      );
+    }
+    this.syncYachtVisualFromBody(false, 0);
+
+    const baseScaleX = this.yachtVisual.scaleX;
+    const baseScaleY = this.yachtVisual.scaleY;
+    this.yachtVisual.setScale(baseScaleX * cfg.startScale, baseScaleY * cfg.startScale);
+    this.yachtVisual.setAlpha(cfg.startAlpha);
+
+    this.introCinematicTravelTween = this.tweens.add({
+      targets: this.yachtBody,
+      y: targetBodyY,
+      duration: Math.max(1, cfg.travelDurationMs),
+      ease: cfg.travelEase,
+      onUpdate: () => {
+        this.syncYachtVisualFromBody(false, 0);
+      },
+      onComplete: () => {
+        this.introCinematicTravelTween = undefined;
+        this.syncYachtVisualFromBody(false, 0);
+        const holdMs = Math.max(0, cfg.holdAfterArrivalMs);
+        if (holdMs > 0) {
+          this.introCinematicHoldTimer = this.time.delayedCall(holdMs, () => {
+            this.introCinematicHoldTimer = undefined;
+            this.beginIntroSpeedRamp();
+          });
+        } else {
+          this.beginIntroSpeedRamp();
+        }
+      },
+    });
+
+    this.introCinematicVisualTween = this.tweens.add({
+      targets: this.yachtVisual,
+      alpha: cfg.endAlpha,
+      scaleX: baseScaleX * cfg.endScale,
+      scaleY: baseScaleY * cfg.endScale,
+      duration: Math.max(1, cfg.travelDurationMs),
+      ease: cfg.travelEase,
+      onComplete: () => {
+        this.introCinematicVisualTween = undefined;
+      },
+    });
+
+    if (cfg.debug.logLifecycle) {
+      // eslint-disable-next-line no-console
+      console.log("[run-cinematic] intro-start");
+    }
+  }
+
+  private beginIntroSpeedRamp() {
+    const cfg = RUN_CINEMATIC_CONFIG.intro;
+    if (!cfg.speedRampEnabled) {
+      this.completeIntroCinematic();
+      return;
+    }
+
+    this.introCinematicSpeedRampTween?.stop();
+    this.introCinematicSpeedRampTween = this.tweens.add({
+      targets: this,
+      cinematicWorldSpeedScale: Phaser.Math.Clamp(cfg.endWorldSpeedScale, 0, 1),
+      duration: Math.max(1, cfg.speedRampDurationMs),
+      ease: cfg.speedRampEase,
+      onComplete: () => {
+        this.introCinematicSpeedRampTween = undefined;
+        this.completeIntroCinematic();
+      },
+    });
+  }
+
+  private completeIntroCinematic() {
+    const cfg = RUN_CINEMATIC_CONFIG.intro;
+    if (this.runFlowState !== "intro") {
+      return;
+    }
+
+    this.stopIntroCinematicRuntimes();
+    this.cinematicWorldSpeedScale = Phaser.Math.Clamp(cfg.endWorldSpeedScale, 0, 1);
+    this.runFlowState = "normal";
+    if (cfg.freezeGameplay) {
+      this.setRunFlowGameplayFrozen(false);
+    }
+    if (cfg.disableCollisions) {
+      this.setYachtCollisionBodiesEnabled(true);
+    }
+    this.syncYachtVisualFromBody(false, 0);
+
+    if (cfg.debug.logLifecycle) {
+      // eslint-disable-next-line no-console
+      console.log("[run-cinematic] intro-complete");
+    }
+  }
+
+  private updateIntroCinematic(_deltaMs: number) {
+    this.syncYachtVisualFromBody(false, 0);
+  }
+
+  private startDeathCinematic(reason: FailureReason) {
+    const cfg = RUN_CINEMATIC_CONFIG.death;
+    this.pendingFailureReason = reason;
+    if (!cfg.enabled || !cfg.triggerReasons[reason]) {
+      this.isGameOver = true;
+      this.prepareRunEndCleanup();
+      this.completeDeathCinematic();
+      return;
+    }
+
+    this.stopRunFlowCinematics();
+    this.isGameOver = true;
+    this.runFlowState = "death";
+    this.prepareRunEndCleanup();
+    this.resetPointerControlState();
+    this.stopYachtStageTransition();
+    this.stopYachtSpeedMotionTweens();
+
+    if (cfg.freezeGameplay) {
+      this.setRunFlowGameplayFrozen(true);
+    }
+    if (cfg.disableCollisions) {
+      this.setYachtCollisionBodiesEnabled(false);
+    }
+
+    if (cfg.fallSpeedDampen.enabled) {
+      this.cinematicWorldSpeedScale = Phaser.Math.Clamp(cfg.fallSpeedDampen.fromScale, 0, 1);
+      this.deathCinematicSpeedDampenTween = this.tweens.add({
+        targets: this,
+        cinematicWorldSpeedScale: Phaser.Math.Clamp(cfg.fallSpeedDampen.toScale, 0, 1),
+        duration: Math.max(1, cfg.fallSpeedDampen.durationMs),
+        ease: cfg.fallSpeedDampen.ease,
+        onComplete: () => {
+          this.deathCinematicSpeedDampenTween = undefined;
+        },
+      });
+    } else {
+      this.cinematicWorldSpeedScale = 1;
+    }
+
+    if (!this.yachtVisual) {
+      this.completeDeathCinematic();
+      return;
+    }
+
+    const visual = this.yachtVisual;
+    visual.setAlpha(1);
+    const liftTargetY = visual.y - Math.max(0, cfg.preLiftY);
+    this.deathCinematicLiftTween = this.tweens.add({
+      targets: visual,
+      y: liftTargetY,
+      duration: Math.max(1, cfg.preLiftDurationMs),
+      ease: cfg.preLiftEase,
+      onComplete: () => {
+        this.deathCinematicLiftTween = undefined;
+        this.beginDeathSpinAndFall();
+      },
+    });
+
+    this.deathCinematicFallbackTimer = this.time.delayedCall(
+      Math.max(1, cfg.resultTransition.fallbackTimeoutMs),
+      () => this.completeDeathCinematic(),
+    );
+
+    if (cfg.debug.logLifecycle) {
+      // eslint-disable-next-line no-console
+      console.log("[run-cinematic] death-start", { reason });
+    }
+  }
+
+  private beginDeathSpinAndFall() {
+    if (!this.yachtVisual || this.runFlowState !== "death") {
+      this.completeDeathCinematic();
+      return;
+    }
+
+    const cfg = RUN_CINEMATIC_CONFIG.death;
+    const visual = this.yachtVisual;
+    const rotationSign = cfg.rotationDirection === "ccw" ? -1 : 1;
+    const rotationDelta = Math.PI * 2 * cfg.rotationTurns * rotationSign;
+    const fallTargetY = Math.max(
+      visual.y + Math.max(0, cfg.fallDistanceToOffscreenPx),
+      this.scale.height + Math.max(0, cfg.fallExtraBottomPaddingPx) + visual.displayHeight * 0.5,
+    );
+
+    let rotationDone = false;
+    let fallDone = false;
+    let fadeDone = !cfg.fadeOutEnabled;
+    const tryComplete = () => {
+      if (!cfg.resultTransition.onCompleteOnly || (rotationDone && fallDone && fadeDone)) {
+        this.completeDeathCinematic();
+      }
+    };
+
+    this.deathCinematicRotationTween = this.tweens.add({
+      targets: visual,
+      rotation: visual.rotation + rotationDelta,
+      duration: Math.max(1, cfg.rotationDurationMs),
+      ease: cfg.rotationEase,
+      onComplete: () => {
+        this.deathCinematicRotationTween = undefined;
+        rotationDone = true;
+        tryComplete();
+      },
+    });
+
+    this.deathCinematicFallTween = this.tweens.add({
+      targets: visual,
+      y: fallTargetY,
+      duration: Math.max(1, cfg.fallDurationMs),
+      ease: cfg.fallEase,
+      onComplete: () => {
+        this.deathCinematicFallTween = undefined;
+        fallDone = true;
+        tryComplete();
+      },
+    });
+
+    if (cfg.fadeOutEnabled) {
+      this.deathCinematicFadeTween = this.tweens.add({
+        targets: visual,
+        alpha: 0,
+        duration: Math.max(1, cfg.fadeOutDurationMs),
+        delay: Math.max(0, cfg.fadeOutStartMs),
+        ease: "Linear",
+        onComplete: () => {
+          this.deathCinematicFadeTween = undefined;
+          fadeDone = true;
+          tryComplete();
+        },
+      });
+    }
+  }
+
+  private updateDeathCinematic(_deltaMs: number) {
+    // Death cinematic is driven by tweens; update branch keeps gameplay frozen.
+  }
+
+  private updateCinematicWorldScroll(deltaMs: number) {
+    const dt = deltaMs / 1000;
+    const speedMps = (this.speedKmh * 1000) / 3600;
+    const worldSpeedScale = Phaser.Math.Clamp(this.cinematicWorldSpeedScale, 0, 1);
+    const extra = Math.max(0, this.speedKmh - 20) * WATER_SCROLL.extraPerKmhAfter20;
+    const scrollSpeed = (WATER_SCROLL.baseSpeed + this.speedKmh * WATER_SCROLL.perKmh + extra) * worldSpeedScale;
+    const scrollDeltaPx = deltaMs * scrollSpeed;
+    this.updateSeaBackgroundState(scrollDeltaPx, speedMps * dt * worldSpeedScale);
+    this.scrollWaterBackground(scrollDeltaPx);
+  }
+
+  private completeDeathCinematic() {
+    if (this.runFlowState === "result_pending") {
+      return;
+    }
+
+    const reason = this.pendingFailureReason ?? "hit_hazard";
+    this.runFlowState = "result_pending";
+    this.stopDeathCinematicRuntimes();
+    this.cinematicWorldSpeedScale = Phaser.Math.Clamp(
+      RUN_CINEMATIC_CONFIG.intro.endWorldSpeedScale,
+      0,
+      1,
+    );
+    this.setRunFlowGameplayFrozen(false);
+    this.finalizeRunAndOpenResult(reason);
+  }
+
+  private prepareRunEndCleanup() {
+    this.stopCoinRewardAnimations();
+    this.deactivateShield("manual_stop");
+    this.endRedHitEffects();
+    this.stopGreenHitFeedback();
+    this.stopAllDynamicBuoyStateTimers();
+    this.safeEachGroupChild(this.timeBonuses, (child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      this.destroyTimeBonusShadow(sprite);
+    });
+    this.safeEachGroupChild(this.coins, (child) => {
+      const sprite = child as Phaser.Physics.Arcade.Sprite;
+      this.destroyTimeBonusShadow(sprite);
+    });
+  }
+
+  private finalizeRunAndOpenResult(reason: ResultReason) {
+    this.scene.start("Result", {
+      distanceM: this.distanceM,
+      coinsAwarded: this.coinsCollected,
+      coinsLost: 0,
+      reason,
+    });
   }
 
   private createHitboxDebugOverlay() {
@@ -1748,7 +2214,7 @@ export default class GameScene extends Phaser.Scene {
     this.yachtHazardCollider.setVisible(false);
 
     this.yachtVisual = this.add.image(startX, startY, "ship-5");
-    this.yachtVisual.setDepth(5);
+    this.yachtVisual.setDepth(YACHT_VISUAL_DEPTH);
     this.applyYachtVisualSizing();
 
     this.targetX = Phaser.Math.Clamp(startX, this.controlMinX, this.controlMaxX);
@@ -1833,7 +2299,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.yachtHazardCollider, this.hazards, (_yacht, hazardObj) => {
       const sprite = hazardObj as Phaser.Physics.Arcade.Sprite;
-      if (!sprite.active || sprite.getData("collecting") || this.isGameOver) {
+      if (!sprite.active || sprite.getData("collecting") || !this.isGameplayInteractionAllowed()) {
         return;
       }
       this.handleHazardContact(sprite);
@@ -1841,7 +2307,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.yachtHazardCollider, this.moneyUps, (_yacht, pickupObj) => {
       const sprite = pickupObj as Phaser.Physics.Arcade.Sprite;
-      if (!sprite.active || sprite.getData("collecting") || this.isGameOver) {
+      if (!sprite.active || sprite.getData("collecting") || !this.isGameplayInteractionAllowed()) {
         return;
       }
       this.collectMoneyUp(sprite);
@@ -1849,7 +2315,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.yachtHazardCollider, this.coins, (_yacht, coinObj) => {
       const sprite = coinObj as Phaser.Physics.Arcade.Sprite;
-      if (!sprite.active || sprite.getData("collecting") || this.isGameOver) {
+      if (!sprite.active || sprite.getData("collecting") || !this.isGameplayInteractionAllowed()) {
         return;
       }
       this.collectCoin(sprite);
@@ -1857,7 +2323,7 @@ export default class GameScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.yachtHazardCollider, this.timeBonuses, (_yacht, bonusObj) => {
       const sprite = bonusObj as Phaser.Physics.Arcade.Sprite;
-      if (!sprite.active || sprite.getData("collecting") || this.isGameOver) {
+      if (!sprite.active || sprite.getData("collecting") || !this.isGameplayInteractionAllowed()) {
         return;
       }
       const bonusType = (sprite.getData("bonusType") as AirBonusType | undefined) ?? "time";
@@ -1875,7 +2341,8 @@ export default class GameScene extends Phaser.Scene {
         this.resolveYachtSolidContact(sprite);
         this.handleSolidColliderContact(sprite);
       },
-      (_yacht, solidObj) => !this.isGameOver && this.canYachtBeBlockedBySolid(solidObj as Phaser.Physics.Arcade.Sprite),
+      (_yacht, solidObj) =>
+        this.isGameplayInteractionAllowed() && this.canYachtBeBlockedBySolid(solidObj as Phaser.Physics.Arcade.Sprite),
       this,
     );
 
@@ -1886,7 +2353,8 @@ export default class GameScene extends Phaser.Scene {
         const sprite = solidObj as Phaser.Physics.Arcade.Sprite;
         this.handleSolidColliderContact(sprite);
       },
-      (_yacht, solidObj) => !this.isGameOver && this.canYachtOverlapSolidForEffects(solidObj as Phaser.Physics.Arcade.Sprite),
+      (_yacht, solidObj) =>
+        this.isGameplayInteractionAllowed() && this.canYachtOverlapSolidForEffects(solidObj as Phaser.Physics.Arcade.Sprite),
       this,
     );
 
@@ -3238,7 +3706,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private handleHazardContact(sprite: Phaser.Physics.Arcade.Sprite) {
-    if (!this.yachtHazardCollider) {
+    if (!this.yachtHazardCollider || !this.isGameplayInteractionAllowed()) {
       return;
     }
 
@@ -3740,7 +4208,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private handleSolidColliderContact(sprite: Phaser.Physics.Arcade.Sprite) {
-    if (!sprite.active || this.isGameOver) {
+    if (!sprite.active || !this.isGameplayInteractionAllowed()) {
       return;
     }
 
@@ -4556,7 +5024,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private getBaseFallSpeedByKmh(speedKmh: number) {
-    return FALL_SPEED.base + speedKmh * FALL_SPEED.perKmh;
+    const raw = FALL_SPEED.base + speedKmh * FALL_SPEED.perKmh;
+    return raw * Phaser.Math.Clamp(this.cinematicWorldSpeedScale, 0, 1);
   }
 
   private ensureObjectCollisionId(sprite: Phaser.Physics.Arcade.Sprite) {
@@ -7202,6 +7671,12 @@ export default class GameScene extends Phaser.Scene {
     if (!SKILL_WHEEL_EVENT_CONFIG.enabled || this.isSkillWheelModalBlockingGameplay()) {
       return;
     }
+    if (this.runFlowState === "intro" && RUN_CINEMATIC_CONFIG.intro.disableSkillWheel) {
+      return;
+    }
+    if ((this.runFlowState === "death" || this.runFlowState === "result_pending") && RUN_CINEMATIC_CONFIG.death.disableSkillWheel) {
+      return;
+    }
     if (this.scheduledWheelEvents.length === 0) {
       return;
     }
@@ -7427,30 +7902,15 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private finishRunSuccess(reason: SuccessReason) {
-    if (this.isGameOver) {
+    if (this.isGameOver || this.runFlowState === "death" || this.runFlowState === "result_pending") {
       return;
     }
+    this.stopRunFlowCinematics();
+    this.setRunFlowGameplayFrozen(false);
     this.isGameOver = true;
-    this.stopCoinRewardAnimations();
-    this.deactivateShield("manual_stop");
-    this.endRedHitEffects();
-    this.stopGreenHitFeedback();
-    this.stopAllDynamicBuoyStateTimers();
-    this.safeEachGroupChild(this.timeBonuses, (child) => {
-      const sprite = child as Phaser.Physics.Arcade.Sprite;
-      this.destroyTimeBonusShadow(sprite);
-    });
-    this.safeEachGroupChild(this.coins, (child) => {
-      const sprite = child as Phaser.Physics.Arcade.Sprite;
-      this.destroyTimeBonusShadow(sprite);
-    });
-
-    this.scene.start("Result", {
-      distanceM: this.distanceM,
-      coinsAwarded: this.coinsCollected,
-      coinsLost: 0,
-      reason,
-    });
+    this.runFlowState = "result_pending";
+    this.prepareRunEndCleanup();
+    this.finalizeRunAndOpenResult(reason);
   }
 
   private finishRunOutOfTime() {
@@ -7458,35 +7918,20 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private finishRunFailure(reason: FailureReason) {
-    if (this.isGameOver) {
+    if (this.isGameOver || this.runFlowState === "death" || this.runFlowState === "result_pending") {
       return;
     }
-    this.isGameOver = true;
-    this.stopCoinRewardAnimations();
-    this.deactivateShield("manual_stop");
-    this.endRedHitEffects();
-    this.stopGreenHitFeedback();
-    this.stopAllDynamicBuoyStateTimers();
-    this.safeEachGroupChild(this.timeBonuses, (child) => {
-      const sprite = child as Phaser.Physics.Arcade.Sprite;
-      this.destroyTimeBonusShadow(sprite);
-    });
-    this.safeEachGroupChild(this.coins, (child) => {
-      const sprite = child as Phaser.Physics.Arcade.Sprite;
-      this.destroyTimeBonusShadow(sprite);
-    });
-
-    this.scene.start("Result", {
-      distanceM: this.distanceM,
-      coinsAwarded: this.coinsCollected,
-      coinsLost: 0,
-      reason: reason as ResultReason,
-    });
+    this.startDeathCinematic(reason);
   }
 
   private resetState() {
+    this.stopRunFlowCinematics();
     this.isGameOver = false;
+    this.runFlowState = "normal";
+    this.pendingFailureReason = undefined;
+    this.cinematicWorldSpeedScale = 1;
     this.physics.world.resume();
+    this.runFlowPhysicsPaused = false;
     this.stopCoinRewardAnimations();
     this.resetPointerControlState();
     this.swayTime = 0;
