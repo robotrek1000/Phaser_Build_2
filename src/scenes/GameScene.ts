@@ -2660,7 +2660,7 @@ export default class GameScene extends Phaser.Scene {
     this.appendMissingCoinsInFinalWindow();
     this.scheduleGlobalBonuses();
     this.scheduleSkillWheelEvents();
-    this.applyWheelIslandExclusionZone();
+    this.applySkillWheelIslandSegments();
 
     this.scheduledObjects.sort((a, b) => a.spawnMeter - b.spawnMeter);
     this.scheduledObjectCursor = 0;
@@ -8085,65 +8085,54 @@ export default class GameScene extends Phaser.Scene {
     events.sort((a, b) => a.meter - b.meter);
     this.scheduledWheelEvents = events.slice(0, maxEvents);
 
-    if (islandCfg.enabled) {
-      for (const event of this.scheduledWheelEvents) {
-        this.scheduledObjects.push({
-          type: event.islandType,
-          meterOffset: 0,
-          xRatio: 0.5,
-          scheduleId: `skill-wheel-island@${event.meter.toFixed(2)}@${event.source}@${this.scheduledObjects.length}`,
-          spawnMeter: event.meter,
-        });
-      }
-    }
-
     if (WHEEL_DEBUG_CONFIG.forceOpenOnCreate && this.scheduledWheelEvents.length > 0 && this.skillWheelModalState === "idle") {
       this.openSkillWheelModalForEvent(this.scheduledWheelEvents[0]);
     }
   }
 
-  private applyWheelIslandExclusionZone() {
-    const cfg = SEGMENT_PATTERN_RULES.wheelIslandExclusion;
-    if (!cfg.enabled) {
+  private applySkillWheelIslandSegments() {
+    if (!SKILL_WHEEL_EVENT_CONFIG.islandSpawn.enabled || this.scheduledWheelEvents.length === 0) {
       return;
     }
 
-    const islands = this.scheduledObjects.filter(
-      (item) => item.type === "wheelIsland1" || item.type === "wheelIsland2",
+    for (const event of this.scheduledWheelEvents) {
+      const template = this.getSkillWheelIslandTemplate(event.islandType);
+      const islandObject = template.objects.find(
+        (item): item is SegmentObjectDef & { type: "wheelIsland1" | "wheelIsland2" } =>
+          item.type === "wheelIsland1" || item.type === "wheelIsland2",
+      );
+      if (!islandObject) {
+        continue;
+      }
+
+      const segmentHalf = template.lengthMeters / 2;
+      const segmentStartMeter = event.meter - segmentHalf;
+      const segmentEndMeter = segmentStartMeter + template.lengthMeters;
+
+      this.scheduledObjects = this.scheduledObjects.filter(
+        (item) => item.spawnMeter < segmentStartMeter || item.spawnMeter >= segmentEndMeter,
+      );
+
+      const spawnMeter = segmentStartMeter + islandObject.meterOffset;
+      this.scheduledObjects.push({
+        type: event.islandType,
+        meterOffset: islandObject.meterOffset,
+        xRatio: islandObject.xRatio ?? 0.5,
+        xOffsetPx: islandObject.xOffsetPx,
+        scheduleId: `skill-wheel-island-segment@${event.meter.toFixed(2)}@${event.source}@${this.scheduledObjects.length}`,
+        spawnMeter,
+      });
+    }
+  }
+
+  private getSkillWheelIslandTemplate(islandType: "wheelIsland1" | "wheelIsland2") {
+    const matched = SKILL_WHEEL_ISLAND_SEGMENTS.find((template) =>
+      template.objects.some((item) => item.type === islandType),
     );
-    if (islands.length === 0) {
-      return;
+    if (matched) {
+      return matched;
     }
-
-    const blockedTypes = new Set<SegmentObjectType>(cfg.blockedTypes as unknown as SegmentObjectType[]);
-    if (!cfg.allowCoin) {
-      blockedTypes.add("coin");
-    }
-    if (!cfg.allowTimeBonus) {
-      blockedTypes.add("timeBonus");
-    }
-    if (!cfg.allowSpeedBonus) {
-      blockedTypes.add("speedBonus");
-    }
-
-    this.scheduledObjects = this.scheduledObjects.filter((item) => {
-      if (item.type === "wheelIsland1" || item.type === "wheelIsland2") {
-        return true;
-      }
-      if (!blockedTypes.has(item.type)) {
-        return true;
-      }
-      const itemX = Phaser.Math.Clamp(item.xRatio ?? 0.5, 0, 1);
-      for (const island of islands) {
-        const islandX = Phaser.Math.Clamp(island.xRatio ?? 0.5, 0, 1);
-        const nearByMeter = Math.abs(item.spawnMeter - island.spawnMeter) <= cfg.radiusMeters;
-        const nearByX = Math.abs(itemX - islandX) <= cfg.minDeltaXRatio;
-        if (nearByMeter && nearByX) {
-          return false;
-        }
-      }
-      return true;
-    });
+    return SKILL_WHEEL_ISLAND_SEGMENTS[0];
   }
 
   private updateAutoShieldState() {

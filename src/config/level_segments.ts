@@ -638,7 +638,7 @@ export const SKILL_WHEEL_ISLAND_SEGMENTS: SegmentTemplate[] = [
     12,
     [wheelIsland1(25, 0.5)],
     3,
-    { early: 0, mid: 1, late: 1, endgame: 1 },
+    { early: 1, mid: 1, late: 1, endgame: 1 },
   ),
   tpl(
     "skill_wheel_island_earth2_50",

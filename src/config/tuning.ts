@@ -494,8 +494,8 @@ export const SKILL_WHEEL_EVENT_CONFIG = {
     enabled: true,
     maxExtraEvents: 2,
     windows: [
-      { id: "extra-mid", fromMeters: 760, toMeters: 980, chance: 0.55 },
-      { id: "extra-late", fromMeters: 980, toMeters: 1180, chance: 0.45 },
+      { id: "extra-mid", fromMeters: 400, toMeters: 800, chance: 0.55 },
+      { id: "extra-late", fromMeters: 800, toMeters: 1200, chance: 0.45 },
     ] as const,
   },
   pause: {
