@@ -24,7 +24,7 @@ export default class ResultScene extends Phaser.Scene {
   create(data?: ResultPayload) {
     const { width, height } = this.scale;
     const cfg = RESULT_SCREEN_UI;
-    const uiScale = Phaser.Math.Clamp(Math.min(width / 864, height / 1536), 0.46, 1);
+    const uiScale = Phaser.Math.Clamp(Math.min(width / 864, height / 1536), 0.38, 1);
     const scaled = (value: number) => Math.max(1, Math.round(value * uiScale));
 
     this.add.rectangle(0, 0, width, height, cfg.panelColor).setOrigin(0, 0);

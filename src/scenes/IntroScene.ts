@@ -5,6 +5,9 @@ export default class IntroScene extends Phaser.Scene {
   private continueText?: Phaser.GameObjects.Text;
   private continuePulsePhase = 0;
   private isStartingGame = false;
+  private readonly onIntroPointerDown = () => {
+    this.startGame();
+  };
 
   constructor() {
     super("Intro");
@@ -13,6 +16,8 @@ export default class IntroScene extends Phaser.Scene {
   create() {
     const { width, height } = this.scale;
     const uiScale = Phaser.Math.Clamp(Math.min(width / 864, height / 1536), 0.46, 1);
+    this.isStartingGame = false;
+    this.continuePulsePhase = 0;
     this.input.enabled = true;
 
     const bg = this.add.image(width / 2, height / 2, "start-bg");
@@ -51,9 +56,8 @@ export default class IntroScene extends Phaser.Scene {
       .setDepth(INTRO_ONBOARDING_UI.continueDepth)
       .setAlpha(INTRO_ONBOARDING_UI.continueAlpha);
 
-    this.input.once("pointerdown", () => {
-      this.startGame();
-    });
+    this.input.off("pointerdown", this.onIntroPointerDown, this);
+    this.input.once("pointerdown", this.onIntroPointerDown, this);
   }
 
   update(_time: number, delta: number) {
