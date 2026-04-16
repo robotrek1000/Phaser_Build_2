@@ -144,8 +144,8 @@ export const WORLD_OBJECT_DARKENING_CONFIG = {
 
 export const ASSETS_BAR_UI = {
   anchorMode: "screen" as "screen" | "yacht",
-  x: 18,
-  y: 18,
+  x: 24,
+  y: 20,
   width: 140,
   widthByTierMultiplier: [1, 1.5, 2] as const,
   height: 26,
@@ -174,8 +174,8 @@ export const ASSETS_BAR_UI = {
 } as const;
 
 export const SHIELD_ENERGY_BAR_UI = {
-  x: 18,
-  y: 58,
+  x: 24,
+  y: 60,
   width: 140,
   height: 26,
   outerRadius: 8,
@@ -246,7 +246,7 @@ export const TOP_PROGRESS_BAR_CONFIG = {
     scaleX: 1.1,
     scaleY: 1.1,
     offsetX: -30,
-    offsetY: 25,
+    offsetY: 28,
   },
   bar: {
     width: 272,
@@ -360,12 +360,12 @@ export const SKILL_WHEEL_UI_CONFIG = {
     titleOffsetY: 252,
   },
   result: {
-    continueText: "НАЖМИТЕ ДЛЯ\nПРОДОЛЖЕНИЯ",
+    continueText: "НАЖМИТЕ ДЛЯ ПРОДОЛЖЕНИЯ",
     continueFontFamily: "Fascinate",
-    continueFontSizePx: 52,
+    continueFontSizePx: 36,
     continueColor: "#ffffff",
     continueAlpha: 0.68,
-    continueOffsetY: 332,
+    continueOffsetY: 400,
     titleFontFamily: "Fascinate",
     titleFontSizePx: 52,
     titleColor: "#ffffff",
