@@ -162,9 +162,9 @@ export const ASSETS_BAR_UI = {
   depth: 55,
   icon: {
     key: "icon-briefcase",
-    sizePx: 46,
-    xOffset: -12,
-    yOffset: -10,
+    sizePx: 40,
+    xOffset: 8,
+    yOffset: 13,
     depth: 57,
   },
   resizeTween: {
@@ -189,9 +189,9 @@ export const SHIELD_ENERGY_BAR_UI = {
   depth: 55,
   icon: {
     key: "icon-shield",
-    sizePx: 46,
-    xOffset: -12,
-    yOffset: -10,
+    sizePx: 40,
+    xOffset: 8,
+    yOffset: 13,
     depth: 57,
   },
 } as const;
@@ -239,17 +239,17 @@ export const TIME_UI_CONFIG = {
 } as const;
 
 export const TOP_PROGRESS_BAR_CONFIG = {
-  anchorXRatio: 0.54,
+  anchorXRatio: 0.58,
   anchorY: 24,
   depth: 52,
   master: {
     scaleX: 1.1,
     scaleY: 1.1,
-    offsetX: -12.5,
+    offsetX: -4,
     offsetY: 10,
   },
   bar: {
-    width: 300,
+    width: 272,
     height: 34,
     radius: 14,
     frameColor: 0x143f80,
@@ -455,9 +455,9 @@ export const RESULT_SCREEN_UI = {
 
 export const INTRO_ONBOARDING_UI = {
   dimAlpha: 0.35,
-  windowYRatio: 0.43,
-  windowMaxWidthRatio: 0.9,
-  windowMaxHeightRatio: 0.82,
+  windowYRatio: 0.40,
+  windowMaxWidthRatio: 0.94,
+  windowMaxHeightRatio: 0.92,
   windowMinScale: 0.35,
   windowMaxScale: 2.2,
   windowDepth: 10,
@@ -466,7 +466,7 @@ export const INTRO_ONBOARDING_UI = {
   continueFontSizePx: 56,
   continueColor: "#ffffff",
   continueAlpha: 0.68,
-  continueOffsetY: 350,
+  continueBottomInsetPx: 62,
   continueDepth: 20,
   continuePulseHz: 1.2,
   continuePulseMinAlpha: 0.45,
@@ -598,7 +598,7 @@ export const RED_MAGNET_BUOY_CONFIG = {
 
 export const WHIRLPOOL_DEBUFF_CONFIG = {
   durationMs: 5_000,
-  controlLerpMultiplier: 0.42,
+  controlLerpMultiplier: 0.32,
   spinTurnsPerSec: 1.25,
 } as const;
 
@@ -674,8 +674,8 @@ export const SKILL_WHEEL_REWARD_CONFIG = {
       bodyLine2: "Легче добраться до гавани.",
     },
     energy_mult: {
-      key: "skill-wheel-bonus-4",
-      resultKey: "skill-wheel-sector-3",
+      key: "energy-bonus",
+      resultKey: "energy-bonus",
       durationMs: 0,
       multiplier: 2,
       title: "x2",

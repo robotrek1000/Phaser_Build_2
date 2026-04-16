@@ -12,6 +12,7 @@ export default class IntroScene extends Phaser.Scene {
 
   create() {
     const { width, height } = this.scale;
+    const uiScale = Phaser.Math.Clamp(Math.min(width / 864, height / 1536), 0.46, 1);
     this.input.enabled = true;
 
     const bg = this.add.image(width / 2, height / 2, "start-bg");
@@ -36,15 +37,12 @@ export default class IntroScene extends Phaser.Scene {
     );
     onboardingWindow.setScale(clampedScale);
 
-    const windowBottom = onboardingWindow.getBounds().bottom;
-    const continueY = Math.min(
-      windowBottom + INTRO_ONBOARDING_UI.continueOffsetY,
-      height - INTRO_ONBOARDING_UI.continueFontSizePx * 0.8
-    );
+    const continueFontSizePx = Math.max(18, Math.round(INTRO_ONBOARDING_UI.continueFontSizePx * uiScale));
+    const continueY = height - INTRO_ONBOARDING_UI.continueBottomInsetPx;
     this.continueText = this.add
       .text(width / 2, continueY, INTRO_ONBOARDING_UI.continueText, {
         fontFamily: INTRO_ONBOARDING_UI.continueFontFamily,
-        fontSize: `${INTRO_ONBOARDING_UI.continueFontSizePx}px`,
+        fontSize: `${continueFontSizePx}px`,
         fontStyle: "bold",
         color: INTRO_ONBOARDING_UI.continueColor,
         align: "center",

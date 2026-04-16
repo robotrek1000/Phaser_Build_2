@@ -930,7 +930,7 @@ export default class GameScene extends Phaser.Scene {
     this.resetPointerControlState();
     this.yachtStagePendingTextureKey = undefined;
     this.yachtVisual.setVisible(true);
-    this.yachtVisual.setTexture("ship-1");
+    this.yachtVisual.setTexture(this.getShipTextureKeyByAssets(this.assetsValue * 100));
     this.applyYachtVisualSizing();
     if (cfg.freezeGameplay) {
       this.setRunFlowGameplayFrozen(true);
@@ -2150,6 +2150,7 @@ export default class GameScene extends Phaser.Scene {
         ASSETS_BAR_UI.y + ASSETS_BAR_UI.icon.yOffset,
         ASSETS_BAR_UI.icon.key,
       )
+      .setOrigin(0.5, 0.5)
       .setDisplaySize(ASSETS_BAR_UI.icon.sizePx, ASSETS_BAR_UI.icon.sizePx)
       .setDepth(ASSETS_BAR_UI.icon.depth)
       .setScrollFactor(0);
@@ -2159,6 +2160,7 @@ export default class GameScene extends Phaser.Scene {
         SHIELD_ENERGY_BAR_UI.y + SHIELD_ENERGY_BAR_UI.icon.yOffset,
         SHIELD_ENERGY_BAR_UI.icon.key,
       )
+      .setOrigin(0.5, 0.5)
       .setDisplaySize(SHIELD_ENERGY_BAR_UI.icon.sizePx, SHIELD_ENERGY_BAR_UI.icon.sizePx)
       .setDepth(SHIELD_ENERGY_BAR_UI.icon.depth)
       .setScrollFactor(0);
@@ -2502,7 +2504,7 @@ export default class GameScene extends Phaser.Scene {
     this.yachtHazardCollider.setImmovable(true);
     this.yachtHazardCollider.setVisible(false);
 
-    this.yachtVisual = this.add.image(startX, startY, this.getYachtTierConfig().baseTextureKey);
+    this.yachtVisual = this.add.image(startX, startY, this.getShipTextureKeyByAssets(this.assetsValue * 100));
     this.yachtVisual.setDepth(YACHT_VISUAL_DEPTH);
     this.applyYachtVisualSizing();
 
