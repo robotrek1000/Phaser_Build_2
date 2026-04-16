@@ -1,7 +1,6 @@
 export type SegmentObjectType =
-  | "mine"
-  | "pirate"
   | "moneyDown"
+  | "moneyDownMagnet"
   | "dynamicBuoy"
   | "whirlpool"
   | "rock1"
@@ -9,7 +8,7 @@ export type SegmentObjectType =
   | "rock3"
   | "reef1"
   | "moneyUp"
-  | "coin"
+  | "energy"
   | "speedBonus"
   | "timeBonus"
   | "wheelIsland1"
@@ -70,20 +69,6 @@ const dynamicBuoy = (meterOffset: number, xRatio: number, xOffsetPx = 0): Segmen
   xOffsetPx,
 });
 
-const mine = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
-  type: "mine",
-  meterOffset,
-  xRatio,
-  xOffsetPx,
-});
-
-const pirate = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
-  type: "pirate",
-  meterOffset,
-  xRatio,
-  xOffsetPx,
-});
-
 const whirlpool = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
   type: "whirlpool",
   meterOffset,
@@ -98,8 +83,8 @@ const reef1 = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjec
   xOffsetPx,
 });
 
-const coin = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
-  type: "coin",
+const energy = (meterOffset: number, xRatio: number, xOffsetPx = 0): SegmentObjectDef => ({
+  type: "energy",
   meterOffset,
   xRatio,
   xOffsetPx,
@@ -302,11 +287,11 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     6,
     12,
     [
-      mine(6, 0.2),
-      mine(15, 0.62),
-      mine(24, 0.4),
-      mine(33, 0.78),
-      mine(42, 0.52),
+      moneyDown(6, 0.2),
+      moneyDown(15, 0.62),
+      moneyDown(24, 0.4),
+      moneyDown(33, 0.78),
+      moneyDown(42, 0.52),
     ],
     2,
     { early: 0.2, mid: 0.9, late: 1.15, endgame: 1.25 },
@@ -343,7 +328,7 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
       moneyDown(30, 0.32),
       moneyUp(36, 0.7),
       whirlpool(42, 0.5),
-      coin(48, 0.24),
+      energy(48, 0.24),
     ],
     3,
     { early: 1, mid: 1.05, late: 1.1, endgame: 1 },
@@ -364,7 +349,7 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
       whirlpool(54, 0.45),
       reef1(68, 0.12, -82),
       moneyDown(78, 0.32),
-      coin(88, 0.68),
+      energy(88, 0.68),
     ],
     3,
     { early: 1, mid: 1.05, late: 1.15, endgame: 1.05 },
@@ -377,11 +362,11 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     4,
     12,
     [
-      mine(6, 0.24),
-      pirate(14, 0.62),
-      mine(22, 0.46),
+      moneyDown(6, 0.24),
+      moneyDown(14, 0.62),
+      moneyDown(22, 0.46),
       moneyDown(30, 0.3),
-      mine(46, 0.52),
+      moneyDown(46, 0.52),
     ],
     2,
     { early: 0, mid: 1, late: 1.05, endgame: 1.1 },
@@ -394,12 +379,12 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     4,
     12,
     [
-      mine(8, 0.2),
-      pirate(18, 0.58),
+      moneyDown(8, 0.2),
+      moneyDown(18, 0.58),
       moneyDown(28, 0.34),
-      mine(38, 0.74),
-      pirate(48, 0.44),
-      mine(58, 0.22),
+      moneyDown(38, 0.74),
+      moneyDown(48, 0.44),
+      moneyDown(58, 0.22),
       moneyDown(78, 0.52),
     ],
     2,
@@ -415,11 +400,11 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     [
       reef1(6, 0.1, -78),
       whirlpool(20, 0.46),
-      coin(16, 0.36),
-      coin(24, 0.64),
+      energy(16, 0.36),
+      energy(24, 0.64),
       reef1(34, 0.9, 72),
       whirlpool(46, 0.5),
-      coin(44, 0.58),
+      energy(44, 0.58),
     ],
     2,
     { early: 0, mid: 0.6, late: 1.1, endgame: 1.25 },
@@ -434,15 +419,15 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     [
       reef1(8, 0.1, -82),
       whirlpool(20, 0.42),
-      coin(22, 0.34),
+      energy(22, 0.34),
       whirlpool(30, 0.58),
-      coin(32, 0.66),
+      energy(32, 0.66),
       reef1(42, 0.9, 74),
       whirlpool(58, 0.48),
-      coin(60, 0.38),
+      energy(60, 0.38),
       reef1(76, 0.12, -76),
       whirlpool(88, 0.5),
-      coin(90, 0.56),
+      energy(90, 0.56),
     ],
     2,
     { early: 0, mid: 0.5, late: 1.08, endgame: 1.22 },
@@ -473,7 +458,7 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     [
       moneyDown(6, 0.24),
       dynamicBuoy(12, 0.74),
-      mine(18, 0.44),
+      moneyDown(18, 0.44),
       moneyUp(24, 0.28),
       dynamicBuoy(30, 0.62),
     ],
@@ -486,12 +471,12 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     4,
     12,
     [
-      pirate(10, 0.24),
-      mine(20, 0.68),
+      moneyDown(10, 0.24),
+      moneyDown(20, 0.68),
       moneyUp(30, 0.38),
       moneyDown(40, 0.58),
-      pirate(50, 0.72),
-      mine(60, 0.3),
+      moneyDown(50, 0.72),
+      moneyDown(60, 0.3),
       moneyUp(70, 0.62),
     ],
   ),
@@ -508,7 +493,7 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
       reef1(24, 0.14, -62),
       reef1(32, 0.86, 62),
       moneyUp(40, 0.5),
-      coin(48, 0.72),
+      energy(48, 0.72),
     ],
   ),
   tpl(
@@ -520,7 +505,7 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     12,
     [
       reef1(10, 0.08, -82),
-      mine(20, 0.2),
+      moneyDown(20, 0.2),
       dynamicBuoy(30, 0.8),
       moneyDown(40, 0.24),
       reef1(50, 0.92, 70),
@@ -558,8 +543,8 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     [
       moneyUp(10, 0.28),
       moneyUp(40, 0.72),
-      coin(50, 0.3),
-      coin(80, 0.54),
+      energy(50, 0.3),
+      energy(80, 0.54),
       moneyDown(90, 0.74),
       reef1(98, 0.12, -70),
     ],
@@ -577,7 +562,7 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
       moneyDown(24, 0.52),
       moneyUp(32, 0.36),
       whirlpool(40, 0.64),
-      coin(48, 0.5),
+      energy(48, 0.5),
     ],
   ),
   tpl(
@@ -589,11 +574,11 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     12,
     [
       whirlpool(10, 0.5),
-      mine(20, 0.26),
-      pirate(30, 0.72),
+      moneyDown(20, 0.26),
+      moneyDown(30, 0.72),
       moneyDown(50, 0.6),
-      mine(60, 0.76),
-      pirate(70, 0.3),
+      moneyDown(60, 0.76),
+      moneyDown(70, 0.3),
       whirlpool(80, 0.56),
       moneyUp(90, 0.42),
     ],
@@ -607,7 +592,7 @@ export const SEGMENT_TEMPLATE_CATALOG: SegmentTemplate[] = [
     12,
     [
       moneyUp(6, 0.24),
-      mine(14, 0.66),
+      moneyDown(14, 0.66),
       dynamicBuoy(22, 0.34),
       moneyDown(30, 0.74),
     ],

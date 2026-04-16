@@ -143,12 +143,11 @@ export const WORLD_OBJECT_DARKENING_CONFIG = {
 // UI и HUD
 
 export const ASSETS_BAR_UI = {
-  offsetX: -82,
-  offsetY: -150,
-  anchorFromVisualBounds: true,
-  anchorOffsetX: 12,
-  anchorOffsetY: -10,
-  width: 120,
+  anchorMode: "screen" as "screen" | "yacht",
+  x: 18,
+  y: 18,
+  width: 140,
+  widthByTierMultiplier: [1, 1.5, 2] as const,
   height: 26,
   outerRadius: 8,
   borderThickness: 3,
@@ -161,6 +160,40 @@ export const ASSETS_BAR_UI = {
   fillColorMid: 0xc2c203,
   fillColorLow: 0xab2a14,
   depth: 55,
+  icon: {
+    key: "icon-briefcase",
+    sizePx: 46,
+    xOffset: -12,
+    yOffset: -10,
+    depth: 57,
+  },
+  resizeTween: {
+    durationMs: 320,
+    ease: "Sine.easeInOut",
+  },
+} as const;
+
+export const SHIELD_ENERGY_BAR_UI = {
+  x: 18,
+  y: 58,
+  width: 140,
+  height: 26,
+  outerRadius: 8,
+  borderThickness: 3,
+  borderTopColor: 0xffffff,
+  borderBottomColor: 0x999999,
+  frameFillColor: 0x070202,
+  trackColor: 0x111111,
+  trackPadding: 3,
+  fillColor: 0x7a3cff,
+  depth: 55,
+  icon: {
+    key: "icon-shield",
+    sizePx: 46,
+    xOffset: -12,
+    yOffset: -10,
+    depth: 57,
+  },
 } as const;
 
 export const COIN_UI_CONFIG = {
@@ -277,13 +310,13 @@ export const SKILL_WHEEL_BONUS_HUD_CONFIG = {
   } as const,
   slotFrame: {
     enabled: true,
-    strokeColor: 0x0f1d3f,
-    strokeWidthPx: 3,
+    strokeColor: 0x000000,
+    strokeWidthPx: 4,
     fillColor: 0x111111,
-    fillAlpha: 0.22,
+    fillAlpha: 0.28,
   },
   radial: {
-    enabled: true,
+    enabled: false,
     radiusPaddingPx: 4,
     startAngleDeg: -90,
     clockwise: true,
@@ -297,6 +330,15 @@ export const SKILL_WHEEL_BONUS_HUD_CONFIG = {
     durationMs: 180,
     scaleUp: 1.12,
     ease: "Sine.easeOut",
+  },
+  multiplierText: {
+    enabled: true,
+    fontFamily: "Fascinate",
+    fontSizePx: 48,
+    color: "#ffffff",
+    strokeColor: "#000000",
+    strokeThickness: 6,
+    offsetY: 19,
   },
 } as const;
 
@@ -352,10 +394,10 @@ export const SKILL_WHEEL_UI_CONFIG = {
       { minDeg: 49, maxDeg: 85 },
     ] as const,
     rewardBySectorIndex: [
-      "red_buoy_clear",
-      "assets_x2",
-      "time_x2",
-      "coin_x2",
+      "coin_plus_10",
+      "assets_mult",
+      "time_mult",
+      "energy_mult",
     ] as const,
     spinInputEnabledAtMs: 150,
     landingLockDelayMs: 120,
@@ -377,23 +419,36 @@ export const SKILL_WHEEL_UI_CONFIG = {
 } as const;
 
 export const RESULT_SCREEN_UI = {
-  titleYRatio: 0.34,
-  distanceYRatio: 0.45,
-  coinsYRatio: 0.53,
-  reasonYRatio: 0.61,
-  lostCoinsYRatio: 0.67,
-  buttonYRatio: 0.8,
-  titleFontSizePx: 54,
-  bodyFontSizePx: 44,
-  smallFontSizePx: 40,
-  buttonFontSizePx: 44,
-  buttonPaddingX: 34,
-  buttonPaddingY: 16,
+  panelColor: 0x1a2034,
+  gridStrokeColor: 0x6a7385,
+  gridStrokeWidthPx: 6,
+  titleYRatio: 0.14,
+  subtitleYRatio: 0.24,
+  distanceYRatio: 0.32,
+  tableTopYRatio: 0.38,
+  tableWidthRatio: 1,
+  tableHeightPx: 304,
+  tableRowHeightPx: 74,
+  totalYRatio: 0.76,
+  noteYRatio: 0.83,
+  buttonYRatio: 0.92,
+  titleFontSizePx: 78,
+  subtitleFontSizePx: 56,
+  bodyFontSizePx: 66,
+  cellHeaderFontSizePx: 52,
+  cellValueFontSizePx: 54,
+  smallFontSizePx: 46,
+  buttonFontSizePx: 68,
+  buttonPaddingX: 120,
+  buttonPaddingY: 22,
   buttonLabel: "ОТЛИЧНО",
   fontFamily: "Fascinate",
   titleColor: "#e8f1f2",
   bodyColor: "#e8f1f2",
+  successColor: "#33ff42",
+  failColor: "#ff2e2e",
   coinsColor: "#f4d35e",
+  noteFailColor: "#ff4d00",
   buttonTextColor: "#102027",
   buttonBackgroundColor: "#f4d35e",
 } as const;
@@ -406,22 +461,15 @@ export const INTRO_ONBOARDING_UI = {
   windowMinScale: 0.35,
   windowMaxScale: 2.2,
   windowDepth: 10,
-  buttonWidthRatio: 0.56,
-  buttonHeightPx: 122,
-  buttonRadiusPx: 18,
-  buttonOffsetFromWindowPx: 52,
-  buttonBottomPaddingPx: 44,
-  buttonFillColor: 0x1ab6ee,
-  buttonHoverColor: 0x2bc8ff,
-  buttonPressedColor: 0x1292bf,
-  buttonStrokeColor: 0xffffff,
-  buttonStrokeWidthPx: 0,
-  buttonText: "ПОПЛЫЛИ",
-  buttonTextFontFamily: "Fascinate",
-  buttonTextFontSizePx: 72,
-  buttonTextColor: "#ffffff",
-  buttonTextStyle: "normal" as "normal" | "bold",
-  buttonDepth: 20,
+  continueText: "НАЖМИТЕ ДЛЯ\nПРОДОЛЖЕНИЯ",
+  continueFontFamily: "Fascinate",
+  continueFontSizePx: 56,
+  continueColor: "#ffffff",
+  continueAlpha: 0.68,
+  continueOffsetY: 350,
+  continueDepth: 20,
+  continuePulseHz: 1.2,
+  continuePulseMinAlpha: 0.45,
   overlayDepth: 5,
 } as const;
 
@@ -449,10 +497,15 @@ export const HITBOX_DEBUG = {
     fontStrokeThickness: 3,
     speedColor: "#fff176",
     distanceColor: "#80d8ff",
+    perfColor: "#9cff9c",
     alpha: 1,
     depth: 302,
     roundSpeedKmh: true,
     roundDistanceM: true,
+    fpsDecimals: 1,
+    frameMsDecimals: 1,
+    fpsEmaAlpha: 0.2,
+    resizeRateWindowMs: 1000,
   },
   drawArcadeBodies: true,
   drawSolidEllipses: true,
@@ -483,6 +536,82 @@ export const HITBOX_DEBUG = {
 export const RUN_TIMER = {
   initialMs: 80_000,
   bonusMs: 10_000,
+} as const;
+
+export const YACHT_TIER_CONFIG = {
+  tiers: [
+    {
+      id: 1,
+      speedKmh: 30,
+      capacityMultiplier: 1,
+      baseTextureKey: "ship-1",
+      controlLerpMultiplier: 1,
+      targetHeightMultiplier: 0.88,
+    },
+    {
+      id: 2,
+      speedKmh: 45,
+      capacityMultiplier: 1.5,
+      baseTextureKey: "ship-medium-1",
+      controlLerpMultiplier: 0.82,
+      targetHeightMultiplier: 1,
+    },
+    {
+      id: 3,
+      speedKmh: 60,
+      capacityMultiplier: 2,
+      baseTextureKey: "ship-large-1",
+      controlLerpMultiplier: 0.64,
+      targetHeightMultiplier: 1.12,
+    },
+  ] as const,
+} as const;
+
+export const ASSETS_SYSTEM_CONFIG = {
+  startNormalized: 0.5,
+  upgradeAtNormalized: 1,
+  resetOnUpgradeNormalized: 0.5,
+  loseAtNormalized: 0,
+  maxTier: 3,
+} as const;
+
+export const SHIELD_ENERGY_CONFIG = {
+  pickupNormalizedDelta: 0.025,
+  startNormalized: 0,
+  autoActivateAtNormalized: 1,
+  maxNormalized: 1,
+} as const;
+
+export const RED_MAGNET_BUOY_CONFIG = {
+  enabled: true,
+  rareRatio: 0.3,
+  visualTextureKey: "money-down",
+  attractRadiusPx: 640,
+  attractForcePxPerSec: 1650,
+  attractFalloffPower: 0.05,
+  maxPushSpeedPxPerSec: 5600,
+  minDistancePx: 12,
+  axisFactorX: 1,
+  axisFactorY: 1,
+  updateCooldownMs: 0,
+} as const;
+
+export const WHIRLPOOL_DEBUFF_CONFIG = {
+  durationMs: 5_000,
+  controlLerpMultiplier: 0.42,
+  spinTurnsPerSec: 1.25,
+} as const;
+
+export const RUN_COIN_REWARD_CONFIG = {
+  baseByTier: [5, 10, 15] as const,
+  wheelCoinBonusPerStack: 10,
+  portfolioRoundMode: "floor" as "floor" | "round" | "ceil",
+} as const;
+
+export const SKILL_WHEEL_STACK_CONFIG = {
+  multiplierMin: 2,
+  multiplierMax: 4,
+  persistence: "run" as "run",
 } as const;
 
 export const SKILL_WHEEL_EVENT_CONFIG = {
@@ -522,45 +651,44 @@ export const SKILL_WHEEL_EVENT_CONFIG = {
 export const SKILL_WHEEL_REWARD_CONFIG = {
   enabled: true,
   maxActiveRewards: 4,
-  defaultDurationMs: 15_000,
+  defaultDurationMs: 0,
   duplicatePolicy: "refreshOnly" as "refreshOnly" | "stackDuration",
   removeOnRunEnd: true,
   rewards: {
-    assets_x2: {
+    assets_mult: {
       key: "skill-wheel-bonus-1",
       resultKey: "skill-wheel-sector-1",
-      durationMs: 15_000,
+      durationMs: 0,
       multiplier: 2,
       title: "x2",
       bodyLine1: "Стоимость собранных активов\nувеличивается x2.",
       bodyLine2: "Шкала активов заполняется быстрее!",
     },
-    red_buoy_clear: {
-      key: "skill-wheel-bonus-2",
-      resultKey: "skill-wheel-sector-2",
-      durationMs: 15_000,
-      clearOnActivate: true,
-      title: "X",
-      bodyLine1: "Убытки от красных буйков\nвременно отключены.",
-      bodyLine2: "Динамические буйки в красном\nсостоянии не наносят ущерб.",
-    },
-    time_x2: {
+    time_mult: {
       key: "skill-wheel-bonus-3",
-      resultKey: "skill-wheel-sector-3",
-      durationMs: 15_000,
+      resultKey: "skill-wheel-sector-2",
+      durationMs: 0,
       multiplier: 2,
       title: "x2",
       bodyLine1: "Бонус времени даёт\nв 2 раза больше секунд.",
       bodyLine2: "Легче добраться до гавани.",
     },
-    coin_x2: {
+    energy_mult: {
       key: "skill-wheel-bonus-4",
-      resultKey: "coin",
-      durationMs: 15_000,
+      resultKey: "skill-wheel-sector-3",
+      durationMs: 0,
       multiplier: 2,
       title: "x2",
-      bodyLine1: "Каждая монета стоит в 2 раза дороже.",
-      bodyLine2: "Собирайте монеты эффективнее!",
+      bodyLine1: "Собранная энергия даёт\nв 2 раза больше энергии!",
+      bodyLine2: "Щит активов становится\nдоступным быстрее!",
+    },
+    coin_plus_10: {
+      key: "coin",
+      resultKey: "coin",
+      durationMs: 0,
+      title: "+10",
+      bodyLine1: "Получи + 10 монет в гавани!",
+      bodyLine2: "Здесь всё просто :)",
     },
   } as const,
 } as const;
@@ -683,6 +811,7 @@ export const RUN_CINEMATIC_CONFIG = {
     triggerReasons: {
       hit_hazard: true,
       out_of_time: true,
+      assets_empty: true,
     },
     preLiftY: 72,
     preLiftDurationMs: 220,
@@ -716,6 +845,7 @@ export const RUN_CINEMATIC_CONFIG = {
 } as const;
 
 export const RUN_SPEED_RAMP = {
+  legacyDistanceRampEnabled: false,
   startKmh: 30,
   everyMeters: 100,
   addKmhPerStep: 5,
@@ -758,6 +888,7 @@ export const HAZARD_COLLISION = {
 export const HAZARD_DAMAGE = {
   mine: 0.24,
   moneyDown: 0.4,
+  moneyDownMagnet: 0.4,
   dynamicDown: 0.4,
   pirate: 0.35,
   whirlpool: 0.24,
@@ -776,13 +907,15 @@ export const BUOY_COLLISION_LAYER = {
   participants: {
     moneyUp: true,
     moneyDown: true,
+    moneyDownMagnet: true,
     dynamicBuoy: true,
-    mine: true,
-    pirate: true,
+    mine: false,
+    pirate: false,
     whirlpool: false,
   },
   allowNonBlockingHazards: {
     moneyDown: false,
+    moneyDownMagnet: false,
     dynamicBuoy: false,
     mine: false,
     pirate: false,
@@ -847,7 +980,7 @@ export const SEGMENT_PATTERN_RULES = {
     enabled: true,
     radiusMeters: 20,
     minDeltaXRatio: 0.18,
-    blockedTypes: ["moneyDown", "dynamicBuoy", "mine", "pirate", "whirlpool", "reef1", "rock1", "rock2", "rock3"] as const,
+    blockedTypes: ["moneyDown", "moneyDownMagnet", "dynamicBuoy", "whirlpool", "reef1", "rock1", "rock2", "rock3"] as const,
     allowTimeBonus: true,
     allowSpeedBonus: true,
     allowCoin: false,
@@ -856,17 +989,15 @@ export const SEGMENT_PATTERN_RULES = {
 } as const;
 
 export const SEGMENT_PICKUP_RULES = {
-  coin: {
-    totalCount: 30,
-    oneCoinPerSegment: true,
-    segmentOffsetMinMeters: 8,
-    segmentOffsetMaxMeters: 38,
-    segmentXRatioMin: 0.22,
-    segmentXRatioMax: 0.78,
-    finalFillStartMeters: 1200,
-    finalFillEndMeters: 1250,
-    finalFillXRatioMin: 0.18,
-    finalFillXRatioMax: 0.82,
+  energy: {
+    totalCount: 100,
+    onePerSegment: false,
+    spawnRangeStartMeters: 0,
+    spawnRangeEndMeters: 1250,
+    xRatioMin: 0.22,
+    xRatioMax: 0.78,
+    minGapMeters: 8,
+    maxPlacementAttempts: 300,
   },
   speedBonus: {
     xRatioMin: 0.22,
@@ -888,7 +1019,7 @@ export const SEGMENT_GLOBAL_BONUS_SPAWN = {
       speedBonus: true,
       timeBonus: true,
     },
-    blockingTypes: ["mine", "pirate", "whirlpool", "reef1", "rock1", "rock2", "rock3"] as const,
+    blockingTypes: ["moneyDown", "moneyDownMagnet", "dynamicBuoy", "whirlpool", "reef1", "rock1", "rock2", "rock3"] as const,
     minDeltaMeters: 7,
     minDeltaXRatio: 0.12,
     maxResampleAttempts: 18,
@@ -961,7 +1092,18 @@ export const SEGMENT_GLOBAL_BONUS_SPAWN = {
 
 export const SEGMENT_COIN_SAFETY = {
   enabled: true,
-  blockingTypes: ["mine", "pirate", "whirlpool", "reef1", "rock1", "rock2", "rock3", "wheelIsland1", "wheelIsland2"] as const,
+  blockingTypes: [
+    "moneyDown",
+    "moneyDownMagnet",
+    "dynamicBuoy",
+    "whirlpool",
+    "reef1",
+    "rock1",
+    "rock2",
+    "rock3",
+    "wheelIsland1",
+    "wheelIsland2",
+  ] as const,
   minDeltaMeters: 7,
   minDeltaXRatio: 0.12,
   maxResampleAttempts: 18,
@@ -1175,6 +1317,11 @@ export const SHIP_STAGE_TRANSITION = {
   incomingAlphaTo: 1,
   outgoingAlphaFrom: 1,
   outgoingAlphaTo: 0,
+  scale: {
+    enabled: true,
+    from: 1,
+    to: 1.08,
+  },
 } as const;
 
 // Хитбоксы и блокеры яхты
@@ -1226,7 +1373,7 @@ export const ASSET_SHIELD_CONFIG = {
   enable: true,
   activation: {
     manualOnly: false,
-    fuelReadyThreshold: 1,
+    fuelReadyThreshold: SHIELD_ENERGY_CONFIG.autoActivateAtNormalized,
     allowManualStop: false,
   },
   runtime: {
@@ -1245,7 +1392,7 @@ export const ASSET_SHIELD_CONFIG = {
   },
   invulnerability: {
     enabled: true,
-    affectedHazards: ["moneyDown", "dynamicDown", "mine", "pirate", "whirlpool"] as const,
+    affectedHazards: ["moneyDown", "moneyDownMagnet", "dynamicDown", "mine", "pirate", "whirlpool"] as const,
     contactPushEnabled: true,
     contactPushByType: {
       moneyDown: {
@@ -1253,6 +1400,13 @@ export const ASSET_SHIELD_CONFIG = {
         separationPx: 14,
         verticalImpulseFactor: 0.3,
         maxVerticalPushPxPerSec: 180,
+        cooldownMs: 120,
+      },
+      moneyDownMagnet: {
+        impulsePxPerSec: 620,
+        separationPx: 18,
+        verticalImpulseFactor: 0.3,
+        maxVerticalPushPxPerSec: 200,
         cooldownMs: 120,
       },
       dynamicDown: {
@@ -1318,9 +1472,10 @@ export const ASSET_SHIELD_CONFIG = {
       enabled: true,
       targets: {
         moneyDown: true,
+        moneyDownMagnet: true,
         dynamicDown: true,
-        mine: true,
-        pirate: true,
+        mine: false,
+        pirate: false,
       },
       originOffsetX: 0,
       originOffsetY: 0,
@@ -1550,6 +1705,29 @@ export const MONEY_UP_HITBOX = {
 } as const;
 
 export const MONEY_DOWN_CONFIG = {
+  textureKey: "money-down",
+  width: 84,
+  height: 120,
+  depth: 14,
+  speedYMultiplier: 1,
+  driftAmplitudePx: 100,
+  driftFrequencyHz: 2,
+  driftPhaseMin: 0,
+  driftPhaseMax: Math.PI * 2,
+  swayAmplitudeDeg: 4,
+  swayFrequencyHz: 1.1,
+  hitbox: {
+    radiusXRatio: 3,
+    radiusYRatio: 4,
+    centerXRatio: 5,
+    centerYRatio: 6,
+  },
+  collisionCooldownMs: 220,
+  applyImpactAnimation: true,
+  destroyOnContact: true,
+} as const;
+
+export const MONEY_DOWN_MAGNET_CONFIG = {
   textureKey: "money-down",
   width: 84,
   height: 120,
@@ -2056,10 +2234,10 @@ export const SPEED_BONUS_CONFIG = {
 } as const;
 
 export const COIN_CONFIG = {
-  textureKey: "coin",
+  textureKey: "energy-bonus",
   shadowTextureKey: "coin-shadow",
-  width: 54,
-  height: 54,
+  width: 64,
+  height: 78,
   shadowWidth: 52,
   shadowHeight: 16,
   shadowYOffset: 82,
@@ -2067,15 +2245,15 @@ export const COIN_CONFIG = {
   depth: 20,
   shadowDepth: 8,
   speedYMultiplier: 1,
-  yBobAmplitudePx: 24,
-  yBobFrequencyHz: 0.70,
+  yBobAmplitudePx: 30,
+  yBobFrequencyHz: 0.76,
   yBobPhaseMin: 0,
   yBobPhaseMax: Math.PI * 2,
   hitbox: {
-    widthRatio: 3,
-    heightRatio: 3,
-    offsetX: 100,
-    offsetY: 90,
+    widthRatio: 5,
+    heightRatio: 8,
+    offsetX: 250,
+    offsetY: 325,
   },
   shadowBobScale: {
     baseScaleX: 0.16,

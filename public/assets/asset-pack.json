@@ -92,9 +92,24 @@
                 "key": "coin"
             },
             {
+                "url": "assets/energy_bonus.png",
+                "type": "image",
+                "key": "energy-bonus"
+            },
+            {
                 "url": "assets/coin_shadow.png",
                 "type": "image",
                 "key": "coin-shadow"
+            },
+            {
+                "url": "assets/icon_briefcase.png",
+                "type": "image",
+                "key": "icon-briefcase"
+            },
+            {
+                "url": "assets/icon_shield.png",
+                "type": "image",
+                "key": "icon-shield"
             },
             {
                 "url": "assets/flag.png",
@@ -207,6 +222,11 @@
                 "key": "onboarding-window"
             },
             {
+                "url": "assets/onboarding_window_3.png",
+                "type": "image",
+                "key": "onboarding-window-3"
+            },
+            {
                 "url": "assets/ship_1.png",
                 "type": "image",
                 "key": "ship-1"
@@ -230,6 +250,16 @@
                 "url": "assets/ship_5.png",
                 "type": "image",
                 "key": "ship-5"
+            },
+            {
+                "url": "assets/ship_medium_1.png",
+                "type": "image",
+                "key": "ship-medium-1"
+            },
+            {
+                "url": "assets/ship_large_1.png",
+                "type": "image",
+                "key": "ship-large-1"
             }
         ]
     },

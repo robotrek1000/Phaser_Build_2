@@ -2,6 +2,10 @@ import Phaser from "phaser";
 import { INTRO_ONBOARDING_UI } from "../config/tuning";
 
 export default class IntroScene extends Phaser.Scene {
+  private continueText?: Phaser.GameObjects.Text;
+  private continuePulsePhase = 0;
+  private isStartingGame = false;
+
   constructor() {
     super("Intro");
   }
@@ -19,7 +23,7 @@ export default class IntroScene extends Phaser.Scene {
       .setDepth(INTRO_ONBOARDING_UI.overlayDepth);
 
     const onboardingWindow = this.add
-      .image(width / 2, height * INTRO_ONBOARDING_UI.windowYRatio, "onboarding-window")
+      .image(width / 2, height * INTRO_ONBOARDING_UI.windowYRatio, "onboarding-window-3")
       .setDepth(INTRO_ONBOARDING_UI.windowDepth);
     const fitScale = Math.min(
       (width * INTRO_ONBOARDING_UI.windowMaxWidthRatio) / onboardingWindow.width,
@@ -32,81 +36,48 @@ export default class IntroScene extends Phaser.Scene {
     );
     onboardingWindow.setScale(clampedScale);
 
-    const buttonWidth = Math.max(1, Math.round(width * INTRO_ONBOARDING_UI.buttonWidthRatio));
-    const buttonHeight = Math.max(1, Math.round(INTRO_ONBOARDING_UI.buttonHeightPx));
     const windowBottom = onboardingWindow.getBounds().bottom;
-    const buttonY = Math.min(
-      windowBottom + INTRO_ONBOARDING_UI.buttonOffsetFromWindowPx + buttonHeight / 2,
-      height - INTRO_ONBOARDING_UI.buttonBottomPaddingPx - buttonHeight / 2
+    const continueY = Math.min(
+      windowBottom + INTRO_ONBOARDING_UI.continueOffsetY,
+      height - INTRO_ONBOARDING_UI.continueFontSizePx * 0.8
     );
-    const buttonX = width / 2;
-
-    const buttonGraphics = this.add.graphics().setDepth(INTRO_ONBOARDING_UI.buttonDepth);
-    this.add
-      .text(buttonX, buttonY, INTRO_ONBOARDING_UI.buttonText, {
-        fontFamily: INTRO_ONBOARDING_UI.buttonTextFontFamily,
-        fontSize: `${INTRO_ONBOARDING_UI.buttonTextFontSizePx}px`,
-        fontStyle: INTRO_ONBOARDING_UI.buttonTextStyle,
-        color: INTRO_ONBOARDING_UI.buttonTextColor,
+    this.continueText = this.add
+      .text(width / 2, continueY, INTRO_ONBOARDING_UI.continueText, {
+        fontFamily: INTRO_ONBOARDING_UI.continueFontFamily,
+        fontSize: `${INTRO_ONBOARDING_UI.continueFontSizePx}px`,
+        fontStyle: "bold",
+        color: INTRO_ONBOARDING_UI.continueColor,
         align: "center",
       })
       .setOrigin(0.5, 0.5)
-      .setDepth(INTRO_ONBOARDING_UI.buttonDepth + 1);
+      .setDepth(INTRO_ONBOARDING_UI.continueDepth)
+      .setAlpha(INTRO_ONBOARDING_UI.continueAlpha);
 
-    const drawButton = (fillColor: number) => {
-      buttonGraphics.clear();
-      if (INTRO_ONBOARDING_UI.buttonStrokeWidthPx > 0) {
-        buttonGraphics.lineStyle(
-          INTRO_ONBOARDING_UI.buttonStrokeWidthPx,
-          INTRO_ONBOARDING_UI.buttonStrokeColor,
-          1
-        );
-      }
-      buttonGraphics.fillStyle(fillColor, 1);
-      const x = buttonX - buttonWidth / 2;
-      const y = buttonY - buttonHeight / 2;
-      const radius = INTRO_ONBOARDING_UI.buttonRadiusPx;
-      buttonGraphics.fillRoundedRect(x, y, buttonWidth, buttonHeight, radius);
-      if (INTRO_ONBOARDING_UI.buttonStrokeWidthPx > 0) {
-        buttonGraphics.strokeRoundedRect(x, y, buttonWidth, buttonHeight, radius);
-      }
-    };
-
-    drawButton(INTRO_ONBOARDING_UI.buttonFillColor);
-
-    const buttonHitZone = this.add
-      .zone(buttonX, buttonY, buttonWidth, buttonHeight)
-      .setOrigin(0.5, 0.5)
-      .setDepth(INTRO_ONBOARDING_UI.buttonDepth + 2)
-      .setInteractive({ useHandCursor: true });
-
-    let isPressed = false;
-    let isStartingGame = false;
-    const startGame = () => {
-      if (isStartingGame) {
-        return;
-      }
-      isStartingGame = true;
-      this.scene.start("Game");
-    };
-
-    buttonHitZone.on("pointerover", () => {
-      if (!isPressed) {
-        drawButton(INTRO_ONBOARDING_UI.buttonHoverColor);
-      }
+    this.input.once("pointerdown", () => {
+      this.startGame();
     });
-    buttonHitZone.on("pointerout", () => {
-      isPressed = false;
-      drawButton(INTRO_ONBOARDING_UI.buttonFillColor);
-    });
-    buttonHitZone.on("pointerdown", () => {
-      isPressed = true;
-      drawButton(INTRO_ONBOARDING_UI.buttonPressedColor);
-      startGame();
-    });
-    buttonHitZone.on("pointerup", () => {
-      drawButton(INTRO_ONBOARDING_UI.buttonHoverColor);
-      startGame();
-    });
+  }
+
+  update(_time: number, delta: number) {
+    if (!this.continueText || !this.continueText.active) {
+      return;
+    }
+    const pulseHz = Math.max(0, INTRO_ONBOARDING_UI.continuePulseHz);
+    this.continuePulsePhase += (delta / 1000) * pulseHz * Math.PI * 2;
+    const wave = 0.5 + Math.sin(this.continuePulsePhase) * 0.5;
+    const alpha = Phaser.Math.Linear(
+      INTRO_ONBOARDING_UI.continuePulseMinAlpha,
+      INTRO_ONBOARDING_UI.continueAlpha,
+      wave,
+    );
+    this.continueText.setAlpha(alpha);
+  }
+
+  private startGame() {
+    if (this.isStartingGame) {
+      return;
+    }
+    this.isStartingGame = true;
+    this.scene.start("Game");
   }
 }

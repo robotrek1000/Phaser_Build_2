@@ -1,10 +1,10 @@
 import Phaser from "phaser";
 import {
   ASSET_SHIELD_CONFIG,
+  ASSETS_SYSTEM_CONFIG,
   ASSETS_BAR_UI,
   BUOY_COLLISION_LAYER,
   COIN_CONFIG,
-  COIN_UI_CONFIG,
   COLLECT_ANIMATION_BUOY,
   COLLECT_ANIMATION_TIME_BONUS,
   DYNAMIC_BUOY_BLINK,
@@ -18,13 +18,13 @@ import {
   LANDMARK_METERS,
   IMPACT_ANIMATION,
   LANDMARK_CONFIG,
-  MINE_CONFIG,
+  MONEY_DOWN_MAGNET_CONFIG,
   MONEY_UP_HITBOX,
   MONEY_DOWN_CONFIG,
   OBSTACLE_SLOWDOWN,
   OBJECT_SIZES,
-  PIRATE_CONFIG,
   PLAY_AREA,
+  RED_MAGNET_BUOY_CONFIG,
   RED_HIT_INVULNERABILITY,
   RED_BUOY_HIT_FEEDBACK,
   RED_HIT_OVERLAY_EFFECT,
@@ -32,14 +32,18 @@ import {
   RELATIVE_TOUCH_CONTROL,
   RELATIVE_TOUCH_ROUTING,
   ROCK_CONFIG,
+  RUN_COIN_REWARD_CONFIG,
   RUN_CINEMATIC_CONFIG,
   RUN_SPEED_RAMP,
   RUN_START_SPEED,
   RUN_TIMER,
   SEA_BACKGROUND_CONFIG,
+  SHIELD_ENERGY_BAR_UI,
+  SHIELD_ENERGY_CONFIG,
   SKILL_WHEEL_BONUS_HUD_CONFIG,
   SKILL_WHEEL_EVENT_CONFIG,
   SKILL_WHEEL_REWARD_CONFIG,
+  SKILL_WHEEL_STACK_CONFIG,
   SKILL_WHEEL_UI_CONFIG,
   SEGMENT_GLOBAL_BONUS_SPAWN,
   SEGMENT_COIN_SAFETY,
@@ -56,11 +60,13 @@ import {
   TUNING,
   WIND_SPEED_BONUS_CONFIG,
   WATER_SCROLL,
+  WHIRLPOOL_DEBUFF_CONFIG,
   WHIRLPOOL_CONFIG,
   WHEEL_DEBUG_CONFIG,
   WHEEL_ISLAND_CONFIG,
   WORLD_OBJECT_DARKENING_CONFIG,
   YACHT_HAZARD_HITBOX,
+  YACHT_TIER_CONFIG,
   YACHT_SOLID_BLOCKERS,
   YACHT_SOLID_CONTACT_RESOLVE,
   YACHT_SPEED_Y_ANIM,
@@ -83,12 +89,12 @@ import {
 } from "../config/level_segments";
 
 type SuccessReason = "success_harbor_610";
-type FailureReason = "out_of_time" | "hit_hazard";
+type FailureReason = "out_of_time" | "assets_empty";
 type ResultReason = FailureReason | SuccessReason;
 type RunFlowState = "normal" | "intro" | "death" | "result_pending";
 type ControlPlatform = "desktop" | "mobile";
 type ControlModel = "delta" | "anchorRebase";
-type HazardType = "mine" | "pirate" | "moneyDown" | "dynamicBuoy" | "whirlpool";
+type HazardType = "moneyDown" | "moneyDownMagnet" | "dynamicBuoy" | "whirlpool";
 type SolidType = "rock1" | "rock2" | "rock3" | "reef1" | "wheelIsland1" | "wheelIsland2" | "harbor";
 type CollectAnimationType = "buoy" | "timeBonus" | "speedBonus";
 type AirBonusType = "time" | "speed";
@@ -102,9 +108,7 @@ type SegmentBonusType = "timeBonus" | "speedBonus";
 type SkillWheelRewardId = keyof typeof SKILL_WHEEL_REWARD_CONFIG.rewards;
 type ActiveSkillWheelReward = {
   id: SkillWheelRewardId;
-  startedAtMs: number;
-  expiresAtMs: number;
-  durationMs: number;
+  stackValue: number;
 };
 type ScheduledWheelEvent = {
   meter: number;
@@ -162,8 +166,7 @@ const MONEY_UP_SWAY_FREQUENCY_HZ = 1.1;
 
 export default class GameScene extends Phaser.Scene {
   private waterBase?: Phaser.GameObjects.TileSprite;
-  private waterOverlay?: Phaser.GameObjects.TileSprite;
-  private coinsText?: Phaser.GameObjects.Text;
+  private waterOverlay?: Phaser.GameObjects.TileSprite; // legacy
   private topProgressTrackGraphics?: Phaser.GameObjects.Graphics;
   private topProgressFillGraphics?: Phaser.GameObjects.Graphics;
   private topProgressMaskGraphics?: Phaser.GameObjects.Graphics;
@@ -171,11 +174,16 @@ export default class GameScene extends Phaser.Scene {
   private topProgressShipMarker?: Phaser.GameObjects.Image;
   private topProgressFlag?: Phaser.GameObjects.Image;
   private assetsBarGraphics?: Phaser.GameObjects.Graphics;
+  private shieldEnergyBarGraphics?: Phaser.GameObjects.Graphics;
+  private assetsBarIcon?: Phaser.GameObjects.Image;
+  private shieldEnergyBarIcon?: Phaser.GameObjects.Image;
+  private assetsBarCurrentWidth = ASSETS_BAR_UI.width;
   private timePanelGraphics?: Phaser.GameObjects.Graphics;
   private timeText?: Phaser.GameObjects.Text;
   private hitboxDebugGraphics?: Phaser.GameObjects.Graphics;
   private debugSpeedText?: Phaser.GameObjects.Text;
   private debugDistanceText?: Phaser.GameObjects.Text;
+  private debugPerfText?: Phaser.GameObjects.Text;
   private skillWheelOverlay?: Phaser.GameObjects.Rectangle;
   private skillWheelUiContainer?: Phaser.GameObjects.Container;
   private skillWheelIntroText?: Phaser.GameObjects.Text;
@@ -194,6 +202,7 @@ export default class GameScene extends Phaser.Scene {
     icon: Phaser.GameObjects.Image;
     radialTrack: Phaser.GameObjects.Graphics;
     radialFill: Phaser.GameObjects.Graphics;
+    multiplierText?: Phaser.GameObjects.Text;
   }> = [];
   private skillWheelModalState: "idle" | "intro" | "spinning" | "result" = "idle";
   private skillWheelCurrentEvent?: ScheduledWheelEvent;
@@ -291,17 +300,22 @@ export default class GameScene extends Phaser.Scene {
   private pendingFailureReason?: FailureReason;
   private cinematicWorldSpeedScale = 1;
   private runFlowPhysicsPaused = false;
-  private speedKmh = Math.max(0, RUN_SPEED_RAMP.startKmh - RUN_START_SPEED.startDropKmh);
+  private speedKmh = YACHT_TIER_CONFIG.tiers[0].speedKmh;
   private distanceM = 0;
-  private assetsValue = TUNING.FUEL_START;
+  private assetsValue = ASSETS_SYSTEM_CONFIG.startNormalized;
+  private shieldEnergyValue = SHIELD_ENERGY_CONFIG.startNormalized;
+  private yachtTier: 1 | 2 | 3 = 1;
   private remainingTimeMs = RUN_TIMER.initialMs;
 
-  private coinsCollected = 0;
+  private coinsCollected = 0; // awarded at harbor only
   private coinsScheduledTotal = 0;
+  private wheelCoinBonusStacks = 0;
 
   private speedBonusRemainingMs = 0;
   private speedBonusLockedKmh?: number;
   private speedBonusDecayActive = false;
+  private whirlpoolDebuffUntilMs = Number.NEGATIVE_INFINITY;
+  private whirlpoolSpinTurns = 0;
   private obstacleSlowdownUntilMs = Number.NEGATIVE_INFINITY;
   private activeSkillWheelRewards: ActiveSkillWheelReward[] = [];
   private scheduledWheelEvents: ScheduledWheelEvent[] = [];
@@ -309,6 +323,8 @@ export default class GameScene extends Phaser.Scene {
 
   private scheduledObjects: ScheduledSegmentObject[] = [];
   private scheduledObjectCursor = 0;
+  private debugFpsEma = 0;
+  private debugResizeTimestampsMs: number[] = [];
 
   private collisionPairLastHit = new Map<string, number>();
   private buoyCollisionPairLastHit = new Map<string, number>();
@@ -425,12 +441,12 @@ export default class GameScene extends Phaser.Scene {
       this.updateIntroCinematic(delta);
       this.updateCinematicWorldScroll(delta);
       this.updateAssetsBar(this.assetsValue);
+      this.updateShieldEnergyBar(this.shieldEnergyValue);
       this.updateTopProgressUi();
-      this.updateCoinsHud();
       this.updateTimerHud();
       this.updateShieldButtonState();
       this.updateShieldVisualPresentation();
-      this.updateHitboxDebugOverlay();
+      this.updateHitboxDebugOverlay(delta);
       return;
     }
 
@@ -438,12 +454,12 @@ export default class GameScene extends Phaser.Scene {
       this.updateDeathCinematic(delta);
       this.updateCinematicWorldScroll(delta);
       this.updateAssetsBar(this.assetsValue);
+      this.updateShieldEnergyBar(this.shieldEnergyValue);
       this.updateTopProgressUi();
-      this.updateCoinsHud();
       this.updateTimerHud();
       this.updateShieldButtonState();
       this.updateShieldVisualPresentation();
-      this.updateHitboxDebugOverlay();
+      this.updateHitboxDebugOverlay(delta);
       return;
     }
 
@@ -457,9 +473,10 @@ export default class GameScene extends Phaser.Scene {
     if (this.isSkillWheelModalBlockingGameplay()) {
       this.updateSkillWheelModal(delta);
       this.updateTopProgressUi();
-      this.updateCoinsHud();
       this.updateTimerHud();
-      this.updateHitboxDebugOverlay();
+      this.updateAssetsBar(this.assetsValue);
+      this.updateShieldEnergyBar(this.shieldEnergyValue);
+      this.updateHitboxDebugOverlay(delta);
       return;
     }
 
@@ -511,6 +528,7 @@ export default class GameScene extends Phaser.Scene {
     this.tryTriggerSkillWheelEventByDistance();
 
     const controlProfile = this.getControlProfileForPlatform(this.activeControlPlatform);
+    const controlLerpMultiplier = this.getEffectiveControlLerpMultiplier();
     const controlModel = this.getControlModelForPlatform(this.activeControlPlatform);
     if (this.pointerControlActive) {
       if (controlModel === "anchorRebase") {
@@ -535,14 +553,14 @@ export default class GameScene extends Phaser.Scene {
       this.pointerFrameDeltaY = 0;
     }
 
-    const targetLerpTx = Phaser.Math.Clamp(controlProfile.targetLerpPerSecX * dt, 0, 1);
-    const targetLerpTy = Phaser.Math.Clamp(controlProfile.targetLerpPerSecY * dt, 0, 1);
+    const targetLerpTx = Phaser.Math.Clamp(controlProfile.targetLerpPerSecX * controlLerpMultiplier * dt, 0, 1);
+    const targetLerpTy = Phaser.Math.Clamp(controlProfile.targetLerpPerSecY * controlLerpMultiplier * dt, 0, 1);
     this.targetX = this.getSmoothedAxisValue(this.targetX, this.desiredTargetX, targetLerpTx, controlProfile.snapDistancePx);
     this.targetY = this.getSmoothedAxisValue(this.targetY, this.desiredTargetY, targetLerpTy, controlProfile.snapDistancePx);
 
     if (this.yachtBody) {
-      const bodyLerpTx = Phaser.Math.Clamp(controlProfile.bodyLerpPerSecX * dt, 0, 1);
-      const bodyLerpTy = Phaser.Math.Clamp(controlProfile.bodyLerpPerSecY * dt, 0, 1);
+      const bodyLerpTx = Phaser.Math.Clamp(controlProfile.bodyLerpPerSecX * controlLerpMultiplier * dt, 0, 1);
+      const bodyLerpTy = Phaser.Math.Clamp(controlProfile.bodyLerpPerSecY * controlLerpMultiplier * dt, 0, 1);
       const bodyTargetY = this.targetY + this.yMotionOffsetPx;
 
       const nextBodyX = this.getSmoothedAxisValue(this.yachtBody.x, this.targetX, bodyLerpTx, controlProfile.snapDistancePx);
@@ -553,16 +571,13 @@ export default class GameScene extends Phaser.Scene {
     this.processSegmentSchedule();
     this.updateAutoShieldState();
     this.updateShieldRuntime(delta, dt);
-    this.applyMineMagnetForces(dt);
+    this.applyRedMagnetBuoyForces(dt);
     this.updateActiveObjectSpeeds(dt);
     this.updateHazardMotion(dt);
     this.updateMoneyUps(dt);
-    this.updateCoins();
+    this.updateEnergies();
     this.updateTimeBonuses();
     this.updateSolidVelocities();
-
-    this.assetsValue = Math.max(0, this.assetsValue - dt * TUNING.FUEL_DRAIN_PER_SEC);
-    this.updateAutoShieldState();
 
     this.cleanupFallingObjects();
     this.pruneOldCollisionMaps();
@@ -575,16 +590,17 @@ export default class GameScene extends Phaser.Scene {
     this.scrollWaterBackground(scrollDeltaPx);
 
     this.syncYachtVisualFromBody(true, delta);
+    this.updateWhirlpoolDebuffVisual(delta);
 
     this.updateYachtStageTextureByAssets(this.assetsValue);
     this.updateAssetsBar(this.assetsValue);
+    this.updateShieldEnergyBar(this.shieldEnergyValue);
     this.updateTopProgressUi();
-    this.updateCoinsHud();
     this.updateTimerHud();
     this.updateShieldButtonState();
     this.updateShieldVisualPresentation();
     this.applyWorldDarkening(this.seaCurrentDarkeningIntensity);
-    this.updateHitboxDebugOverlay();
+    this.updateHitboxDebugOverlay(delta);
   }
 
   private isRunInputAllowed() {
@@ -629,7 +645,6 @@ export default class GameScene extends Phaser.Scene {
     const outgoing = this.yachtStageTransitionOutgoingOverlay;
     if (outgoing?.active) {
       outgoing.setPosition(x, y);
-      outgoing.setScale(this.getYachtScaleForTextureKey(outgoing.texture.key, this.yachtVisual?.scaleX ?? 1));
       if (this.yachtVisual) {
         outgoing.setDepth(this.yachtVisual.depth + 0.001);
       }
@@ -638,20 +653,20 @@ export default class GameScene extends Phaser.Scene {
     const incoming = this.yachtStageTransitionIncomingOverlay;
     if (incoming?.active) {
       incoming.setPosition(x, y);
-      incoming.setScale(this.getYachtScaleForTextureKey(incoming.texture.key, this.yachtVisual?.scaleX ?? 1));
       if (this.yachtVisual) {
         incoming.setDepth(this.yachtVisual.depth + 0.002);
       }
     }
   }
 
-  private getYachtScaleForTextureKey(textureKey: string, fallbackScale: number) {
+  private getYachtScaleForTextureKey(textureKey: string, fallbackScale: number, tier: 1 | 2 | 3 = this.yachtTier) {
     const frame = this.textures.getFrame(textureKey);
     const frameHeight = frame?.realHeight ?? frame?.height ?? 0;
     if (frameHeight <= 0) {
       return fallbackScale;
     }
-    return YACHT_VISUAL_SIZE.targetHeightPx / frameHeight;
+    const targetHeight = YACHT_VISUAL_SIZE.targetHeightPx * this.getYachtTierConfig(tier).targetHeightMultiplier;
+    return targetHeight / frameHeight;
   }
 
   private setRunFlowGameplayFrozen(frozen: boolean) {
@@ -1188,7 +1203,7 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const reason = this.pendingFailureReason ?? "hit_hazard";
+    const reason = this.pendingFailureReason ?? "assets_empty";
     this.runFlowState = "result_pending";
     this.stopDeathCinematicRuntimes();
     this.cinematicWorldSpeedScale = Phaser.Math.Clamp(
@@ -1217,11 +1232,32 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private finalizeRunAndOpenResult(reason: ResultReason) {
+    const reachedHarbor = reason === "success_harbor_610";
+    const tier = this.yachtTier;
+    const assetsFill = Phaser.Math.Clamp(this.assetsValue, 0, 1);
+    const yachtCoins = RUN_COIN_REWARD_CONFIG.baseByTier[tier - 1] ?? RUN_COIN_REWARD_CONFIG.baseByTier[0];
+    const rawPortfolioCoins = yachtCoins * assetsFill;
+    const portfolioCoins =
+      RUN_COIN_REWARD_CONFIG.portfolioRoundMode === "ceil"
+        ? Math.ceil(rawPortfolioCoins)
+        : RUN_COIN_REWARD_CONFIG.portfolioRoundMode === "round"
+          ? Math.round(rawPortfolioCoins)
+          : Math.floor(rawPortfolioCoins);
+    const wheelCoins = this.wheelCoinBonusStacks * RUN_COIN_REWARD_CONFIG.wheelCoinBonusPerStack;
+    const earnedIfSuccess = yachtCoins + portfolioCoins + wheelCoins;
+    const totalCoins = reachedHarbor ? earnedIfSuccess : 0;
+    this.coinsCollected = totalCoins;
+
     this.scene.start("Result", {
       distanceM: this.distanceM,
-      coinsAwarded: this.coinsCollected,
-      coinsLost: 0,
       reason,
+      reachedHarbor,
+      tier,
+      assetsFill,
+      yachtCoins,
+      portfolioCoins,
+      wheelCoins,
+      totalCoins,
     });
   }
 
@@ -1230,6 +1266,10 @@ export default class GameScene extends Phaser.Scene {
     this.hitboxDebugGraphics = this.add.graphics();
     this.hitboxDebugGraphics.setDepth(HITBOX_DEBUG.depth);
     this.hitboxDebugGraphics.setVisible(HITBOX_DEBUG.enabled);
+    this.debugFpsEma = 0;
+    this.debugResizeTimestampsMs = [];
+    this.scale.off("resize", this.handleHitboxDebugResize, this);
+    this.scale.on("resize", this.handleHitboxDebugResize, this);
 
     const metricsCfg = HITBOX_DEBUG.metricsUi;
     const fontStyle = metricsCfg.fontStyle === "bold" ? "bold" : "normal";
@@ -1256,28 +1296,50 @@ export default class GameScene extends Phaser.Scene {
     this.debugDistanceText.setDepth(metricsCfg.depth);
     this.debugDistanceText.setAlpha(metricsCfg.alpha);
     this.debugDistanceText.setVisible(false);
+
+    this.debugPerfText = this.add.text(0, 0, "0", {
+      fontFamily: metricsCfg.fontFamily,
+      fontSize: `${metricsCfg.fontSizePx}px`,
+      fontStyle,
+      color: metricsCfg.perfColor,
+      stroke: metricsCfg.fontStrokeColor,
+      strokeThickness: metricsCfg.fontStrokeThickness,
+    });
+    this.debugPerfText.setDepth(metricsCfg.depth);
+    this.debugPerfText.setAlpha(metricsCfg.alpha);
+    this.debugPerfText.setVisible(false);
+  }
+
+  private handleHitboxDebugResize() {
+    this.debugResizeTimestampsMs.push(this.time.now);
   }
 
   private destroyHitboxDebugOverlay() {
+    this.scale.off("resize", this.handleHitboxDebugResize, this);
     this.hitboxDebugGraphics?.destroy();
     this.hitboxDebugGraphics = undefined;
     this.debugSpeedText?.destroy();
     this.debugDistanceText?.destroy();
+    this.debugPerfText?.destroy();
     this.debugSpeedText = undefined;
     this.debugDistanceText = undefined;
+    this.debugPerfText = undefined;
+    this.debugFpsEma = 0;
+    this.debugResizeTimestampsMs = [];
   }
 
-  private updateHitboxDebugOverlay() {
+  private updateHitboxDebugOverlay(deltaMs: number) {
     const graphics = this.hitboxDebugGraphics;
     const speedText = this.debugSpeedText;
     const distanceText = this.debugDistanceText;
-    if (!graphics || !speedText || !distanceText) {
+    const perfText = this.debugPerfText;
+    if (!graphics || !speedText || !distanceText || !perfText) {
       return;
     }
 
     const metricsCfg = HITBOX_DEBUG.metricsUi;
     const isMetricsVisible = HITBOX_DEBUG.enabled && metricsCfg.enabled;
-    this.updateDebugMetricsTexts(isMetricsVisible);
+    this.updateDebugMetricsTexts(isMetricsVisible, deltaMs);
 
     if (!HITBOX_DEBUG.enabled) {
       graphics.clear();
@@ -1310,13 +1372,14 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private updateDebugMetricsTexts(visible: boolean) {
-    if (!this.debugSpeedText || !this.debugDistanceText) {
+  private updateDebugMetricsTexts(visible: boolean, deltaMs: number) {
+    if (!this.debugSpeedText || !this.debugDistanceText || !this.debugPerfText) {
       return;
     }
     if (!visible) {
       this.debugSpeedText.setVisible(false);
       this.debugDistanceText.setVisible(false);
+      this.debugPerfText.setVisible(false);
       return;
     }
 
@@ -1336,6 +1399,26 @@ export default class GameScene extends Phaser.Scene {
     const distanceValue = cfg.roundDistanceM ? Math.floor(this.distanceM) : this.distanceM;
     const speedTextValue = Number.isInteger(speedValue) ? `${speedValue}` : speedValue.toFixed(2);
     const distanceTextValue = Number.isInteger(distanceValue) ? `${distanceValue}` : distanceValue.toFixed(2);
+    const fpsDecimals = Phaser.Math.Clamp(Math.floor(cfg.fpsDecimals), 0, 3);
+    const frameMsDecimals = Phaser.Math.Clamp(Math.floor(cfg.frameMsDecimals), 0, 3);
+    const fpsEmaAlpha = Phaser.Math.Clamp(cfg.fpsEmaAlpha, 0, 1);
+    const instantFps = deltaMs > 0 ? 1000 / deltaMs : 0;
+    this.debugFpsEma =
+      this.debugFpsEma === 0
+        ? instantFps
+        : this.debugFpsEma + (instantFps - this.debugFpsEma) * fpsEmaAlpha;
+    const frameMs = Math.max(0, deltaMs);
+    const resizeRateWindowMs = Math.max(1, cfg.resizeRateWindowMs);
+    const resizeCutoffMs = this.time.now - resizeRateWindowMs;
+    while (
+      this.debugResizeTimestampsMs.length > 0 &&
+      this.debugResizeTimestampsMs[0] < resizeCutoffMs
+    ) {
+      this.debugResizeTimestampsMs.shift();
+    }
+    const resizeRatePerSecond =
+      (this.debugResizeTimestampsMs.length * 1000) / resizeRateWindowMs;
+    const perfTextValue = `FPS ${this.debugFpsEma.toFixed(fpsDecimals)} (${frameMs.toFixed(frameMsDecimals)} ms) | RESIZE/s ${resizeRatePerSecond.toFixed(1)}`;
 
     this.debugSpeedText
       .setText(speedTextValue)
@@ -1345,6 +1428,11 @@ export default class GameScene extends Phaser.Scene {
     this.debugDistanceText
       .setText(distanceTextValue)
       .setPosition(baseX, baseY + cfg.lineGapPx)
+      .setOrigin(originX, 0)
+      .setVisible(true);
+    this.debugPerfText
+      .setText(perfTextValue)
+      .setPosition(baseX, baseY + cfg.lineGapPx * 2)
       .setOrigin(originX, 0)
       .setVisible(true);
   }
@@ -2026,46 +2114,6 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private createHud(width: number, _height: number) {
-    const coinUi = COIN_UI_CONFIG;
-    const coinPanel = this.add.graphics();
-    coinPanel.setDepth(coinUi.depth);
-    coinPanel.fillStyle(coinUi.panelColor, 0.96);
-    coinPanel.fillRoundedRect(coinUi.x, coinUi.y, coinUi.width, coinUi.height, coinUi.radius);
-    coinPanel.fillStyle(coinUi.titlePanelColor, 1);
-    coinPanel.fillRoundedRect(coinUi.x, coinUi.y, coinUi.width, coinUi.titleHeight, coinUi.radius);
-    coinPanel.fillRect(coinUi.x, coinUi.y + coinUi.titleHeight - coinUi.radius, coinUi.width, coinUi.radius);
-
-    this.add.text(coinUi.x + coinUi.width / 2, coinUi.y + coinUi.titleHeight / 2, coinUi.title, {
-      fontFamily: coinUi.titleFontFamily,
-      fontSize: `${coinUi.titleFontSizePx}px`,
-      fontStyle: "bold",
-      color: coinUi.titleColor,
-    })
-      .setOrigin(0.5, 0.5)
-      .setDepth(coinUi.depth + 1);
-
-    this.add.image(
-      coinUi.x + coinUi.iconXOffset,
-      coinUi.y + coinUi.titleHeight + (coinUi.height - coinUi.titleHeight) / 2,
-      coinUi.iconKey,
-    )
-      .setDisplaySize(coinUi.iconSize, coinUi.iconSize)
-      .setDepth(coinUi.depth + 1);
-
-    this.coinsText = this.add.text(
-      coinUi.x + coinUi.valueXOffset,
-      coinUi.y + coinUi.titleHeight + (coinUi.height - coinUi.titleHeight) / 2,
-      "0",
-      {
-        fontFamily: coinUi.valueFontFamily,
-        fontSize: `${coinUi.valueFontSizePx}px`,
-        fontStyle: "bold",
-        color: coinUi.valueColor,
-      },
-    );
-    this.coinsText.setOrigin(0, 0.5);
-    this.coinsText.setDepth(coinUi.depth + 1);
-
     const progressCfg = TOP_PROGRESS_BAR_CONFIG;
     const progressLayout = this.getTopProgressLayout();
 
@@ -2093,6 +2141,28 @@ export default class GameScene extends Phaser.Scene {
       .image(progressLayout.flagX, progressLayout.flagY, progressCfg.flag.key)
       .setScale(progressLayout.flagScaleX, progressLayout.flagScaleY)
       .setDepth(progressCfg.depth + 2);
+
+    this.assetsBarIcon?.destroy();
+    this.shieldEnergyBarIcon?.destroy();
+    this.assetsBarIcon = this.add
+      .image(
+        ASSETS_BAR_UI.x + ASSETS_BAR_UI.icon.xOffset,
+        ASSETS_BAR_UI.y + ASSETS_BAR_UI.icon.yOffset,
+        ASSETS_BAR_UI.icon.key,
+      )
+      .setDisplaySize(ASSETS_BAR_UI.icon.sizePx, ASSETS_BAR_UI.icon.sizePx)
+      .setDepth(ASSETS_BAR_UI.icon.depth)
+      .setScrollFactor(0);
+    this.shieldEnergyBarIcon = this.add
+      .image(
+        SHIELD_ENERGY_BAR_UI.x + SHIELD_ENERGY_BAR_UI.icon.xOffset,
+        SHIELD_ENERGY_BAR_UI.y + SHIELD_ENERGY_BAR_UI.icon.yOffset,
+        SHIELD_ENERGY_BAR_UI.icon.key,
+      )
+      .setDisplaySize(SHIELD_ENERGY_BAR_UI.icon.sizePx, SHIELD_ENERGY_BAR_UI.icon.sizePx)
+      .setDepth(SHIELD_ENERGY_BAR_UI.icon.depth)
+      .setScrollFactor(0);
+
     this.createSkillWheelRewardHud();
     this.createSkillWheelModalUi();
 
@@ -2130,7 +2200,6 @@ export default class GameScene extends Phaser.Scene {
     this.timeText.setDepth(timeUi.depth + 1);
 
     this.createRedHitOverlay(width, this.scale.height);
-    this.updateCoinsHud();
     this.updateTopProgressUi();
   }
 
@@ -2241,7 +2310,7 @@ export default class GameScene extends Phaser.Scene {
     let nextState: ShieldButtonState = "disabled";
     if (this.shieldActive) {
       nextState = "active";
-    } else if (this.assetsValue >= ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
+    } else if (this.shieldEnergyValue >= ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
       nextState = "ready";
     }
 
@@ -2433,7 +2502,7 @@ export default class GameScene extends Phaser.Scene {
     this.yachtHazardCollider.setImmovable(true);
     this.yachtHazardCollider.setVisible(false);
 
-    this.yachtVisual = this.add.image(startX, startY, "ship-5");
+    this.yachtVisual = this.add.image(startX, startY, this.getYachtTierConfig().baseTextureKey);
     this.yachtVisual.setDepth(YACHT_VISUAL_DEPTH);
     this.applyYachtVisualSizing();
 
@@ -2445,6 +2514,7 @@ export default class GameScene extends Phaser.Scene {
     this.createAssetsBar();
     this.updateYachtStageTextureByAssets(this.assetsValue);
     this.updateAssetsBar(this.assetsValue);
+    this.updateShieldEnergyBar(this.shieldEnergyValue);
   }
 
   private applyYachtVisualSizing() {
@@ -2457,7 +2527,8 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const scale = YACHT_VISUAL_SIZE.targetHeightPx / frameHeight;
+    const targetHeight = YACHT_VISUAL_SIZE.targetHeightPx * this.getYachtTierConfig().targetHeightMultiplier;
+    const scale = targetHeight / frameHeight;
     this.yachtVisual.setScale(scale);
     this.updateYachtBodyHitboxFromVisual();
   }
@@ -2538,7 +2609,7 @@ export default class GameScene extends Phaser.Scene {
       if (!sprite.active || sprite.getData("collecting") || !this.isGameplayInteractionAllowed()) {
         return;
       }
-      this.collectCoin(sprite);
+      this.collectEnergy(sprite);
     });
 
     this.physics.add.overlap(this.yachtHazardCollider, this.timeBonuses, (_yacht, bonusObj) => {
@@ -2642,7 +2713,7 @@ export default class GameScene extends Phaser.Scene {
         }
         const usedLength = template.lengthMeters;
         this.appendTemplateObjects(template, cursor, usedLength, pool.endMeter, pool.poolIndex);
-        this.appendCoinForSegment(cursor, usedLength, pool.endMeter, template.id, pool.poolIndex);
+        this.appendEnergyForSegment(cursor, usedLength, pool.endMeter, template.id, pool.poolIndex);
         this.markPatternPoolUsage(patternPoolsUsage, template.patternId, pool.poolIndex);
         cursor += usedLength;
       }
@@ -2657,7 +2728,7 @@ export default class GameScene extends Phaser.Scene {
       12,
     );
 
-    this.appendMissingCoinsInFinalWindow();
+    this.appendMissingEnergiesInFinalWindow();
     this.scheduleGlobalBonuses();
     this.scheduleSkillWheelEvents();
     this.applySkillWheelIslandSegments();
@@ -2794,6 +2865,9 @@ export default class GameScene extends Phaser.Scene {
       if (!SEGMENT_GLOBAL_BONUS_SPAWN.fromSegments && (item.type === "timeBonus" || item.type === "speedBonus")) {
         continue;
       }
+      if (item.type === "energy") {
+        continue;
+      }
 
       if (item.meterOffset < 0 || item.meterOffset > usedLength) {
         continue;
@@ -2805,7 +2879,7 @@ export default class GameScene extends Phaser.Scene {
       }
 
       let xRatio = item.xRatio;
-      if (item.type === "coin") {
+      if (item.type === "energy") {
         const safeCandidate = this.findSafeCoinPlacement(
           Math.max(segmentStartMeter, spawnMeter - SEGMENT_COIN_SAFETY.resampleMeterJitterMeters),
           Math.min(segmentEndMeter, spawnMeter + SEGMENT_COIN_SAFETY.resampleMeterJitterMeters),
@@ -2830,39 +2904,40 @@ export default class GameScene extends Phaser.Scene {
         scheduleId: `${template.id}@${poolIndex}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
         spawnMeter,
       });
-      if (item.type === "coin") {
+      if (item.type === "energy") {
         this.coinsScheduledTotal += 1;
       }
     }
   }
 
-  private appendCoinForSegment(
+  private appendEnergyForSegment(
     segmentStartMeter: number,
     usedLength: number,
     segmentEndMeter: number,
     segmentId: string,
     poolIndex: number,
   ) {
-    const coinRules = SEGMENT_PICKUP_RULES.coin;
-    if (!coinRules.oneCoinPerSegment) {
+    const coinRules = SEGMENT_PICKUP_RULES.energy;
+    if (!coinRules.onePerSegment) {
       return;
     }
-    if (segmentStartMeter >= coinRules.finalFillStartMeters) {
+
+    const meterMin = Math.max(segmentStartMeter, coinRules.spawnRangeStartMeters);
+    const meterMax = Math.min(segmentEndMeter, coinRules.spawnRangeEndMeters);
+    if (meterMax <= meterMin) {
       return;
     }
+
     if (this.coinsScheduledTotal >= coinRules.totalCount) {
       return;
     }
 
-    const minOffset = Math.min(usedLength, Math.max(0, coinRules.segmentOffsetMinMeters));
-    const maxOffset = Math.min(usedLength, Math.max(minOffset, coinRules.segmentOffsetMaxMeters));
-    const meterMin = Math.min(segmentEndMeter, segmentStartMeter + minOffset);
-    const meterMax = Math.min(segmentEndMeter, segmentStartMeter + maxOffset);
+    void usedLength;
     const safeCandidate = this.findSafeCoinPlacement(
       meterMin,
       meterMax,
-      coinRules.segmentXRatioMin,
-      coinRules.segmentXRatioMax,
+      coinRules.xRatioMin,
+      coinRules.xRatioMax,
     );
 
     if (!safeCandidate) {
@@ -2870,10 +2945,10 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.scheduledObjects.push({
-      type: "coin",
+      type: "energy",
       meterOffset: safeCandidate.spawnMeter - segmentStartMeter,
       xRatio: safeCandidate.xRatio,
-      scheduleId: `coin-segment-${segmentId}@${poolIndex}@${safeCandidate.spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+      scheduleId: `energy-segment-${segmentId}@${poolIndex}@${safeCandidate.spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
       spawnMeter: safeCandidate.spawnMeter,
     });
     this.coinsScheduledTotal += 1;
@@ -3014,35 +3089,30 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  private appendMissingCoinsInFinalWindow() {
-    const coinRules = SEGMENT_PICKUP_RULES.coin;
+  private appendMissingEnergiesInFinalWindow() {
+    const coinRules = SEGMENT_PICKUP_RULES.energy;
     const missing = Math.max(0, coinRules.totalCount - this.coinsScheduledTotal);
     if (missing === 0) {
       return;
     }
 
-    const maxAttempts = Math.max(
-      missing,
-      missing * SEGMENT_COIN_SAFETY.maxResampleAttempts * SEGMENT_COIN_SAFETY.finalFillExtraAttemptsMultiplier,
-    );
+    const maxAttempts = Math.max(missing, missing * Math.max(1, coinRules.maxPlacementAttempts));
     let spawned = 0;
-    let attempts = 0;
-    while (spawned < missing && attempts < maxAttempts) {
-      attempts += 1;
+    for (let attempts = 0; spawned < missing && attempts < maxAttempts; attempts += 1) {
       const safeCandidate = this.findSafeCoinPlacement(
-        coinRules.finalFillStartMeters + 3,
-        coinRules.finalFillEndMeters - 3,
-        coinRules.finalFillXRatioMin,
-        coinRules.finalFillXRatioMax,
+        coinRules.spawnRangeStartMeters,
+        coinRules.spawnRangeEndMeters,
+        coinRules.xRatioMin,
+        coinRules.xRatioMax,
       );
       if (!safeCandidate) {
         continue;
       }
       this.scheduledObjects.push({
-        type: "coin",
+        type: "energy",
         meterOffset: 0,
         xRatio: safeCandidate.xRatio,
-        scheduleId: `coin-final-fill-${spawned}@${safeCandidate.spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+        scheduleId: `energy-final-fill-${spawned}@${safeCandidate.spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
         spawnMeter: safeCandidate.spawnMeter,
       });
       this.coinsScheduledTotal += 1;
@@ -3050,23 +3120,13 @@ export default class GameScene extends Phaser.Scene {
     }
 
     while (spawned < missing) {
-      const broadSafeCandidate = this.findSafeCoinPlacement(
-        6,
-        coinRules.finalFillEndMeters - 6,
-        SEGMENT_COIN_SAFETY.safeXRatioMin,
-        SEGMENT_COIN_SAFETY.safeXRatioMax,
-      );
-      const spawnMeter = broadSafeCandidate
-        ? broadSafeCandidate.spawnMeter
-        : Phaser.Math.FloatBetween(coinRules.finalFillStartMeters + 3, coinRules.finalFillEndMeters - 3);
-      const xRatio = broadSafeCandidate
-        ? broadSafeCandidate.xRatio
-        : Phaser.Math.FloatBetween(coinRules.finalFillXRatioMin, coinRules.finalFillXRatioMax);
+      const spawnMeter = Phaser.Math.FloatBetween(coinRules.spawnRangeStartMeters, coinRules.spawnRangeEndMeters);
+      const xRatio = Phaser.Math.FloatBetween(coinRules.xRatioMin, coinRules.xRatioMax);
       this.scheduledObjects.push({
-        type: "coin",
+        type: "energy",
         meterOffset: 0,
         xRatio,
-        scheduleId: `coin-final-fallback-${spawned}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
+        scheduleId: `energy-final-fallback-${spawned}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
         spawnMeter,
       });
       this.coinsScheduledTotal += 1;
@@ -3331,11 +3391,8 @@ export default class GameScene extends Phaser.Scene {
   private spawnScheduledObject(item: ScheduledSegmentObject) {
     const x = this.resolveSpawnX(item);
     switch (item.type) {
-      case "mine":
-        this.spawnMine(x);
-        break;
-      case "pirate":
-        this.spawnPirate(x);
+      case "moneyDownMagnet":
+        this.spawnMoneyDownMagnet(x);
         break;
       case "moneyDown":
         this.spawnMoneyDown(x);
@@ -3357,8 +3414,8 @@ export default class GameScene extends Phaser.Scene {
       case "moneyUp":
         this.spawnMoneyUp(x);
         break;
-      case "coin":
-        this.spawnCoin(x);
+      case "energy":
+        this.spawnEnergy(x);
         break;
       case "speedBonus":
         this.spawnSpeedBonus(x);
@@ -3398,51 +3455,12 @@ export default class GameScene extends Phaser.Scene {
     return Phaser.Math.Clamp(x, this.playAreaLeft + 8, this.playAreaRight - 8);
   }
 
-  private spawnMine(x: number) {
-    const sprite = this.hazards.get(x, SEGMENT_SPAWN.objectSpawnY, MINE_CONFIG.textureKey) as Phaser.Physics.Arcade.Sprite | null;
-    if (!sprite) {
-      return;
-    }
-
-    this.prepareHazardSprite(sprite, "mine", MINE_CONFIG.width, MINE_CONFIG.height, MINE_CONFIG.depth, MINE_CONFIG.hitbox);
-    sprite.setData("speedMultiplier", MINE_CONFIG.speedYMultiplier);
-    sprite.setData("driftBaseX", x);
-    sprite.setData("driftAmplitude", MINE_CONFIG.driftAmplitudePx);
-    sprite.setData("driftFrequency", MINE_CONFIG.driftFrequencyHz);
-    sprite.setData("driftPhase", Phaser.Math.FloatBetween(MINE_CONFIG.driftPhaseMin, MINE_CONFIG.driftPhaseMax));
-    sprite.setData("swayPhase", Phaser.Math.FloatBetween(0, Math.PI * 2));
-    sprite.setData("swayFrequency", MINE_CONFIG.swayFrequencyHz);
-    sprite.setData("swayAmplitudeDeg", MINE_CONFIG.swayAmplitudeDeg);
-    sprite.setData("collisionCooldownMs", MINE_CONFIG.collisionCooldownMs);
-    sprite.setData("applyImpactAnimation", MINE_CONFIG.applyImpactAnimation);
-    sprite.setData("destroyOnContact", MINE_CONFIG.applyImpactAnimation);
-    sprite.setData("blocking", true);
-    sprite.setData("mineMagnetLastTickAt", Number.NEGATIVE_INFINITY);
-  }
-
-  private spawnPirate(x: number) {
-    const sprite = this.hazards.get(x, SEGMENT_SPAWN.objectSpawnY, PIRATE_CONFIG.textureKey) as Phaser.Physics.Arcade.Sprite | null;
-    if (!sprite) {
-      return;
-    }
-
-    this.prepareHazardSprite(sprite, "pirate", PIRATE_CONFIG.width, PIRATE_CONFIG.height, PIRATE_CONFIG.depth, PIRATE_CONFIG.hitbox);
-    sprite.setFlipY(PIRATE_CONFIG.flipY);
-    sprite.setData("speedMultiplier", PIRATE_CONFIG.speedYMultiplier);
-    sprite.setData("driftBaseX", x);
-    sprite.setData("driftAmplitude", PIRATE_CONFIG.driftAmplitudePx);
-    sprite.setData("driftFrequency", PIRATE_CONFIG.driftFrequencyHz);
-    sprite.setData("driftPhase", Phaser.Math.FloatBetween(PIRATE_CONFIG.driftPhaseMin, PIRATE_CONFIG.driftPhaseMax));
-    sprite.setData("swayPhase", Phaser.Math.FloatBetween(0, Math.PI * 2));
-    sprite.setData("swayFrequency", PIRATE_CONFIG.swayFrequencyHz);
-    sprite.setData("swayAmplitudeDeg", PIRATE_CONFIG.swayAmplitudeDeg);
-    sprite.setData("collisionCooldownMs", PIRATE_CONFIG.collisionCooldownMs);
-    sprite.setData("applyImpactAnimation", PIRATE_CONFIG.applyImpactAnimation);
-    sprite.setData("destroyOnContact", false);
-    sprite.setData("blocking", true);
-  }
-
   private spawnMoneyDown(x: number) {
+    if (RED_MAGNET_BUOY_CONFIG.enabled && Phaser.Math.FloatBetween(0, 1) <= RED_MAGNET_BUOY_CONFIG.rareRatio) {
+      this.spawnMoneyDownMagnet(x);
+      return;
+    }
+
     const sprite = this.hazards.get(x, SEGMENT_SPAWN.objectSpawnY, MONEY_DOWN_CONFIG.textureKey) as Phaser.Physics.Arcade.Sprite | null;
     if (!sprite) {
       return;
@@ -3468,6 +3486,42 @@ export default class GameScene extends Phaser.Scene {
     sprite.setData("applyImpactAnimation", MONEY_DOWN_CONFIG.applyImpactAnimation);
     sprite.setData("destroyOnContact", MONEY_DOWN_CONFIG.destroyOnContact);
     sprite.setData("blocking", true);
+  }
+
+  private spawnMoneyDownMagnet(x: number) {
+    const sprite = this.hazards.get(
+      x,
+      SEGMENT_SPAWN.objectSpawnY,
+      MONEY_DOWN_MAGNET_CONFIG.textureKey,
+    ) as Phaser.Physics.Arcade.Sprite | null;
+    if (!sprite) {
+      return;
+    }
+
+    this.prepareHazardSprite(
+      sprite,
+      "moneyDownMagnet",
+      MONEY_DOWN_MAGNET_CONFIG.width,
+      MONEY_DOWN_MAGNET_CONFIG.height,
+      MONEY_DOWN_MAGNET_CONFIG.depth,
+      MONEY_DOWN_MAGNET_CONFIG.hitbox,
+    );
+    sprite.setData("speedMultiplier", MONEY_DOWN_MAGNET_CONFIG.speedYMultiplier);
+    sprite.setData("driftBaseX", x);
+    sprite.setData("driftAmplitude", MONEY_DOWN_MAGNET_CONFIG.driftAmplitudePx);
+    sprite.setData("driftFrequency", MONEY_DOWN_MAGNET_CONFIG.driftFrequencyHz);
+    sprite.setData(
+      "driftPhase",
+      Phaser.Math.FloatBetween(MONEY_DOWN_MAGNET_CONFIG.driftPhaseMin, MONEY_DOWN_MAGNET_CONFIG.driftPhaseMax),
+    );
+    sprite.setData("swayPhase", Phaser.Math.FloatBetween(0, Math.PI * 2));
+    sprite.setData("swayFrequency", MONEY_DOWN_MAGNET_CONFIG.swayFrequencyHz);
+    sprite.setData("swayAmplitudeDeg", MONEY_DOWN_MAGNET_CONFIG.swayAmplitudeDeg);
+    sprite.setData("collisionCooldownMs", MONEY_DOWN_MAGNET_CONFIG.collisionCooldownMs);
+    sprite.setData("applyImpactAnimation", MONEY_DOWN_MAGNET_CONFIG.applyImpactAnimation);
+    sprite.setData("destroyOnContact", MONEY_DOWN_MAGNET_CONFIG.destroyOnContact);
+    sprite.setData("blocking", true);
+    sprite.setData("redMagnetLastTickAt", Number.NEGATIVE_INFINITY);
   }
 
   private spawnDynamicBuoy(x: number) {
@@ -3723,7 +3777,7 @@ export default class GameScene extends Phaser.Scene {
     bonus.setData("shadow", shadow);
   }
 
-  private spawnCoin(x: number) {
+  private spawnEnergy(x: number) {
     const coin = this.coins.get(x, SEGMENT_SPAWN.objectSpawnY, COIN_CONFIG.textureKey) as Phaser.Physics.Arcade.Sprite | null;
     if (!coin) {
       return;
@@ -3930,7 +3984,7 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "mine";
+    const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "moneyDown";
     const collisionCooldown = (sprite.getData("collisionCooldownMs") as number | undefined) ?? 200;
     const pairKey = this.getCollisionPairKey(this.yachtHazardCollider, sprite);
     const lastHitAt = this.collisionPairLastHit.get(pairKey) ?? Number.NEGATIVE_INFINITY;
@@ -3946,8 +4000,7 @@ export default class GameScene extends Phaser.Scene {
 
     const shieldHazardMap: Record<Exclude<HazardType, "dynamicBuoy">, ShieldHazardKey> = {
       moneyDown: "moneyDown",
-      mine: "mine",
-      pirate: "pirate",
+      moneyDownMagnet: "moneyDownMagnet",
       whirlpool: "whirlpool",
     };
     const shieldHazardKey = shieldHazardMap[hazardType];
@@ -3956,16 +4009,14 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (hazardType === "moneyDown") {
-      if (this.isRedBuoyClearRewardActive()) {
-        this.triggerGreenHitFeedback();
-        this.collectFuel(sprite);
-        return;
-      }
-      this.applyFuelDamage(HAZARD_DAMAGE.moneyDown, false);
+    if (hazardType === "moneyDown" || hazardType === "moneyDownMagnet") {
+      const damage = hazardType === "moneyDownMagnet" ? HAZARD_DAMAGE.moneyDownMagnet : HAZARD_DAMAGE.moneyDown;
+      this.applyFuelDamage(damage, false);
       this.triggerRedBuoyHitFeedback();
+    } else if (hazardType === "whirlpool") {
+      this.applyWhirlpoolDebuff();
+      return;
     } else {
-      this.finishRunFailure("hit_hazard");
       return;
     }
 
@@ -3984,9 +4035,8 @@ export default class GameScene extends Phaser.Scene {
   private handleDynamicBuoyContact(sprite: Phaser.Physics.Arcade.Sprite) {
     const state = this.getDynamicBuoyCollisionState(sprite);
     if (state === "up") {
-      const assetsMultiplier = this.getSkillWheelRewardMultiplier("assets_x2");
-      this.assetsValue = Math.min(1, this.assetsValue + DYNAMIC_BUOY_STATES.up.fuelDelta * assetsMultiplier);
-      this.refreshShieldDurationByPickup("dynamicUp");
+      const assetsMultiplier = this.getSkillWheelRewardMultiplier("assets_mult");
+      this.applyAssetsGain(DYNAMIC_BUOY_STATES.up.fuelDelta * assetsMultiplier);
       this.triggerGreenHitFeedback();
       this.collectFuel(sprite);
       return;
@@ -3997,16 +4047,7 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.isRedBuoyClearRewardActive()) {
-      const assetsMultiplier = this.getSkillWheelRewardMultiplier("assets_x2");
-      this.assetsValue = Math.min(1, this.assetsValue + DYNAMIC_BUOY_STATES.up.fuelDelta * assetsMultiplier);
-      this.refreshShieldDurationByPickup("dynamicUp");
-      this.triggerGreenHitFeedback();
-      this.collectFuel(sprite);
-      return;
-    }
-
-    this.applyFuelDamage(DYNAMIC_BUOY_STATES.down.fuelPenalty, false);
+    this.applyAssetsDamage(DYNAMIC_BUOY_STATES.down.fuelPenalty, false);
     this.triggerRedBuoyHitFeedback();
 
     const applyImpact = (sprite.getData("applyImpactAnimation") as boolean | undefined) ?? true;
@@ -4344,39 +4385,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private applyFuelDamage(damage: number, withRedHit = true) {
-    this.assetsValue = Math.max(0, this.assetsValue - damage);
-    if (withRedHit) {
-      this.triggerRedHitEffects();
-    }
-  }
-
-  private applyPiratePush(sprite: Phaser.Physics.Arcade.Sprite) {
-    if (!this.yachtBody) {
-      return;
-    }
-
-    const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
-    const yachtBody = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
-    if (!body || !yachtBody) {
-      return;
-    }
-
-    const dx = body.center.x - yachtBody.center.x;
-    const dy = body.center.y - yachtBody.center.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const nx = dx / len;
-    const ny = dy / len;
-
-    const cfg = PIRATE_CONFIG.yachtPush;
-    const impulse = cfg.impulsePxPerSec * Phaser.Math.FloatBetween(cfg.impulseRandomMin, cfg.impulseRandomMax);
-
-    const pushVx = ((sprite.getData("pushVx") as number | undefined) ?? 0) + nx * impulse;
-    const pushVyBase = ((sprite.getData("pushVy") as number | undefined) ?? 0) + ny * impulse * cfg.verticalImpulseFactor;
-    const pushVy = Phaser.Math.Clamp(pushVyBase, -cfg.maxVerticalPushPxPerSec, cfg.maxVerticalPushPxPerSec);
-
-    sprite.setData("pushVx", pushVx);
-    sprite.setData("pushVy", pushVy);
-    sprite.setData("pushX", ((sprite.getData("pushX") as number | undefined) ?? 0) + nx * cfg.separationPx);
+    this.applyAssetsDamage(damage, withRedHit);
   }
 
   private playImpactDestroyAnimation(sprite: Phaser.Physics.Arcade.Sprite) {
@@ -4619,7 +4628,7 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
-      const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "mine";
+      const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "moneyDown";
 
       const baseX = (sprite.getData("driftBaseX") as number | undefined) ?? sprite.x;
       const amplitude = (sprite.getData("driftAmplitude") as number | undefined) ?? 0;
@@ -4666,15 +4675,7 @@ export default class GameScene extends Phaser.Scene {
 
       sprite.setScale(baseScaleX, baseScaleY);
 
-      if (hazardType === "pirate" && PIRATE_CONFIG.turnNoseToVelocity) {
-        const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
-        const velocityX = (body?.velocity.x ?? 0) + pushVx;
-        const velocityY = body?.velocity.y ?? 0;
-        const angle = Math.atan2(velocityY, velocityX) + Phaser.Math.DegToRad(PIRATE_CONFIG.noseRotationOffsetDeg);
-        sprite.setRotation(angle + Phaser.Math.DegToRad(swayAmplitudeDeg) * sway * 0.25);
-      } else {
-        sprite.setRotation(Phaser.Math.DegToRad(swayAmplitudeDeg) * sway);
-      }
+      sprite.setRotation(Phaser.Math.DegToRad(swayAmplitudeDeg) * sway);
     });
   }
 
@@ -4713,7 +4714,7 @@ export default class GameScene extends Phaser.Scene {
     });
   }
 
-  private updateCoins() {
+  private updateEnergies() {
     const timeSec = this.time.now / 1000;
     this.coins.children.each((child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
@@ -4742,6 +4743,38 @@ export default class GameScene extends Phaser.Scene {
         shadow.setScale(shadowScale.scaleX, shadowScale.scaleY);
       }
     });
+  }
+
+  private isWhirlpoolDebuffActive() {
+    return this.time.now < this.whirlpoolDebuffUntilMs;
+  }
+
+  private getEffectiveControlLerpMultiplier() {
+    const tierCfg = this.getYachtTierConfig(this.yachtTier);
+    const whirlpoolPenalty = this.isWhirlpoolDebuffActive() ? WHIRLPOOL_DEBUFF_CONFIG.controlLerpMultiplier : 1;
+    return Math.max(0.05, tierCfg.controlLerpMultiplier * whirlpoolPenalty);
+  }
+
+  private applyWhirlpoolDebuff() {
+    this.whirlpoolDebuffUntilMs = this.time.now + WHIRLPOOL_DEBUFF_CONFIG.durationMs;
+    this.whirlpoolSpinTurns = WHIRLPOOL_DEBUFF_CONFIG.spinTurnsPerSec;
+  }
+
+  private updateWhirlpoolDebuffVisual(deltaMs: number) {
+    if (!this.yachtVisual || this.runFlowState !== "normal") {
+      return;
+    }
+    if (this.isWhirlpoolDebuffActive()) {
+      const turnsPerSec = Math.max(0, this.whirlpoolSpinTurns || WHIRLPOOL_DEBUFF_CONFIG.spinTurnsPerSec);
+      this.yachtVisual.rotation += (deltaMs / 1000) * turnsPerSec * Math.PI * 2;
+      return;
+    }
+    if (Math.abs(this.yachtVisual.rotation) > 0.001) {
+      this.yachtVisual.rotation = Phaser.Math.Linear(this.yachtVisual.rotation, 0, 0.15);
+      if (Math.abs(this.yachtVisual.rotation) < 0.001) {
+        this.yachtVisual.rotation = 0;
+      }
+    }
   }
 
   private updateTimeBonuses() {
@@ -5092,9 +5125,8 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private collectMoneyUp(sprite: Phaser.Physics.Arcade.Sprite) {
-    const assetsMultiplier = this.getSkillWheelRewardMultiplier("assets_x2");
-    this.assetsValue = Math.min(1, this.assetsValue + TUNING.FUEL_PICKUP_VALUE * assetsMultiplier);
-    this.refreshShieldDurationByPickup("moneyUp");
+    const assetsMultiplier = this.getSkillWheelRewardMultiplier("assets_mult");
+    this.applyAssetsGain(TUNING.FUEL_PICKUP_VALUE * assetsMultiplier);
     this.triggerGreenHitFeedback();
     this.collectFuel(sprite);
   }
@@ -5204,17 +5236,21 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.destroyTimeBonusShadow(sprite);
-    const timeMultiplier = this.getSkillWheelRewardMultiplier("time_x2");
+    const timeMultiplier = this.getSkillWheelRewardMultiplier("time_mult");
     this.remainingTimeMs += RUN_TIMER.bonusMs * timeMultiplier;
     this.updateTimerHud();
     this.collectFuel(sprite, "timeBonus");
   }
 
-  private collectCoin(sprite: Phaser.Physics.Arcade.Sprite) {
-    const coinMultiplier = this.getSkillWheelRewardMultiplier("coin_x2");
-    this.coinsCollected += coinMultiplier;
-    this.updateCoinsHud();
-    this.collectFuel(sprite, "timeBonus");
+  private collectEnergy(sprite: Phaser.Physics.Arcade.Sprite) {
+    const energyMultiplier = this.getSkillWheelRewardMultiplier("energy_mult");
+    this.shieldEnergyValue = Phaser.Math.Clamp(
+      this.shieldEnergyValue + SHIELD_ENERGY_CONFIG.pickupNormalizedDelta * energyMultiplier,
+      0,
+      SHIELD_ENERGY_CONFIG.maxNormalized,
+    );
+    this.updateAutoShieldState();
+    this.collectFuel(sprite, "buoy");
   }
 
   private destroyTimeBonusShadow(sprite: Phaser.Physics.Arcade.Sprite) {
@@ -5411,7 +5447,7 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (this.assetsValue < ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
+    if (this.shieldEnergyValue < ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
       this.pulseShieldButtonRejectedTap();
       return;
     }
@@ -5421,6 +5457,9 @@ export default class GameScene extends Phaser.Scene {
 
   private activateShield() {
     if (!ASSET_SHIELD_CONFIG.enable || this.shieldActive) {
+      return;
+    }
+    if (this.shieldEnergyValue < ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
       return;
     }
     if (ASSET_SHIELD_CONFIG.activation.manualOnly && this.shieldButtonState !== "ready") {
@@ -5479,23 +5518,24 @@ export default class GameScene extends Phaser.Scene {
 
     if (ASSET_SHIELD_CONFIG.runtime.drainEnabled) {
       const minFuelWhileActive = Phaser.Math.Clamp(ASSET_SHIELD_CONFIG.runtime.minFuelWhileActive, 0, 1);
-      const nextFuel = this.assetsValue - ASSET_SHIELD_CONFIG.runtime.drainPerSec * deltaSec;
+      const nextFuel = this.shieldEnergyValue - ASSET_SHIELD_CONFIG.runtime.drainPerSec * deltaSec;
       if (nextFuel <= minFuelWhileActive) {
-        this.assetsValue = this.assetsValue > minFuelWhileActive ? minFuelWhileActive : Math.max(0, this.assetsValue);
+        this.shieldEnergyValue =
+          this.shieldEnergyValue > minFuelWhileActive ? minFuelWhileActive : Math.max(0, this.shieldEnergyValue);
         this.deactivateShield("fuel");
         return;
       }
-      this.assetsValue = Math.max(0, nextFuel);
+      this.shieldEnergyValue = Math.max(0, nextFuel);
     }
 
-    if (ASSET_SHIELD_CONFIG.runtime.autoStopOnFuelEmpty && this.assetsValue <= 0) {
+    if (ASSET_SHIELD_CONFIG.runtime.autoStopOnFuelEmpty && this.shieldEnergyValue <= 0) {
       this.deactivateShield("fuel");
       return;
     }
 
     if (
       ASSET_SHIELD_CONFIG.runtime.autoStopOnFuelBelowReadyThreshold &&
-      this.assetsValue < ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold
+      this.shieldEnergyValue < ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold
     ) {
       this.deactivateShield("fuel");
       return;
@@ -5505,53 +5545,49 @@ export default class GameScene extends Phaser.Scene {
     this.applyShieldPickupMagnetForces(deltaSec);
   }
 
-  private applyMineMagnetForces(deltaSec: number) {
-    if (!MINE_CONFIG.magnet.enabled || !MINE_CONFIG.magnet.attractEnabled || !this.yachtBody) {
+  private applyRedMagnetBuoyForces(deltaSec: number) {
+    if (!RED_MAGNET_BUOY_CONFIG.enabled || !this.yachtBody) {
       return;
     }
 
     const body = this.yachtBody.body as Phaser.Physics.Arcade.Body | undefined;
-    const anchorX = (body ? body.center.x : this.yachtBody.x) + MINE_CONFIG.magnet.centerOffsetX;
-    const anchorY = (body ? body.center.y : this.yachtBody.y) + MINE_CONFIG.magnet.centerOffsetY;
+    const anchorX = body ? body.center.x : this.yachtBody.x;
+    const anchorY = body ? body.center.y : this.yachtBody.y;
 
     this.hazards.children.each((child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
-      if (!sprite.active) {
-        return;
-      }
-      if (!MINE_CONFIG.magnet.allowWhileCollecting && sprite.getData("collecting")) {
+      if (!sprite.active || sprite.getData("collecting")) {
         return;
       }
       const hazardType = sprite.getData("hazardType") as HazardType | undefined;
-      if (hazardType !== "mine") {
+      if (hazardType !== "moneyDownMagnet") {
         return;
       }
 
-      if (MINE_CONFIG.magnet.updateCooldownMs > 0) {
-        const lastTick = (sprite.getData("mineMagnetLastTickAt") as number | undefined) ?? Number.NEGATIVE_INFINITY;
-        if (this.time.now - lastTick < MINE_CONFIG.magnet.updateCooldownMs) {
+      if (RED_MAGNET_BUOY_CONFIG.updateCooldownMs > 0) {
+        const lastTick = (sprite.getData("redMagnetLastTickAt") as number | undefined) ?? Number.NEGATIVE_INFINITY;
+        if (this.time.now - lastTick < RED_MAGNET_BUOY_CONFIG.updateCooldownMs) {
           return;
         }
-        sprite.setData("mineMagnetLastTickAt", this.time.now);
+        sprite.setData("redMagnetLastTickAt", this.time.now);
       }
 
-      const mineBody = sprite.body as Phaser.Physics.Arcade.Body | undefined;
-      const centerX = mineBody ? mineBody.center.x : sprite.x;
-      const centerY = mineBody ? mineBody.center.y : sprite.y;
+      const magnetBody = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+      const centerX = magnetBody ? magnetBody.center.x : sprite.x;
+      const centerY = magnetBody ? magnetBody.center.y : sprite.y;
       const dx = centerX - anchorX;
       const dy = centerY - anchorY;
       const distance = Math.hypot(dx, dy);
-      if (distance <= MINE_CONFIG.magnet.minDistancePx || distance > MINE_CONFIG.magnet.attractRadiusPx) {
+      if (distance <= RED_MAGNET_BUOY_CONFIG.minDistancePx || distance > RED_MAGNET_BUOY_CONFIG.attractRadiusPx) {
         return;
       }
 
-      const normalizedDistance = Phaser.Math.Clamp(distance / MINE_CONFIG.magnet.attractRadiusPx, 0, 1);
+      const normalizedDistance = Phaser.Math.Clamp(distance / RED_MAGNET_BUOY_CONFIG.attractRadiusPx, 0, 1);
       const falloff = Math.pow(
         Math.max(0, 1 - normalizedDistance),
-        Math.max(0.05, MINE_CONFIG.magnet.attractFalloffPower),
+        Math.max(0.05, RED_MAGNET_BUOY_CONFIG.attractFalloffPower),
       );
-      const shieldScale = this.shieldActive ? MINE_CONFIG.magnet.impulseScaleWhenShieldActive : 1;
-      const impulse = MINE_CONFIG.magnet.attractForcePxPerSec * falloff * deltaSec * shieldScale;
+      const impulse = RED_MAGNET_BUOY_CONFIG.attractForcePxPerSec * falloff * deltaSec;
       if (impulse <= 0) {
         return;
       }
@@ -5560,14 +5596,14 @@ export default class GameScene extends Phaser.Scene {
       const ny = -dy / distance;
       const pushVx = (sprite.getData("pushVx") as number | undefined) ?? 0;
       const pushVy = (sprite.getData("pushVy") as number | undefined) ?? 0;
-      const maxPush = Math.max(10, MINE_CONFIG.magnet.maxPushSpeedPxPerSec);
+      const maxPush = Math.max(10, RED_MAGNET_BUOY_CONFIG.maxPushSpeedPxPerSec);
       const nextPushVx = Phaser.Math.Clamp(
-        pushVx + nx * impulse * MINE_CONFIG.magnet.axisFactorX,
+        pushVx + nx * impulse * RED_MAGNET_BUOY_CONFIG.axisFactorX,
         -maxPush,
         maxPush,
       );
       const nextPushVy = Phaser.Math.Clamp(
-        pushVy + ny * impulse * MINE_CONFIG.magnet.axisFactorY,
+        pushVy + ny * impulse * RED_MAGNET_BUOY_CONFIG.axisFactorY,
         -maxPush,
         maxPush,
       );
@@ -5615,7 +5651,7 @@ export default class GameScene extends Phaser.Scene {
       if (!sprite.active || sprite.getData("collecting")) {
         return;
       }
-      const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "mine";
+      const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "moneyDown";
       if (hazardType !== "dynamicBuoy") {
         return;
       }
@@ -5650,16 +5686,12 @@ export default class GameScene extends Phaser.Scene {
       if (!sprite.active || sprite.getData("collecting")) {
         return;
       }
-      const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "mine";
+      const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "moneyDown";
       if (hazardType === "moneyDown" && repelCfg.targets.moneyDown) {
         this.applyRepelToSprite(sprite, originX, originY, repelEffectiveRadius, repelCfg, deltaSec);
         return;
       }
-      if (hazardType === "mine" && repelCfg.targets.mine) {
-        this.applyRepelToSprite(sprite, originX, originY, repelEffectiveRadius, repelCfg, deltaSec);
-        return;
-      }
-      if (hazardType === "pirate" && repelCfg.targets.pirate) {
+      if (hazardType === "moneyDownMagnet" && repelCfg.targets.moneyDownMagnet) {
         this.applyRepelToSprite(sprite, originX, originY, repelEffectiveRadius, repelCfg, deltaSec);
         return;
       }
@@ -6680,7 +6712,49 @@ export default class GameScene extends Phaser.Scene {
     return Math.max(current - maxDelta, target);
   }
 
+  private getYachtTierConfig(tier: 1 | 2 | 3 = this.yachtTier) {
+    return YACHT_TIER_CONFIG.tiers[Math.max(0, Math.min(YACHT_TIER_CONFIG.tiers.length - 1, tier - 1))];
+  }
+
+  private getTierAssetsCapacityMultiplier(tier: 1 | 2 | 3 = this.yachtTier) {
+    return Math.max(1, this.getYachtTierConfig(tier).capacityMultiplier);
+  }
+
+  private applyAssetsGain(baseNormalizedDelta: number) {
+    const normalizedDelta = baseNormalizedDelta / this.getTierAssetsCapacityMultiplier();
+    this.assetsValue = Math.min(1, this.assetsValue + Math.max(0, normalizedDelta));
+    this.tryUpgradeYachtTier();
+  }
+
+  private applyAssetsDamage(baseNormalizedDelta: number, withRedHit = true) {
+    const normalizedDelta = baseNormalizedDelta / this.getTierAssetsCapacityMultiplier();
+    this.assetsValue = Math.max(0, this.assetsValue - Math.max(0, normalizedDelta));
+    if (withRedHit) {
+      this.triggerRedHitEffects();
+    }
+    if (this.assetsValue <= ASSETS_SYSTEM_CONFIG.loseAtNormalized) {
+      this.finishRunFailure("assets_empty");
+    }
+  }
+
+  private tryUpgradeYachtTier() {
+    if (this.assetsValue < ASSETS_SYSTEM_CONFIG.upgradeAtNormalized) {
+      return;
+    }
+    if (this.yachtTier >= ASSETS_SYSTEM_CONFIG.maxTier) {
+      this.assetsValue = Math.min(1, this.assetsValue);
+      return;
+    }
+    const nextTier = (this.yachtTier + 1) as 1 | 2 | 3;
+    this.yachtTier = nextTier;
+    this.assetsValue = ASSETS_SYSTEM_CONFIG.resetOnUpgradeNormalized;
+    this.tweenAssetsBarWidthForCurrentTier();
+  }
+
   private getBaseSpeedKmhByDistance(distanceM: number) {
+    if (!RUN_SPEED_RAMP.legacyDistanceRampEnabled) {
+      return this.getYachtTierConfig().speedKmh;
+    }
     const clampedDistance = Phaser.Math.Clamp(distanceM, 0, RUN_SPEED_RAMP.maxAtMeters);
     const steps = Math.floor(clampedDistance / RUN_SPEED_RAMP.everyMeters);
     const speed = RUN_SPEED_RAMP.startKmh + steps * RUN_SPEED_RAMP.addKmhPerStep;
@@ -6688,13 +6762,23 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private getInitialRunSpeedKmh() {
+    if (!RUN_SPEED_RAMP.legacyDistanceRampEnabled) {
+      return this.getYachtTierConfig().speedKmh;
+    }
     return Math.max(0, RUN_SPEED_RAMP.startKmh - RUN_START_SPEED.startDropKmh);
   }
 
   private createAssetsBar() {
     this.assetsBarGraphics?.destroy();
+    this.shieldEnergyBarGraphics?.destroy();
     this.assetsBarGraphics = this.add.graphics();
     this.assetsBarGraphics.setDepth(ASSETS_BAR_UI.depth);
+    this.assetsBarGraphics.setScrollFactor(0);
+    this.shieldEnergyBarGraphics = this.add.graphics();
+    this.shieldEnergyBarGraphics.setDepth(SHIELD_ENERGY_BAR_UI.depth);
+    this.shieldEnergyBarGraphics.setScrollFactor(0);
+    const tierWidthMultiplier = ASSETS_BAR_UI.widthByTierMultiplier[this.yachtTier - 1] ?? 1;
+    this.assetsBarCurrentWidth = ASSETS_BAR_UI.width * tierWidthMultiplier;
   }
 
   private getAssetsProgress(fuel: number) {
@@ -6707,56 +6791,107 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const progress = this.getAssetsProgress(fuel);
-    let x: number;
-    let y: number;
-
-    if (ASSETS_BAR_UI.anchorFromVisualBounds && this.yachtVisual) {
-      const bounds = this.yachtVisual.getBounds();
-      x = bounds.x + ASSETS_BAR_UI.anchorOffsetX;
-      y = bounds.y + ASSETS_BAR_UI.anchorOffsetY;
-    } else if (this.yachtBody) {
-      x = this.yachtBody.x + ASSETS_BAR_UI.offsetX;
-      y = this.yachtBody.y + ASSETS_BAR_UI.offsetY;
-    } else {
-      return;
-    }
-
-    const width = ASSETS_BAR_UI.width;
+    const x = ASSETS_BAR_UI.x;
+    const y = ASSETS_BAR_UI.y;
+    const width = this.assetsBarCurrentWidth;
     const height = ASSETS_BAR_UI.height;
-    const borderThickness = ASSETS_BAR_UI.borderThickness;
-    const trackInset = borderThickness + ASSETS_BAR_UI.trackPadding;
-    const trackX = x + trackInset;
-    const trackY = y + trackInset;
-    const trackWidth = Math.max(1, width - trackInset * 2);
-    const trackHeight = Math.max(1, height - trackInset * 2);
-    const trackRadius = Math.max(1, ASSETS_BAR_UI.outerRadius - trackInset);
+    const track = this.drawProgressBarFrame(this.assetsBarGraphics, ASSETS_BAR_UI, x, y, width, height);
 
-    this.assetsBarGraphics.clear();
-
-    this.assetsBarGraphics.fillStyle(ASSETS_BAR_UI.frameFillColor, 1);
-    this.assetsBarGraphics.fillRoundedRect(x, y, width, height, ASSETS_BAR_UI.outerRadius);
-
-    this.assetsBarGraphics.lineStyle(borderThickness, ASSETS_BAR_UI.borderBottomColor, 1);
-    this.assetsBarGraphics.strokeRoundedRect(x, y, width, height, ASSETS_BAR_UI.outerRadius);
-
-    this.assetsBarGraphics.fillStyle(ASSETS_BAR_UI.borderTopColor, 0.35);
-    this.assetsBarGraphics.fillRoundedRect(x, y, width, height * 0.5, ASSETS_BAR_UI.outerRadius);
-
-    this.assetsBarGraphics.fillStyle(ASSETS_BAR_UI.trackColor, 1);
-    this.assetsBarGraphics.fillRoundedRect(trackX, trackY, trackWidth, trackHeight, trackRadius);
-
-    const fillWidth = trackWidth * progress;
+    const fillWidth = track.width * progress;
     if (fillWidth <= 0) {
       return;
     }
 
     const fillColor = this.getAssetsBarFillColor(progress);
     this.assetsBarGraphics.fillStyle(fillColor, 1);
-    if (fillWidth >= trackRadius * 2) {
-      this.assetsBarGraphics.fillRoundedRect(trackX, trackY, fillWidth, trackHeight, trackRadius);
+    if (fillWidth >= track.radius * 2) {
+      this.assetsBarGraphics.fillRoundedRect(track.x, track.y, fillWidth, track.height, track.radius);
     } else {
-      this.assetsBarGraphics.fillRect(trackX, trackY, fillWidth, trackHeight);
+      this.assetsBarGraphics.fillRect(track.x, track.y, fillWidth, track.height);
     }
+  }
+
+  private updateShieldEnergyBar(energyNorm: number) {
+    if (!this.shieldEnergyBarGraphics) {
+      return;
+    }
+
+    const progress = Phaser.Math.Clamp(energyNorm, 0, 1);
+    const x = SHIELD_ENERGY_BAR_UI.x;
+    const y = SHIELD_ENERGY_BAR_UI.y;
+    const width = SHIELD_ENERGY_BAR_UI.width;
+    const height = SHIELD_ENERGY_BAR_UI.height;
+    const track = this.drawProgressBarFrame(this.shieldEnergyBarGraphics, SHIELD_ENERGY_BAR_UI, x, y, width, height);
+    const fillWidth = track.width * progress;
+    if (fillWidth <= 0) {
+      return;
+    }
+    this.shieldEnergyBarGraphics.fillStyle(SHIELD_ENERGY_BAR_UI.fillColor, 1);
+    if (fillWidth >= track.radius * 2) {
+      this.shieldEnergyBarGraphics.fillRoundedRect(track.x, track.y, fillWidth, track.height, track.radius);
+    } else {
+      this.shieldEnergyBarGraphics.fillRect(track.x, track.y, fillWidth, track.height);
+    }
+  }
+
+  private drawProgressBarFrame(
+    graphics: Phaser.GameObjects.Graphics,
+    cfg: {
+      outerRadius: number;
+      borderThickness: number;
+      trackPadding: number;
+      frameFillColor: number;
+      borderBottomColor: number;
+      borderTopColor: number;
+      trackColor: number;
+    },
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) {
+    const borderThickness = cfg.borderThickness;
+    const trackInset = borderThickness + cfg.trackPadding;
+    const trackX = x + trackInset;
+    const trackY = y + trackInset;
+    const trackWidth = Math.max(1, width - trackInset * 2);
+    const trackHeight = Math.max(1, height - trackInset * 2);
+    const trackRadius = Math.max(1, cfg.outerRadius - trackInset);
+
+    graphics.clear();
+    graphics.fillStyle(cfg.frameFillColor, 1);
+    graphics.fillRoundedRect(x, y, width, height, cfg.outerRadius);
+    graphics.lineStyle(borderThickness, cfg.borderBottomColor, 1);
+    graphics.strokeRoundedRect(x, y, width, height, cfg.outerRadius);
+    graphics.fillStyle(cfg.borderTopColor, 0.35);
+    graphics.fillRoundedRect(x, y, width, height * 0.5, cfg.outerRadius);
+    graphics.fillStyle(cfg.trackColor, 1);
+    graphics.fillRoundedRect(trackX, trackY, trackWidth, trackHeight, trackRadius);
+
+    return {
+      x: trackX,
+      y: trackY,
+      width: trackWidth,
+      height: trackHeight,
+      radius: trackRadius,
+    };
+  }
+
+  private tweenAssetsBarWidthForCurrentTier() {
+    const tierWidthMultiplier = ASSETS_BAR_UI.widthByTierMultiplier[this.yachtTier - 1] ?? 1;
+    const targetWidth = ASSETS_BAR_UI.width * tierWidthMultiplier;
+    this.tweens.addCounter({
+      from: this.assetsBarCurrentWidth,
+      to: targetWidth,
+      duration: ASSETS_BAR_UI.resizeTween.durationMs,
+      ease: ASSETS_BAR_UI.resizeTween.ease,
+      onUpdate: (tween) => {
+        this.assetsBarCurrentWidth = tween.getValue();
+      },
+      onComplete: () => {
+        this.assetsBarCurrentWidth = targetWidth;
+      },
+    });
   }
 
   private getAssetsBarFillColor(progress: number) {
@@ -6854,12 +6989,14 @@ export default class GameScene extends Phaser.Scene {
     const transitionCfg = SHIP_STAGE_TRANSITION;
 
     const outgoing = this.add.image(this.yachtVisual.x, this.yachtVisual.y, this.yachtVisual.texture.key);
-    outgoing.setScale(this.getYachtScaleForTextureKey(outgoing.texture.key, this.yachtVisual.scaleX));
+    const outgoingStartScale = this.yachtVisual.scaleX;
+    const incomingTargetScale = this.getYachtScaleForTextureKey(nextTexture, this.yachtVisual.scaleX);
+    outgoing.setScale(outgoingStartScale);
     outgoing.setDepth(this.yachtVisual.depth + 0.001);
     outgoing.setAlpha(transitionCfg.outgoingAlphaFrom);
 
     const incoming = this.add.image(this.yachtVisual.x, this.yachtVisual.y, nextTexture);
-    incoming.setScale(this.getYachtScaleForTextureKey(nextTexture, this.yachtVisual.scaleX));
+    incoming.setScale(outgoingStartScale);
     incoming.setDepth(this.yachtVisual.depth + 0.002);
     incoming.setAlpha(transitionCfg.incomingAlphaFrom);
 
@@ -6876,6 +7013,9 @@ export default class GameScene extends Phaser.Scene {
       ease: transitionCfg.ease,
       onUpdate: () => {
         const t = Phaser.Math.Clamp(blendState.t, 0, 1);
+        const scale = Phaser.Math.Linear(outgoingStartScale, incomingTargetScale, t);
+        outgoing.setScale(scale);
+        incoming.setScale(scale);
         outgoing.setAlpha(Phaser.Math.Linear(transitionCfg.outgoingAlphaFrom, transitionCfg.outgoingAlphaTo, t));
         incoming.setAlpha(Phaser.Math.Linear(transitionCfg.incomingAlphaFrom, transitionCfg.incomingAlphaTo, t));
       },
@@ -6921,6 +7061,9 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private getShipTextureKeyByAssets(progressPercent: number) {
+    if (this.yachtTier > 1) {
+      return this.getYachtTierConfig().baseTextureKey;
+    }
     const percent = Phaser.Math.Clamp(progressPercent, 0, 100);
     const stage = SHIP_ASSET_STAGES.find((item) => percent <= item.maxPercent);
     return stage ? stage.textureKey : SHIP_ASSET_STAGES[SHIP_ASSET_STAGES.length - 1].textureKey;
@@ -7138,13 +7281,6 @@ export default class GameScene extends Phaser.Scene {
     this.yachtVisual?.clearTint();
   }
 
-  private updateCoinsHud() {
-    if (!this.coinsText) {
-      return;
-    }
-    this.coinsText.setText(`${this.coinsCollected}`);
-  }
-
   private getTopProgressLayout(progressInput?: number) {
     const cfg = TOP_PROGRESS_BAR_CONFIG;
     const progress = Phaser.Math.Clamp(
@@ -7329,10 +7465,10 @@ export default class GameScene extends Phaser.Scene {
   private getSkillWheelRewardIdBySectorIndex(sectorIndex: number): SkillWheelRewardId {
     const map = SKILL_WHEEL_UI_CONFIG.wheel.rewardBySectorIndex as readonly SkillWheelRewardId[];
     if (map.length === 0) {
-      return "assets_x2";
+      return "assets_mult";
     }
     const safeIndex = Phaser.Math.Clamp(sectorIndex, 0, map.length - 1);
-    return map[safeIndex] ?? "assets_x2";
+    return map[safeIndex] ?? "assets_mult";
   }
 
   private normalizeSkillWheelAngleDeg(angleDeg: number) {
@@ -7396,16 +7532,17 @@ export default class GameScene extends Phaser.Scene {
     return this.activeSkillWheelRewards.some((reward) => reward.id === id);
   }
 
-  private getSkillWheelRewardMultiplier(id: SkillWheelRewardId) {
-    if (!this.hasActiveSkillWheelReward(id)) {
-      return 1;
-    }
-    const rewardCfg = SKILL_WHEEL_REWARD_CONFIG.rewards[id];
-    return Math.max(1, rewardCfg.multiplier ?? 1);
+  private getSkillWheelRewardStackValue(id: SkillWheelRewardId) {
+    return this.activeSkillWheelRewards.find((reward) => reward.id === id)?.stackValue ?? 0;
   }
 
-  private isRedBuoyClearRewardActive() {
-    return this.hasActiveSkillWheelReward("red_buoy_clear");
+  private getSkillWheelRewardMultiplier(id: SkillWheelRewardId) {
+    const rewardCfg = SKILL_WHEEL_REWARD_CONFIG.rewards[id];
+    if (rewardCfg.multiplier === undefined) {
+      return 1;
+    }
+    const stackValue = this.getSkillWheelRewardStackValue(id);
+    return stackValue > 0 ? Math.max(1, stackValue) : 1;
   }
 
   private createSkillWheelRewardHud() {
@@ -7421,27 +7558,37 @@ export default class GameScene extends Phaser.Scene {
     this.skillWheelRewardHudContainer.setDepth(SKILL_WHEEL_BONUS_HUD_CONFIG.depth);
     this.skillWheelRewardHudContainer.setVisible(false);
 
-    for (let i = 0; i < SKILL_WHEEL_REWARD_CONFIG.maxActiveRewards; i += 1) {
+    for (let i = 0; i < 3; i += 1) {
       const container = this.add.container(0, 0);
       const frame = this.add.graphics();
       const radialTrack = this.add.graphics();
       const radialFill = this.add.graphics();
       const icon = this.add.image(0, 0, "skill-wheel-bonus-1");
+      const multiplierText = this.add.text(0, SKILL_WHEEL_BONUS_HUD_CONFIG.multiplierText.offsetY, "", {
+        fontFamily: SKILL_WHEEL_BONUS_HUD_CONFIG.multiplierText.fontFamily,
+        fontSize: `${SKILL_WHEEL_BONUS_HUD_CONFIG.multiplierText.fontSizePx}px`,
+        color: SKILL_WHEEL_BONUS_HUD_CONFIG.multiplierText.color,
+        stroke: SKILL_WHEEL_BONUS_HUD_CONFIG.multiplierText.strokeColor,
+        strokeThickness: SKILL_WHEEL_BONUS_HUD_CONFIG.multiplierText.strokeThickness,
+        fontStyle: "bold",
+      });
+      multiplierText.setOrigin(0.5, 0.5);
       icon.setDisplaySize(
         SKILL_WHEEL_BONUS_HUD_CONFIG.iconSizePx * SKILL_WHEEL_BONUS_HUD_CONFIG.iconScale,
         SKILL_WHEEL_BONUS_HUD_CONFIG.iconSizePx * SKILL_WHEEL_BONUS_HUD_CONFIG.iconScale,
       );
 
-      container.add([frame, radialTrack, radialFill, icon]);
+      container.add([frame, radialTrack, radialFill, icon, multiplierText]);
       container.setVisible(false);
       this.skillWheelRewardHudContainer.add(container);
 
       this.skillWheelRewardHudSlots.push({
-        id: "coin_x2",
+        id: "energy_mult",
         container,
         icon,
         radialTrack,
         radialFill,
+        multiplierText,
       });
     }
   }
@@ -7451,11 +7598,10 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const now = this.time.now;
-    const activeRewards = this.activeSkillWheelRewards
-      .slice()
-      .sort((a, b) => a.expiresAtMs - b.expiresAtMs)
-      .slice(0, SKILL_WHEEL_REWARD_CONFIG.maxActiveRewards);
+    const rewardOrder: SkillWheelRewardId[] = ["assets_mult", "time_mult", "energy_mult"];
+    const activeRewards = rewardOrder
+      .map((id) => this.activeSkillWheelRewards.find((reward) => reward.id === id))
+      .filter((reward): reward is ActiveSkillWheelReward => !!reward);
 
     if (activeRewards.length === 0) {
       this.skillWheelRewardHudContainer.setVisible(false);
@@ -7486,8 +7632,6 @@ export default class GameScene extends Phaser.Scene {
     const offsets = layoutOffsets ? [...layoutOffsets] : fallbackOffsets;
     const iconSize = cfg.iconSizePx * cfg.iconScale;
     const radius = iconSize * 0.5 + cfg.radial.radiusPaddingPx;
-    const strokeWidth = 6;
-    const startAngle = Phaser.Math.DegToRad(cfg.radial.startAngleDeg);
 
     for (let i = 0; i < this.skillWheelRewardHudSlots.length; i += 1) {
       const slot = this.skillWheelRewardHudSlots[i];
@@ -7496,12 +7640,11 @@ export default class GameScene extends Phaser.Scene {
         slot.container.setVisible(false);
         slot.radialTrack.clear();
         slot.radialFill.clear();
+        slot.multiplierText?.setVisible(false);
         continue;
       }
 
       const rewardCfg = SKILL_WHEEL_REWARD_CONFIG.rewards[reward.id];
-      const remaining = Math.max(0, reward.expiresAtMs - now);
-      const progress = reward.durationMs > 0 ? Phaser.Math.Clamp(remaining / reward.durationMs, 0, 1) : 0;
       const slotX = offsets[i] ?? 0;
 
       slot.id = reward.id;
@@ -7523,19 +7666,8 @@ export default class GameScene extends Phaser.Scene {
 
       slot.radialTrack.clear();
       slot.radialFill.clear();
-
-      if (cfg.radial.enabled) {
-        slot.radialTrack.lineStyle(strokeWidth, cfg.radial.trackColor, cfg.radial.trackAlpha);
-        slot.radialTrack.strokeCircle(0, 0, radius);
-
-        if (progress > 0) {
-          const direction = cfg.radial.clockwise ? 1 : -1;
-          const endAngle = startAngle + direction * Math.PI * 2 * progress;
-          slot.radialFill.lineStyle(strokeWidth, cfg.radial.fillColor, cfg.radial.fillAlpha);
-          slot.radialFill.beginPath();
-          slot.radialFill.arc(0, 0, radius, startAngle, endAngle, !cfg.radial.clockwise);
-          slot.radialFill.strokePath();
-        }
+      if (slot.multiplierText) {
+        slot.multiplierText.setText(`x${reward.stackValue}`).setVisible(true);
       }
     }
   }
@@ -7779,9 +7911,21 @@ export default class GameScene extends Phaser.Scene {
     icon.setScale(uniformScale);
   }
 
+  private getNextSkillWheelStackValue(rewardId: SkillWheelRewardId) {
+    const rewardCfg = SKILL_WHEEL_REWARD_CONFIG.rewards[rewardId];
+    if (rewardCfg.multiplier === undefined) {
+      return undefined;
+    }
+    const current = this.getSkillWheelRewardStackValue(rewardId);
+    const baseStack = Phaser.Math.Clamp(SKILL_WHEEL_STACK_CONFIG.multiplierMin, 1, SKILL_WHEEL_STACK_CONFIG.multiplierMax);
+    const next = current > 0 ? current + 1 : baseStack;
+    return Phaser.Math.Clamp(next, baseStack, SKILL_WHEEL_STACK_CONFIG.multiplierMax);
+  }
+
   private showSkillWheelResult(rewardId: SkillWheelRewardId) {
     const rewardCfg = SKILL_WHEEL_REWARD_CONFIG.rewards[rewardId];
     const resultCfg = SKILL_WHEEL_UI_CONFIG.result;
+    const nextStackValue = this.getNextSkillWheelStackValue(rewardId);
 
     this.setSkillWheelIntroVisualVisible(false);
     this.skillWheelIntroText?.setVisible(false);
@@ -7796,7 +7940,7 @@ export default class GameScene extends Phaser.Scene {
       this.skillWheelResultIcon.clearTint();
       this.skillWheelResultIcon.setAlpha(1);
     }
-    this.skillWheelResultTitleText?.setText(`${rewardCfg.title}`);
+    this.skillWheelResultTitleText?.setText(nextStackValue ? `x${nextStackValue}` : `${rewardCfg.title}`);
     this.skillWheelResultBodyText?.setText(`${rewardCfg.bodyLine1}\n\n${rewardCfg.bodyLine2}`);
   }
 
@@ -7872,38 +8016,41 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const now = this.time.now;
-    const rewardCfg = SKILL_WHEEL_REWARD_CONFIG.rewards[id];
-    const durationMs = Math.max(1, rewardCfg.durationMs ?? SKILL_WHEEL_REWARD_CONFIG.defaultDurationMs);
+    if (id === "coin_plus_10") {
+      this.wheelCoinBonusStacks += 1;
+      if (WHEEL_DEBUG_CONFIG.logRewards) {
+        // eslint-disable-next-line no-console
+        console.log("[skill-wheel] reward:", id, "stacks=", this.wheelCoinBonusStacks);
+      }
+      return;
+    }
+
+    const baseStack = Phaser.Math.Clamp(
+      SKILL_WHEEL_STACK_CONFIG.multiplierMin,
+      1,
+      SKILL_WHEEL_STACK_CONFIG.multiplierMax,
+    );
+
     const existing = this.activeSkillWheelRewards.find((reward) => reward.id === id);
     if (existing) {
-      if (SKILL_WHEEL_REWARD_CONFIG.duplicatePolicy === "stackDuration") {
-        existing.expiresAtMs += durationMs;
-        existing.durationMs += durationMs;
-      } else {
-        existing.startedAtMs = now;
-        existing.durationMs = durationMs;
-        existing.expiresAtMs = now + durationMs;
-      }
+      existing.stackValue = Phaser.Math.Clamp(
+        existing.stackValue + 1,
+        baseStack,
+        SKILL_WHEEL_STACK_CONFIG.multiplierMax,
+      );
       this.pulseSkillWheelRewardHudSlot(id);
       return;
     }
 
-    if (this.activeSkillWheelRewards.length >= SKILL_WHEEL_REWARD_CONFIG.maxActiveRewards) {
-      this.activeSkillWheelRewards.sort((a, b) => a.expiresAtMs - b.expiresAtMs);
+    if (this.activeSkillWheelRewards.length >= SKILL_WHEEL_REWARD_CONFIG.maxActiveRewards - 1) {
       this.activeSkillWheelRewards.shift();
     }
 
     this.activeSkillWheelRewards.push({
       id,
-      startedAtMs: now,
-      expiresAtMs: now + durationMs,
-      durationMs,
+      stackValue: baseStack,
     });
 
-    if (id === "red_buoy_clear" && rewardCfg.clearOnActivate) {
-      this.clearRedBuoysOnScreenForReward();
-    }
     this.pulseSkillWheelRewardHudSlot(id);
     if (WHEEL_DEBUG_CONFIG.logRewards) {
       // eslint-disable-next-line no-console
@@ -7911,52 +8058,8 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private clearRedBuoysOnScreenForReward() {
-    if (!this.isPhysicsGroupUsable(this.hazards)) {
-      return;
-    }
-
-    this.hazards.children.each((child) => {
-      const sprite = child as Phaser.Physics.Arcade.Sprite;
-      if (!sprite.active || sprite.getData("collecting")) {
-        return;
-      }
-      const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "mine";
-      if (hazardType === "moneyDown") {
-        const applyImpact = (sprite.getData("applyImpactAnimation") as boolean | undefined) ?? true;
-        if (applyImpact) {
-          this.playImpactDestroyAnimation(sprite);
-        } else {
-          sprite.destroy();
-        }
-        return;
-      }
-      if (hazardType !== "dynamicBuoy") {
-        return;
-      }
-      this.stopDynamicBuoyStateTimer(sprite);
-      sprite.setData("dynamicState", "up");
-      sprite.setData("dynamicBlinkSourceState", "up");
-      sprite.setData("dynamicBlinkTargetState", "down");
-      this.applyDynamicBuoyVisualState(sprite, "up");
-      this.scheduleDynamicBuoyDwell(sprite, "up");
-    });
-  }
-
   private updateSkillWheelBonusDurations(deltaMs: number) {
-    if (!SKILL_WHEEL_REWARD_CONFIG.enabled || this.activeSkillWheelRewards.length === 0) {
-      return;
-    }
-    if (this.isSkillWheelModalBlockingGameplay() && SKILL_WHEEL_EVENT_CONFIG.pause.freezeRunTimer) {
-      return;
-    }
-
-    const now = this.time.now;
-    const before = this.activeSkillWheelRewards.length;
-    this.activeSkillWheelRewards = this.activeSkillWheelRewards.filter((reward) => reward.expiresAtMs > now);
-    if (before !== this.activeSkillWheelRewards.length && deltaMs > 0) {
-      this.updateSkillWheelBonusHud();
-    }
+    void deltaMs;
   }
 
   private tryTriggerSkillWheelEventByDistance() {
@@ -8140,12 +8243,12 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    if (!this.shieldActive && this.assetsValue >= ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
+    if (!this.shieldActive && this.shieldEnergyValue >= ASSET_SHIELD_CONFIG.activation.fuelReadyThreshold) {
       this.activateShield();
       return;
     }
 
-    if (this.shieldActive && this.assetsValue <= 0) {
+    if (this.shieldActive && this.shieldEnergyValue <= 0) {
       this.deactivateShield("fuel");
     }
   }
@@ -8224,12 +8327,18 @@ export default class GameScene extends Phaser.Scene {
     this.stopGreenHitFeedback();
     this.speedKmh = this.getInitialRunSpeedKmh();
     this.distanceM = 0;
-    this.assetsValue = TUNING.FUEL_START;
+    this.assetsValue = ASSETS_SYSTEM_CONFIG.startNormalized;
+    this.shieldEnergyValue = SHIELD_ENERGY_CONFIG.startNormalized;
+    this.yachtTier = 1;
+    this.assetsBarCurrentWidth = ASSETS_BAR_UI.width * (ASSETS_BAR_UI.widthByTierMultiplier[0] ?? 1);
     this.remainingTimeMs = RUN_TIMER.initialMs;
     this.shieldButtonLastTapAtMs = Number.NEGATIVE_INFINITY;
     this.shieldTapCandidate = undefined;
     this.coinsCollected = 0;
     this.coinsScheduledTotal = 0;
+    this.wheelCoinBonusStacks = 0;
+    this.whirlpoolDebuffUntilMs = Number.NEGATIVE_INFINITY;
+    this.whirlpoolSpinTurns = 0;
     this.activeSkillWheelRewards = [];
     this.scheduledWheelEvents = [];
     this.wheelIslandVariantToggle = 0;
@@ -8294,6 +8403,12 @@ export default class GameScene extends Phaser.Scene {
 
     this.assetsBarGraphics?.destroy();
     this.assetsBarGraphics = undefined;
+    this.shieldEnergyBarGraphics?.destroy();
+    this.shieldEnergyBarGraphics = undefined;
+    this.assetsBarIcon?.destroy();
+    this.assetsBarIcon = undefined;
+    this.shieldEnergyBarIcon?.destroy();
+    this.shieldEnergyBarIcon = undefined;
     this.destroyShieldUi();
 
     this.topProgressFillGraphics?.clearMask(false);
@@ -8309,8 +8424,6 @@ export default class GameScene extends Phaser.Scene {
     this.topProgressShipMarker = undefined;
     this.topProgressFlag?.destroy();
     this.topProgressFlag = undefined;
-    this.coinsText?.destroy();
-    this.coinsText = undefined;
     this.destroyHitboxDebugOverlay();
 
     this.skillWheelRewardHudContainer?.destroy(true);
