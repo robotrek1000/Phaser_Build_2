@@ -101,8 +101,6 @@ export const WORLD_OBJECT_DARKENING_CONFIG = {
     "money-change-up": { enabled: true, intensityMultiplier: 1 },
     "money-change-no": { enabled: true, intensityMultiplier: 1 },
     "money-change-down": { enabled: true, intensityMultiplier: 1 },
-    "obstacle-mine": { enabled: true, intensityMultiplier: 1 },
-    "obstacle-pirate": { enabled: true, intensityMultiplier: 1 },
     "obstacle-whirlpool": { enabled: true, intensityMultiplier: 1 },
     "obstacle-rock-1": { enabled: true, intensityMultiplier: 1 },
     "obstacle-rock-2": { enabled: true, intensityMultiplier: 1 },
@@ -126,17 +124,12 @@ export const WORLD_OBJECT_DARKENING_CONFIG = {
     "sea-bg-2-to-3": { enabled: false, intensityMultiplier: 1 },
     "sea-bg-3-to-4": { enabled: false, intensityMultiplier: 1 },
     "start-bg": { enabled: false, intensityMultiplier: 1 },
-    "onboarding-window": { enabled: false, intensityMultiplier: 1 },
     "flag-new": { enabled: false, intensityMultiplier: 1 },
     "skill-wheel-sector-1": { enabled: false, intensityMultiplier: 1 },
-    "skill-wheel-sector-2": { enabled: false, intensityMultiplier: 1 },
-    "skill-wheel-sector-3": { enabled: false, intensityMultiplier: 1 },
     "skill-wheel-bar-body": { enabled: false, intensityMultiplier: 1 },
     "skill-wheel-arrow": { enabled: false, intensityMultiplier: 1 },
     "skill-wheel-bonus-1": { enabled: false, intensityMultiplier: 1 },
-    "skill-wheel-bonus-2": { enabled: false, intensityMultiplier: 1 },
     "skill-wheel-bonus-3": { enabled: false, intensityMultiplier: 1 },
-    "skill-wheel-bonus-4": { enabled: false, intensityMultiplier: 1 },
   } as const,
 } as const;
 
@@ -194,29 +187,6 @@ export const SHIELD_ENERGY_BAR_UI = {
     yOffset: 13,
     depth: 57,
   },
-} as const;
-
-export const COIN_UI_CONFIG = {
-  x: 14,
-  y: 12,
-  width: 136,
-  height: 86,
-  radius: 16,
-  titleHeight: 30,
-  title: "МОНЕТЫ",
-  titleFontFamily: "Fascinate",
-  titleFontSizePx: 22,
-  titleColor: "#000000",
-  panelColor: 0xd9d9d9,
-  titlePanelColor: 0xb7b7b7,
-  iconKey: "coin",
-  iconSize: 28,
-  iconXOffset: 22,
-  valueFontFamily: "Fascinate",
-  valueFontSizePx: 52,
-  valueColor: "#000000",
-  valueXOffset: 56,
-  depth: 52,
 } as const;
 
 export const TIME_UI_CONFIG = {
@@ -595,7 +565,7 @@ export const RED_MAGNET_BUOY_CONFIG = {
   axisFactorY: 1,
   behindPullEnabled: true,
   behindPullImpulseMultiplier: 1,
-  behindPullMaxReverseSpeedPxPerSec: 220,
+  behindPullMaxReverseSpeedPxPerSec: 120,
   updateCooldownMs: 0,
 } as const;
 
@@ -889,11 +859,9 @@ export const HAZARD_COLLISION = {
 } as const;
 
 export const HAZARD_DAMAGE = {
-  mine: 0.24,
-  moneyDown: 0.4,
-  moneyDownMagnet: 0.4,
+  moneyDown: 0.2,
+  moneyDownMagnet: 0.2,
   dynamicDown: 0.4,
-  pirate: 0.35,
   whirlpool: 0.24,
 } as const;
 
@@ -1396,7 +1364,7 @@ export const ASSET_SHIELD_CONFIG = {
   },
   invulnerability: {
     enabled: true,
-    affectedHazards: ["moneyDown", "moneyDownMagnet", "dynamicDown", "mine", "pirate", "whirlpool"] as const,
+    affectedHazards: ["moneyDown", "moneyDownMagnet", "dynamicDown", "whirlpool"] as const,
     contactPushEnabled: true,
     contactPushByType: {
       moneyDown: {
@@ -1419,20 +1387,6 @@ export const ASSET_SHIELD_CONFIG = {
         verticalImpulseFactor: 0.3,
         maxVerticalPushPxPerSec: 180,
         cooldownMs: 120,
-      },
-      mine: {
-        impulsePxPerSec: 0,
-        separationPx: 0,
-        verticalImpulseFactor: 0,
-        maxVerticalPushPxPerSec: 0,
-        cooldownMs: 140,
-      },
-      pirate: {
-        impulsePxPerSec: 0,
-        separationPx: 0,
-        verticalImpulseFactor: 0,
-        maxVerticalPushPxPerSec: 0,
-        cooldownMs: 160,
       },
       whirlpool: {
         impulsePxPerSec: 0,
@@ -1478,8 +1432,6 @@ export const ASSET_SHIELD_CONFIG = {
         moneyDown: true,
         moneyDownMagnet: true,
         dynamicDown: true,
-        mine: false,
-        pirate: false,
       },
       originOffsetX: 0,
       originOffsetY: 0,
@@ -1763,7 +1715,7 @@ export const DYNAMIC_BUOY_STATES = {
   down: {
     textureKey: "money-change-down",
     dwellMs: 1_000,
-    fuelPenalty: 0.4,
+    fuelPenalty: 0.2,
   },
   no: {
     textureKey: "money-change-no",
@@ -1831,78 +1783,6 @@ export const DYNAMIC_BUOY_BLINK = {
 } as const;
 
 // Препятствия
-
-
-export const MINE_CONFIG = {
-  textureKey: "obstacle-mine",
-  width: 112,
-  height: 104,
-  depth: 14,
-  speedYMultiplier: 1.04,
-  driftAmplitudePx: 24,
-  driftFrequencyHz: 1.25,
-  driftPhaseMin: 0,
-  driftPhaseMax: Math.PI * 2,
-  swayAmplitudeDeg: 7,
-  swayFrequencyHz: 1.15,
-  hitbox: {
-    radiusXRatio: 0.75,
-    radiusYRatio: 0.75,
-    centerXRatio: 1.2,
-    centerYRatio: 1.25,
-  },
-  collisionCooldownMs: 220,
-  applyImpactAnimation: true,
-  magnet: {
-    enabled: true,
-    attractEnabled: true,
-    attractRadiusPx: 600,
-    attractForcePxPerSec: 1_000,
-    attractFalloffPower: 0.05,
-    maxPushSpeedPxPerSec: 5_000,
-    minDistancePx: 12,
-    centerOffsetX: 0,
-    centerOffsetY: 0,
-    axisFactorX: 1,
-    axisFactorY: 1,
-    updateCooldownMs: 0,
-    impulseScaleWhenShieldActive: 1,
-    allowWhileCollecting: false,
-  },
-} as const;
-
-export const PIRATE_CONFIG = {
-  textureKey: "obstacle-pirate",
-  width: 112,
-  height: 246,
-  depth: 15,
-  speedYMultiplier: 1.2,
-  driftAmplitudePx: 74,
-  driftFrequencyHz: 0.9,
-  driftPhaseMin: 0,
-  driftPhaseMax: Math.PI * 2,
-  swayAmplitudeDeg: 4,
-  swayFrequencyHz: 0.8,
-  turnNoseToVelocity: true,
-  noseRotationOffsetDeg: 90,
-  flipY: true,
-  hitbox: {
-    radiusXRatio: 0.5,
-    radiusYRatio: 0.75,
-    centerXRatio: 1.1,
-    centerYRatio: 1,
-  },
-  collisionCooldownMs: 260,
-  applyImpactAnimation: false,
-  yachtPush: {
-    impulsePxPerSec: 760,
-    impulseRandomMin: 0.95,
-    impulseRandomMax: 1.3,
-    verticalImpulseFactor: 0.42,
-    maxVerticalPushPxPerSec: 260,
-    separationPx: 18,
-  },
-} as const;
 
 export const WHIRLPOOL_CONFIG = {
   textureKey: "obstacle-whirlpool",

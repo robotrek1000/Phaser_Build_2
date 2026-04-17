@@ -137,16 +137,6 @@
                 "key": "skill-wheel-sector-1"
             },
             {
-                "url": "assets/skill_wheel_sector_2.png",
-                "type": "image",
-                "key": "skill-wheel-sector-2"
-            },
-            {
-                "url": "assets/skill_wheel_sector_3.png",
-                "type": "image",
-                "key": "skill-wheel-sector-3"
-            },
-            {
                 "url": "assets/skill_wheel_bar_body.png",
                 "type": "image",
                 "key": "skill-wheel-bar-body"
@@ -162,29 +152,9 @@
                 "key": "skill-wheel-bonus-1"
             },
             {
-                "url": "assets/skill_wheel_bonus_2.png",
-                "type": "image",
-                "key": "skill-wheel-bonus-2"
-            },
-            {
                 "url": "assets/skill_wheel_bonus_3.png",
                 "type": "image",
                 "key": "skill-wheel-bonus-3"
-            },
-            {
-                "url": "assets/skill_wheel_bonus_4.png",
-                "type": "image",
-                "key": "skill-wheel-bonus-4"
-            },
-            {
-                "url": "assets/obstacle_move_mine.png",
-                "type": "image",
-                "key": "obstacle-mine"
-            },
-            {
-                "url": "assets/obstacle_move_pirate.png",
-                "type": "image",
-                "key": "obstacle-pirate"
             },
             {
                 "url": "assets/obstacle_whirlpool.png",
@@ -215,11 +185,6 @@
                 "url": "assets/start_background.png",
                 "type": "image",
                 "key": "start-bg"
-            },
-            {
-                "url": "assets/onboarding_window_2.png",
-                "type": "image",
-                "key": "onboarding-window"
             },
             {
                 "url": "assets/onboarding_window_3.png",

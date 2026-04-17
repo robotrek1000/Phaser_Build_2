@@ -205,8 +205,6 @@ export default class GameScene extends Phaser.Scene {
     multiplierText?: Phaser.GameObjects.Text;
   }> = [];
   private skillWheelModalState: "idle" | "intro" | "spinning" | "result" = "idle";
-  private skillWheelCurrentEvent?: ScheduledWheelEvent;
-  private skillWheelLastResultId?: SkillWheelRewardId;
   private skillWheelSpinStartAtMs = 0;
   private skillWheelSpinTargetAngleDeg = -90;
   private skillWheelSelectedSectorIndex = -1;
@@ -307,7 +305,6 @@ export default class GameScene extends Phaser.Scene {
   private yachtTier: 1 | 2 | 3 = 1;
   private remainingTimeMs = RUN_TIMER.initialMs;
 
-  private coinsCollected = 0; // awarded at harbor only
   private coinsScheduledTotal = 0;
   private wheelCoinBonusStacks = 0;
 
@@ -1246,7 +1243,6 @@ export default class GameScene extends Phaser.Scene {
     const wheelCoins = this.wheelCoinBonusStacks * RUN_COIN_REWARD_CONFIG.wheelCoinBonusPerStack;
     const earnedIfSuccess = yachtCoins + portfolioCoins + wheelCoins;
     const totalCoins = reachedHarbor ? earnedIfSuccess : 0;
-    this.coinsCollected = totalCoins;
 
     this.scene.start("Result", {
       distanceM: this.distanceM,
@@ -2881,23 +2877,6 @@ export default class GameScene extends Phaser.Scene {
       }
 
       let xRatio = item.xRatio;
-      if (item.type === "energy") {
-        const safeCandidate = this.findSafeCoinPlacement(
-          Math.max(segmentStartMeter, spawnMeter - SEGMENT_COIN_SAFETY.resampleMeterJitterMeters),
-          Math.min(segmentEndMeter, spawnMeter + SEGMENT_COIN_SAFETY.resampleMeterJitterMeters),
-          SEGMENT_COIN_SAFETY.safeXRatioMin,
-          SEGMENT_COIN_SAFETY.safeXRatioMax,
-          spawnMeter,
-          xRatio ?? 0.5,
-        );
-        if (!safeCandidate && SEGMENT_COIN_SAFETY.enabled) {
-          continue;
-        }
-        if (safeCandidate) {
-          spawnMeter = safeCandidate.spawnMeter;
-          xRatio = safeCandidate.xRatio;
-        }
-      }
 
       this.scheduledObjects.push({
         ...item,
@@ -2906,9 +2885,6 @@ export default class GameScene extends Phaser.Scene {
         scheduleId: `${template.id}@${poolIndex}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
         spawnMeter,
       });
-      if (item.type === "energy") {
-        this.coinsScheduledTotal += 1;
-      }
     }
   }
 
@@ -5509,23 +5485,6 @@ export default class GameScene extends Phaser.Scene {
     this.updateShieldButtonState();
   }
 
-  private refreshShieldDurationByPickup(source: "moneyUp" | "dynamicUp") {
-    if (!this.shieldActive) {
-      return;
-    }
-    if (source === "moneyUp" && !ASSET_SHIELD_CONFIG.refresh.resetOnMoneyUp) {
-      return;
-    }
-    if (source === "dynamicUp" && !ASSET_SHIELD_CONFIG.refresh.resetOnDynamicUp) {
-      return;
-    }
-    if (ASSET_SHIELD_CONFIG.refresh.stacking) {
-      this.shieldRemainingMs += ASSET_SHIELD_CONFIG.runtime.durationMs;
-      return;
-    }
-    this.shieldRemainingMs = ASSET_SHIELD_CONFIG.runtime.durationMs;
-  }
-
   private updateShieldRuntime(deltaMs: number, deltaSec: number) {
     if (!ASSET_SHIELD_CONFIG.enable || !this.shieldActive) {
       return;
@@ -7555,10 +7514,6 @@ export default class GameScene extends Phaser.Scene {
     return closestIndex;
   }
 
-  private hasActiveSkillWheelReward(id: SkillWheelRewardId) {
-    return this.activeSkillWheelRewards.some((reward) => reward.id === id);
-  }
-
   private getSkillWheelRewardStackValue(id: SkillWheelRewardId) {
     return this.activeSkillWheelRewards.find((reward) => reward.id === id)?.stackValue ?? 0;
   }
@@ -7915,7 +7870,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
     const rewardId = this.getSkillWheelRewardIdBySectorIndex(this.skillWheelSelectedSectorIndex);
-    this.skillWheelLastResultId = rewardId;
     this.skillWheelPendingRewardId = rewardId;
 
     this.showSkillWheelResult(rewardId);
@@ -7977,7 +7931,6 @@ export default class GameScene extends Phaser.Scene {
     }
 
     event.consumed = true;
-    this.skillWheelCurrentEvent = event;
     this.skillWheelSelectedSectorIndex = -1;
     this.skillWheelSpinTargetAngleDeg = SKILL_WHEEL_UI_CONFIG.wheel.pointer.restAngleDeg;
     this.skillWheelSpinStartAtMs = this.time.now;
@@ -8013,7 +7966,6 @@ export default class GameScene extends Phaser.Scene {
     this.skillWheelPendingRewardId = undefined;
 
     this.skillWheelModalState = "idle";
-    this.skillWheelCurrentEvent = undefined;
     this.skillWheelSelectedSectorIndex = -1;
     this.skillWheelSpinTargetAngleDeg = SKILL_WHEEL_UI_CONFIG.wheel.pointer.restAngleDeg;
 
@@ -8361,7 +8313,6 @@ export default class GameScene extends Phaser.Scene {
     this.remainingTimeMs = RUN_TIMER.initialMs;
     this.shieldButtonLastTapAtMs = Number.NEGATIVE_INFINITY;
     this.shieldTapCandidate = undefined;
-    this.coinsCollected = 0;
     this.coinsScheduledTotal = 0;
     this.wheelCoinBonusStacks = 0;
     this.whirlpoolDebuffUntilMs = Number.NEGATIVE_INFINITY;
@@ -8369,8 +8320,6 @@ export default class GameScene extends Phaser.Scene {
     this.activeSkillWheelRewards = [];
     this.scheduledWheelEvents = [];
     this.wheelIslandVariantToggle = 0;
-    this.skillWheelCurrentEvent = undefined;
-    this.skillWheelLastResultId = undefined;
     this.skillWheelPendingRewardId = undefined;
     this.skillWheelModalState = "idle";
     this.skillWheelSpinStartAtMs = 0;
