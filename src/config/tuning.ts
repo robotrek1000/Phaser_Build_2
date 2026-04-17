@@ -593,6 +593,9 @@ export const RED_MAGNET_BUOY_CONFIG = {
   minDistancePx: 12,
   axisFactorX: 1,
   axisFactorY: 1,
+  behindPullEnabled: true,
+  behindPullImpulseMultiplier: 1,
+  behindPullMaxReverseSpeedPxPerSec: 220,
   updateCooldownMs: 0,
 } as const;
 
@@ -666,7 +669,7 @@ export const SKILL_WHEEL_REWARD_CONFIG = {
     },
     time_mult: {
       key: "skill-wheel-bonus-3",
-      resultKey: "skill-wheel-sector-2",
+      resultKey: "time-bonus",
       durationMs: 0,
       multiplier: 2,
       title: "x2",
@@ -996,7 +999,8 @@ export const SEGMENT_PICKUP_RULES = {
     spawnRangeEndMeters: 1250,
     xRatioMin: 0.22,
     xRatioMax: 0.78,
-    minGapMeters: 8,
+    minGapMeters: 14,
+    minDeltaXRatio: 0.10,
     maxPlacementAttempts: 300,
   },
   speedBonus: {
@@ -1320,7 +1324,7 @@ export const SHIP_STAGE_TRANSITION = {
   scale: {
     enabled: true,
     from: 1,
-    to: 1.08,
+    to: 2,
   },
 } as const;
 

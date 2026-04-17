@@ -2957,6 +2957,21 @@ export default class GameScene extends Phaser.Scene {
   }
 
   private isCoinPlacementSafe(spawnMeter: number, xRatio: number) {
+    const energyRules = SEGMENT_PICKUP_RULES.energy;
+    for (const scheduled of this.scheduledObjects) {
+      if (scheduled.type !== "energy") {
+        continue;
+      }
+      const deltaMeters = Math.abs(scheduled.spawnMeter - spawnMeter);
+      if (deltaMeters >= energyRules.minGapMeters) {
+        continue;
+      }
+      const existingXRatio = Phaser.Math.Clamp(scheduled.xRatio ?? 0.5, 0, 1);
+      if (Math.abs(existingXRatio - xRatio) < energyRules.minDeltaXRatio) {
+        return false;
+      }
+    }
+
     if (!SEGMENT_COIN_SAFETY.enabled) {
       return true;
     }
@@ -3121,19 +3136,6 @@ export default class GameScene extends Phaser.Scene {
       spawned += 1;
     }
 
-    while (spawned < missing) {
-      const spawnMeter = Phaser.Math.FloatBetween(coinRules.spawnRangeStartMeters, coinRules.spawnRangeEndMeters);
-      const xRatio = Phaser.Math.FloatBetween(coinRules.xRatioMin, coinRules.xRatioMax);
-      this.scheduledObjects.push({
-        type: "energy",
-        meterOffset: 0,
-        xRatio,
-        scheduleId: `energy-final-fallback-${spawned}@${spawnMeter.toFixed(2)}@${this.scheduledObjects.length}`,
-        spawnMeter,
-      });
-      this.coinsScheduledTotal += 1;
-      spawned += 1;
-    }
   }
 
   private scheduleGlobalBonuses() {
@@ -4554,6 +4556,8 @@ export default class GameScene extends Phaser.Scene {
 
   private updateActiveObjectSpeeds(deltaSec: number) {
     const baseFallSpeed = this.getBaseFallSpeedByKmh(this.speedKmh);
+    const yachtBody = this.yachtBody?.body as Phaser.Physics.Arcade.Body | undefined;
+    const yachtAnchorY = yachtBody ? yachtBody.center.y : this.yachtBody?.y;
 
     this.hazards.children.each((child) => {
       const sprite = child as Phaser.Physics.Arcade.Sprite;
@@ -4561,6 +4565,7 @@ export default class GameScene extends Phaser.Scene {
         return;
       }
 
+      const hazardType = (sprite.getData("hazardType") as HazardType | undefined) ?? "moneyDown";
       const speedMultiplier = (sprite.getData("speedMultiplier") as number | undefined) ?? 1;
       const minSpeed = baseFallSpeed * speedMultiplier * HAZARD_COLLISION.minFallSpeedFactor;
       let pushVy = (sprite.getData("pushVy") as number | undefined) ?? 0;
@@ -4571,7 +4576,23 @@ export default class GameScene extends Phaser.Scene {
       }
       sprite.setData("pushVy", pushVy);
 
-      const targetVy = Math.max(minSpeed, baseFallSpeed * speedMultiplier + pushVy);
+      const baseVy = baseFallSpeed * speedMultiplier + pushVy;
+      let targetVy = Math.max(minSpeed, baseVy);
+      if (
+        hazardType === "moneyDownMagnet" &&
+        RED_MAGNET_BUOY_CONFIG.behindPullEnabled &&
+        yachtAnchorY !== undefined
+      ) {
+        const spriteBody = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+        const hazardCenterY = spriteBody ? spriteBody.center.y : sprite.y;
+        if (hazardCenterY > yachtAnchorY) {
+          targetVy = Phaser.Math.Clamp(
+            baseVy,
+            -Math.max(0, RED_MAGNET_BUOY_CONFIG.behindPullMaxReverseSpeedPxPerSec),
+            Number.POSITIVE_INFINITY,
+          );
+        }
+      }
       sprite.setVelocityY(targetVy);
     });
 
@@ -5589,7 +5610,11 @@ export default class GameScene extends Phaser.Scene {
         Math.max(0, 1 - normalizedDistance),
         Math.max(0.05, RED_MAGNET_BUOY_CONFIG.attractFalloffPower),
       );
-      const impulse = RED_MAGNET_BUOY_CONFIG.attractForcePxPerSec * falloff * deltaSec;
+      const behindPullMultiplier =
+        RED_MAGNET_BUOY_CONFIG.behindPullEnabled && dy > 0
+          ? RED_MAGNET_BUOY_CONFIG.behindPullImpulseMultiplier
+          : 1;
+      const impulse = RED_MAGNET_BUOY_CONFIG.attractForcePxPerSec * behindPullMultiplier * falloff * deltaSec;
       if (impulse <= 0) {
         return;
       }
