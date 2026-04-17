@@ -563,7 +563,7 @@ export const RED_MAGNET_BUOY_CONFIG = {
   minDistancePx: 12,
   axisFactorX: 1,
   axisFactorY: 1,
-  behindPullEnabled: true,
+  behindPullEnabled: false,
   behindPullImpulseMultiplier: 1,
   behindPullMaxReverseSpeedPxPerSec: 120,
   updateCooldownMs: 0,
