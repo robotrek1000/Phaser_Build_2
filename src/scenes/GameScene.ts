@@ -72,6 +72,7 @@ import {
   YACHT_SPEED_Y_ANIM,
   YACHT_START_POSITION,
   YACHT_SWAY,
+  YACHT_TEXTURE_VISUAL_SCALE_CORRECTION,
   YACHT_VISUAL_DEPTH,
   YACHT_VISUAL_OFFSET,
   YACHT_VISUAL_SIZE,
@@ -656,14 +657,27 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
-  private getYachtScaleForTextureKey(textureKey: string, fallbackScale: number, tier: 1 | 2 | 3 = this.yachtTier) {
+  private getYachtScaleForTextureKey(
+    textureKey: string,
+    fallbackScaleX: number,
+    fallbackScaleY = fallbackScaleX,
+    tier: 1 | 2 | 3 = this.yachtTier,
+  ) {
     const frame = this.textures.getFrame(textureKey);
     const frameHeight = frame?.realHeight ?? frame?.height ?? 0;
     if (frameHeight <= 0) {
-      return fallbackScale;
+      return { scaleX: fallbackScaleX, scaleY: fallbackScaleY };
     }
     const targetHeight = YACHT_VISUAL_SIZE.targetHeightPx * this.getYachtTierConfig(tier).targetHeightMultiplier;
-    return targetHeight / frameHeight;
+    const baseScale = targetHeight / frameHeight;
+    const correction =
+      YACHT_TEXTURE_VISUAL_SCALE_CORRECTION[
+        textureKey as keyof typeof YACHT_TEXTURE_VISUAL_SCALE_CORRECTION
+      ];
+    return {
+      scaleX: baseScale * (correction?.scaleX ?? 1),
+      scaleY: baseScale * (correction?.scaleY ?? 1),
+    };
   }
 
   private setRunFlowGameplayFrozen(frozen: boolean) {
@@ -2525,9 +2539,12 @@ export default class GameScene extends Phaser.Scene {
       return;
     }
 
-    const targetHeight = YACHT_VISUAL_SIZE.targetHeightPx * this.getYachtTierConfig().targetHeightMultiplier;
-    const scale = targetHeight / frameHeight;
-    this.yachtVisual.setScale(scale);
+    const scale = this.getYachtScaleForTextureKey(
+      this.yachtVisual.texture.key,
+      this.yachtVisual.scaleX,
+      this.yachtVisual.scaleY,
+    );
+    this.yachtVisual.setScale(scale.scaleX, scale.scaleY);
     this.updateYachtBodyHitboxFromVisual();
   }
 
@@ -6975,14 +6992,19 @@ export default class GameScene extends Phaser.Scene {
     const transitionCfg = SHIP_STAGE_TRANSITION;
 
     const outgoing = this.add.image(this.yachtVisual.x, this.yachtVisual.y, this.yachtVisual.texture.key);
-    const outgoingStartScale = this.yachtVisual.scaleX;
-    const incomingTargetScale = this.getYachtScaleForTextureKey(nextTexture, this.yachtVisual.scaleX);
-    outgoing.setScale(outgoingStartScale);
+    const outgoingStartScaleX = this.yachtVisual.scaleX;
+    const outgoingStartScaleY = this.yachtVisual.scaleY;
+    const incomingTargetScale = this.getYachtScaleForTextureKey(
+      nextTexture,
+      this.yachtVisual.scaleX,
+      this.yachtVisual.scaleY,
+    );
+    outgoing.setScale(outgoingStartScaleX, outgoingStartScaleY);
     outgoing.setDepth(this.yachtVisual.depth + 0.001);
     outgoing.setAlpha(transitionCfg.outgoingAlphaFrom);
 
     const incoming = this.add.image(this.yachtVisual.x, this.yachtVisual.y, nextTexture);
-    incoming.setScale(outgoingStartScale);
+    incoming.setScale(outgoingStartScaleX, outgoingStartScaleY);
     incoming.setDepth(this.yachtVisual.depth + 0.002);
     incoming.setAlpha(transitionCfg.incomingAlphaFrom);
 
@@ -6999,9 +7021,10 @@ export default class GameScene extends Phaser.Scene {
       ease: transitionCfg.ease,
       onUpdate: () => {
         const t = Phaser.Math.Clamp(blendState.t, 0, 1);
-        const scale = Phaser.Math.Linear(outgoingStartScale, incomingTargetScale, t);
-        outgoing.setScale(scale);
-        incoming.setScale(scale);
+        const scaleX = Phaser.Math.Linear(outgoingStartScaleX, incomingTargetScale.scaleX, t);
+        const scaleY = Phaser.Math.Linear(outgoingStartScaleY, incomingTargetScale.scaleY, t);
+        outgoing.setScale(scaleX, scaleY);
+        incoming.setScale(scaleX, scaleY);
         outgoing.setAlpha(Phaser.Math.Linear(transitionCfg.outgoingAlphaFrom, transitionCfg.outgoingAlphaTo, t));
         incoming.setAlpha(Phaser.Math.Linear(transitionCfg.incomingAlphaFrom, transitionCfg.incomingAlphaTo, t));
       },

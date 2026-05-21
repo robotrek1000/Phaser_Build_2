@@ -237,11 +237,11 @@ export const TOP_PROGRESS_BAR_CONFIG = {
   },
   ship: {
     key: "ship-1",
-    baseScale: 0.17,
+    baseScale: 0.42,
     rotationDeg: -90,
     flipX: true,
     flipY: true,
-    scaleX: 1,
+    scaleX: 1.47,
     scaleY: 1,
     offsetX: 0,
     offsetY: -2,
@@ -1240,6 +1240,37 @@ export const YACHT_VISUAL_SIZE = {
   hitboxOffsetY: 30,
 } as const;
 
+export const YACHT_TEXTURE_VISUAL_SCALE_CORRECTION = {
+  "ship-1": {
+    scaleX: 1.649,
+    scaleY: 1.105,
+  },
+  "ship-2": {
+    scaleX: 1.649,
+    scaleY: 1.105,
+  },
+  "ship-3": {
+    scaleX: 1.649,
+    scaleY: 1.105,
+  },
+  "ship-4": {
+    scaleX: 1.649,
+    scaleY: 1.105,
+  },
+  "ship-5": {
+    scaleX: 1.649,
+    scaleY: 1.105,
+  },
+  "ship-medium-1": {
+    scaleX: 1.193,
+    scaleY: 1.043,
+  },
+  "ship-large-1": {
+    scaleX: 1.039,
+    scaleY: 0.932,
+  },
+} as const;
+
 export const YACHT_VISUAL_OFFSET = {
   y: 32,
 } as const;
@@ -1650,7 +1681,7 @@ export const RED_BUOY_HIT_FEEDBACK = {
 
 export const OBJECT_SIZES = {
   yacht: { width: 45, height: 200 },
-  moneyUp: { width: 84, height: 120 },
+  moneyUp: { width: 86, height: 120 },
 } as const;
 
 export const MONEY_UP_HITBOX = {
@@ -1662,7 +1693,7 @@ export const MONEY_UP_HITBOX = {
 
 export const MONEY_DOWN_CONFIG = {
   textureKey: "money-down",
-  width: 84,
+  width: 86,
   height: 120,
   depth: 14,
   speedYMultiplier: 1,
@@ -1685,7 +1716,7 @@ export const MONEY_DOWN_CONFIG = {
 
 export const MONEY_DOWN_MAGNET_CONFIG = {
   textureKey: "money-down",
-  width: 84,
+  width: 86,
   height: 120,
   depth: 14,
   speedYMultiplier: 1,
@@ -1723,7 +1754,7 @@ export const DYNAMIC_BUOY_STATES = {
 } as const;
 
 export const DYNAMIC_BUOY_CONFIG = {
-  width: 84,
+  width: 83,
   height: 120,
   depth: 14,
   speedYMultiplier: 0.7,
@@ -1756,7 +1787,7 @@ export const DYNAMIC_BUOY_BLINK = {
   lockCollisionToSourceState: true,
   stateTextureAlignment: {
     up: {
-      displayWidth: 84,
+      displayWidth: 83,
       displayHeight: 120,
       offsetX: 0,
       offsetY: 0,
@@ -1764,7 +1795,7 @@ export const DYNAMIC_BUOY_BLINK = {
       scaleY: 1,
     },
     no: {
-      displayWidth: 84,
+      displayWidth: 83,
       displayHeight: 120,
       offsetX: 0,
       offsetY: 0,
@@ -1772,7 +1803,7 @@ export const DYNAMIC_BUOY_BLINK = {
       scaleY: 1,
     },
     down: {
-      displayWidth: 84,
+      displayWidth: 83,
       displayHeight: 120,
       offsetX: 0,
       offsetY: 0,
@@ -1786,8 +1817,8 @@ export const DYNAMIC_BUOY_BLINK = {
 
 export const WHIRLPOOL_CONFIG = {
   textureKey: "obstacle-whirlpool",
-  width: 150,
-  height: 114,
+  width: 156,
+  height: 117,
   depth: 12,
   speedYMultiplier: 1,
   driftAmplitudePx: 0,
@@ -1797,10 +1828,10 @@ export const WHIRLPOOL_CONFIG = {
   swayAmplitudeDeg: 0,
   swayFrequencyHz: 0,
   hitbox: {
-    radiusXRatio: 1.5,
-    radiusYRatio: 1.25,
-    centerXRatio: 2.25,
-    centerYRatio: 2.2,
+    radiusXRatio: 1.442,
+    radiusYRatio: 1.218,
+    centerXRatio: 2.163,
+    centerYRatio: 2.144,
   },
   collisionCooldownMs: 260,
   applyImpactAnimation: false,
@@ -1874,13 +1905,13 @@ export const REEF_CONFIG = {
   },
   reef1: {
     textureKey: "obstacle-reef-1",
-    width: 290,
-    height: 356,
+    width: 219,
+    height: 203,
     ellipse: {
-      radiusXRatio: 0.75,
-      radiusYRatio: 0.75,
-      centerXRatio: 1.25,
-      centerYRatio: 1.25,
+      radiusXRatio: 1.5,
+      radiusYRatio: 1,
+      centerXRatio: 2,
+      centerYRatio: 2.5,
     },
   },
 } as const;
@@ -1892,8 +1923,8 @@ export const TIME_BONUS = {
   textureKey: "time-bonus",
   shadowTextureKey: "time-bonus-shadow",
   spawnYOffset: -120,
-  width: 80,
-  height: 80,
+  width: 82,
+  height: 84,
   shadowWidth: 100,
   shadowHeight: 32,
   shadowYOffset: 120,
@@ -1909,10 +1940,10 @@ export const TIME_BONUS = {
   yBobPhaseMin: 0,
   yBobPhaseMax: Math.PI * 2,
   hitbox: {
-    widthRatio: 2,
-    heightRatio: 2,
-    offsetX: 100,
-    offsetY: 100,
+    widthRatio: 1.951,
+    heightRatio: 1.905,
+    offsetX: 99,
+    offsetY: 98,
   },
   shadowBobScale: {
     baseScaleX: 0.25,
@@ -2023,8 +2054,8 @@ export const SPEED_BONUS_CONFIG = {
   textureKey: "speed-bonus",
   shadowTextureKey: "speed-bonus-shadow",
   spawnYOffset: -120,
-  width: 80,
-  height: 80,
+  width: 107,
+  height: 91,
   shadowWidth: 100,
   shadowHeight: 32,
   shadowYOffset: 116,
@@ -2040,10 +2071,10 @@ export const SPEED_BONUS_CONFIG = {
   yBobPhaseMin: 0,
   yBobPhaseMax: Math.PI * 2,
   hitbox: {
-    widthRatio: 2,
-    heightRatio: 2,
-    offsetX: 100,
-    offsetY: 100,
+    widthRatio: 1.495,
+    heightRatio: 1.758,
+    offsetX: 87,
+    offsetY: 95,
   },
   pulse: {
     baseScale: 1,
@@ -2120,8 +2151,8 @@ export const SPEED_BONUS_CONFIG = {
 export const COIN_CONFIG = {
   textureKey: "energy-bonus",
   shadowTextureKey: "coin-shadow",
-  width: 64,
-  height: 78,
+  width: 69,
+  height: 81,
   shadowWidth: 52,
   shadowHeight: 16,
   shadowYOffset: 82,
@@ -2134,10 +2165,10 @@ export const COIN_CONFIG = {
   yBobPhaseMin: 0,
   yBobPhaseMax: Math.PI * 2,
   hitbox: {
-    widthRatio: 5,
-    heightRatio: 8,
-    offsetX: 250,
-    offsetY: 325,
+    widthRatio: 4.638,
+    heightRatio: 7.704,
+    offsetX: 248,
+    offsetY: 324,
   },
   shadowBobScale: {
     baseScaleX: 0.16,
