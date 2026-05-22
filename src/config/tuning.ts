@@ -447,7 +447,7 @@ export const INTRO_ONBOARDING_UI = {
 
 
 export const HITBOX_DEBUG = {
-  enabled: false,
+  enabled: true,
   depth: 300,
   lineWidth: 3,
   alpha: 1,
@@ -512,7 +512,7 @@ export const YACHT_TIER_CONFIG = {
   tiers: [
     {
       id: 1,
-      speedKmh: 45,
+      speedKmh: 50,
       capacityMultiplier: 1,
       baseTextureKey: "ship-1",
       controlLerpMultiplier: 1,
@@ -520,7 +520,7 @@ export const YACHT_TIER_CONFIG = {
     },
     {
       id: 2,
-      speedKmh: 45,
+      speedKmh: 55,
       capacityMultiplier: 1.5,
       baseTextureKey: "ship-medium-1",
       controlLerpMultiplier: 0.82,
@@ -528,7 +528,7 @@ export const YACHT_TIER_CONFIG = {
     },
     {
       id: 3,
-      speedKmh: 45,
+      speedKmh: 60,
       capacityMultiplier: 2,
       baseTextureKey: "ship-large-1",
       controlLerpMultiplier: 0.64,
