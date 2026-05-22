@@ -512,7 +512,7 @@ export const YACHT_TIER_CONFIG = {
   tiers: [
     {
       id: 1,
-      speedKmh: 30,
+      speedKmh: 45,
       capacityMultiplier: 1,
       baseTextureKey: "ship-1",
       controlLerpMultiplier: 1,
@@ -528,7 +528,7 @@ export const YACHT_TIER_CONFIG = {
     },
     {
       id: 3,
-      speedKmh: 60,
+      speedKmh: 45,
       capacityMultiplier: 2,
       baseTextureKey: "ship-large-1",
       controlLerpMultiplier: 0.64,
