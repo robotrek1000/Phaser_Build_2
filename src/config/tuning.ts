@@ -447,7 +447,7 @@ export const INTRO_ONBOARDING_UI = {
 
 
 export const HITBOX_DEBUG = {
-  enabled: true,
+  enabled: false,
   depth: 300,
   lineWidth: 3,
   alpha: 1,
