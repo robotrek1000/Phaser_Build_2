@@ -33,6 +33,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_BASE_URL: /Phaser_Build_2/
 
       - name: Disable Jekyll
         run: touch dist/.nojekyll
