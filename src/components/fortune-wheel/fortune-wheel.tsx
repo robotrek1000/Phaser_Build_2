@@ -1,7 +1,5 @@
 import type { FC } from 'react';
 
-import { useFortuneWheel } from './use-fortune-wheel';
-
 import type { FortuneWheelProps } from './fortune-wheel.types';
 
 import { ModalWindow } from '@/components/shared/components/modal-window';
@@ -11,8 +9,6 @@ export const FortuneWheel: FC<FortuneWheelProps> = ({
   isVisible,
   onCollectBonus,
 }) => {
-  const { collectBonus } = useFortuneWheel();
-
   return (
     <ModalWindow
       isOpen={isVisible}
