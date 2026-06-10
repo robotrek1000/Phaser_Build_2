@@ -1,0 +1,19 @@
+.container {
+  position: absolute;
+  inset: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  pointer-events: auto;
+}
+
+.text {
+  color: #FFF
+}
+
+.reload-btn {
+  margin-top: 2rem;
+}

@@ -1,0 +1,28 @@
+.button {
+  pointer-events: auto;
+
+  box-sizing: border-box;
+
+  border-radius: 62rem;
+  border-top: 0.125rem solid rgba(255, 255, 255, 0.40);
+  border-bottom: none;
+  border-left: none;
+  border-right: none;
+
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.40) 0%, rgba(161, 211, 255, 0.40) 100%);
+
+  color: #FFFFFF;
+  text-transform: uppercase;
+  font-family: "Jaro Cyrillic", sans-serif;
+  text-align: center;
+}
+
+.size-s {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.size-m {
+  padding: 1rem 1.5rem;
+  font-size: 1.375rem;
+}

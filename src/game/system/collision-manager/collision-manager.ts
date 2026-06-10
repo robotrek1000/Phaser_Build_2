@@ -1,0 +1,243 @@
+import * as Phaser from 'phaser';
+
+import { ALL_OBJECTS, ASSETS_LOSS_HAZARDS } from './collision-manager.config';
+
+import type { SpawnObjectType } from '@/game/game.types';
+
+import { GAME_EVENT_REACH_ISLAND } from '@/game';
+import {
+  BaseSpawnedObject,
+  SPAWN_OBJECT_DATA,
+} from '@/game/entities/base-spawned-object';
+import { Yacht } from '@/game/entities/yacht';
+import { GameState } from '@/game/system/game-state';
+
+export class CollisionManager {
+  private scene: Phaser.Scene;
+
+  private gameState: GameState;
+
+  private player?: Yacht;
+
+  private spawnGroups?: ReadonlyMap<
+    SpawnObjectType,
+    Phaser.Physics.Arcade.Group
+  >;
+
+  private colliders: Phaser.Physics.Arcade.Collider[] = [];
+
+  private setWheelIslandGameObject: (
+    wheelIslandGameObject: BaseSpawnedObject
+  ) => void;
+
+  constructor(
+    scene: Phaser.Scene,
+    gameState: GameState,
+    setWheelIslandGameObject: (wheelIslandGameObject: BaseSpawnedObject) => void
+  ) {
+    this.scene = scene;
+    this.gameState = gameState;
+    this.setWheelIslandGameObject = setWheelIslandGameObject;
+  }
+
+  create(
+    player: Yacht,
+    spawnGroups: ReadonlyMap<SpawnObjectType, Phaser.Physics.Arcade.Group>
+  ) {
+    this.player = player;
+    this.spawnGroups = spawnGroups;
+
+    this.enableCollision();
+  }
+
+  destroy() {
+    this.disableCollision();
+  }
+
+  enableCollision() {
+    this.addPlayerColliders();
+    this.addPlayerEnergyShieldColliders();
+    this.addBuoysColliders();
+  }
+
+  disableCollision() {
+    this.colliders.forEach((collider) => collider.destroy());
+    this.colliders = [];
+  }
+
+  private addPlayerColliders() {
+    if (!this.spawnGroups) {
+      return;
+    }
+
+    ALL_OBJECTS.forEach((type) => this.bindPlayerCollision(type));
+  }
+
+  private addPlayerEnergyShieldColliders() {
+    if (!this.spawnGroups || !this.player?.energyShieldArcadeColliderType) {
+      return;
+    }
+
+    const moneyDownGroup = this.spawnGroups.get('moneyDown');
+    const moneyDownMagnetGroup = this.spawnGroups.get('moneyDownMagnet');
+    const dynamicBuoyGroup = this.spawnGroups.get('dynamicBuoy');
+
+    if (moneyDownGroup) {
+      const collider = this.scene.physics.add.overlap(
+        this.player.energyShieldArcadeColliderType,
+        moneyDownGroup,
+        this.handleEnergyShieldCollision
+      );
+
+      this.colliders.push(collider);
+    }
+
+    if (moneyDownMagnetGroup) {
+      const collider = this.scene.physics.add.overlap(
+        this.player.energyShieldArcadeColliderType,
+        moneyDownMagnetGroup,
+        this.handleEnergyShieldCollision
+      );
+
+      this.colliders.push(collider);
+    }
+
+    if (dynamicBuoyGroup) {
+      const collider = this.scene.physics.add.overlap(
+        this.player.energyShieldArcadeColliderType,
+        dynamicBuoyGroup,
+        this.handleEnergyShieldCollision,
+        (_shield, object) => {
+          const dynamicBuoy = object as BaseSpawnedObject;
+
+          return dynamicBuoy.getData(SPAWN_OBJECT_DATA.SUBTYPE) !== 'up';
+        }
+      );
+
+      this.colliders.push(collider);
+    }
+  }
+
+  private addBuoysColliders() {
+    if (!this.spawnGroups) {
+      return;
+    }
+
+    const moneyUpGroup = this.spawnGroups.get('moneyUp');
+    const moneyDownGroup = this.spawnGroups.get('moneyDown');
+    const moneyDownMagnetGroup = this.spawnGroups.get('moneyDownMagnet');
+
+    if (!moneyUpGroup || !moneyDownGroup || !moneyDownMagnetGroup) {
+      return;
+    }
+
+    this.colliders.push(
+      this.scene.physics.add.collider(moneyUpGroup, moneyUpGroup)
+    );
+
+    this.colliders.push(
+      this.scene.physics.add.collider(moneyDownGroup, moneyDownGroup)
+    );
+
+    this.colliders.push(
+      this.scene.physics.add.collider(moneyUpGroup, moneyDownGroup)
+    );
+
+    this.colliders.push(
+      this.scene.physics.add.collider(moneyUpGroup, moneyDownMagnetGroup)
+    );
+
+    this.colliders.push(
+      this.scene.physics.add.collider(moneyDownGroup, moneyDownMagnetGroup)
+    );
+  }
+
+  private bindPlayerCollision(type: SpawnObjectType) {
+    if (!this.spawnGroups || !this.player) {
+      return;
+    }
+
+    const group = this.spawnGroups.get(type);
+
+    if (!group || !this.player?.arcadeColliderType) {
+      return;
+    }
+
+    const collider = this.scene.physics.add.overlap(
+      this.player.arcadeColliderType,
+      group,
+      this.handlePlayerCollision
+    );
+
+    this.colliders.push(collider);
+  }
+
+  private handlePlayerCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+    (_player, object) => {
+      const spawnedObject = object as BaseSpawnedObject;
+
+      if (!spawnedObject.active) {
+        return;
+      }
+
+      const objectType: SpawnObjectType = spawnedObject.getData(
+        SPAWN_OBJECT_DATA.TYPE
+      );
+      const objectSubtype = spawnedObject.getData(SPAWN_OBJECT_DATA.SUBTYPE);
+
+      if (objectType === 'reef') {
+        this.gameState.applySolidDamage();
+      }
+
+      if (objectType === 'whirlpool') {
+        this.gameState.applyWhirlpoolDamage();
+      }
+
+      if (objectType === 'energy') {
+        this.gameState.collectEnergy();
+        void spawnedObject.despawn();
+      }
+
+      if (
+        objectType === 'moneyUp' ||
+        (objectType === 'dynamicBuoy' && objectSubtype === 'up')
+      ) {
+        this.gameState.collectAsset();
+        void this.player?.playPositiveHitAnimation();
+        void spawnedObject.despawn();
+      }
+
+      if (
+        (!this.gameState.hasEnergyShield &&
+          ASSETS_LOSS_HAZARDS.includes(objectType)) ||
+        (objectType === 'dynamicBuoy' && objectSubtype === 'down')
+      ) {
+        this.gameState.applyLoss();
+        void spawnedObject.despawn();
+      }
+
+      if (objectType === 'wheelIsland') {
+        this.setWheelIslandGameObject(spawnedObject);
+        this.scene.game.events.emit(GAME_EVENT_REACH_ISLAND);
+      }
+
+      if (objectType === 'timeBonus') {
+        this.gameState.catchTimeBonus();
+        void this.player?.playBonusCatchAnimation();
+        void spawnedObject.despawn();
+      }
+
+      if (objectType === 'harbor') {
+        this.gameState.reachGameGoal();
+      }
+    };
+
+  private handleEnergyShieldCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+    (energyShield, object) => {
+      const spawnedObject = object as BaseSpawnedObject;
+
+      void spawnedObject.handleEnergyShieldCollision(
+        energyShield as Phaser.GameObjects.Graphics
+      );
+    };
+}

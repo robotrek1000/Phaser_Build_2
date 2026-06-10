@@ -1,0 +1,25 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.icon {
+  width: 1.75rem;
+  max-width: 1.75rem;
+  aspect-ratio: 28 / 32;
+}
+
+.progress-bar {
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 62rem;
+  border: 0.125rem solid #FFFFFF;
+}
+
+.progress-line {
+  height: 0.25rem;
+  background: linear-gradient(90deg, #A700EE 0%, #0068EF 100%);
+  transition: width 0.3s ease-in;
+}

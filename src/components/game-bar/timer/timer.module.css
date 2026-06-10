@@ -1,0 +1,15 @@
+.container {
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #001C34;
+  -webkit-text-stroke-width: 0.03rem;
+  -webkit-text-stroke-color: #FFFFFF;
+  paint-order: stroke fill;
+}
+
+@supports (paint-order: stroke) {
+  .container {
+    -webkit-text-stroke-width: 0.25rem;
+  }
+}

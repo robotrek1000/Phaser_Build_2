@@ -1,0 +1,120 @@
+.modal-window {
+  font-family: "Jaro Cyrillic", sans-serif;
+  min-height: 40.4375rem;
+}
+
+.distance-icon {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -3.1rem);
+}
+
+.win-value {
+  position: relative;
+
+  &:before {
+    content: url("../../assets/laurel_left.png");
+    position: absolute;
+    left: 0;
+    width: 0.875rem;
+    transform: translateX(-1.9rem);
+  }
+
+  &:after {
+    content: url("../../assets/laurel_right.png");
+    position: absolute;
+    right: 0;
+    width: 0.875rem;
+    transform: translateX(1.4rem);
+  }
+}
+
+.text {
+  margin-top: 0.5rem;
+  font-size: 1.375rem;
+  text-align: center;
+}
+
+.separator {
+  margin: 0.75rem 0;
+  width: 100%;
+}
+
+.reward-title {
+  font-size: 1.375rem;
+  text-align: center;
+}
+
+.rewards-container {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  column-gap: 0.5rem;
+}
+
+.reward {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  row-gap: 0.75rem;
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 1.25rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.10);
+  padding: 1.5rem 2.5rem;
+}
+
+.reward-icon {
+  border: 0.125rem solid #FFF;
+  border-radius: 50%;
+  width: 2.375rem;
+  aspect-ratio: 1;
+}
+
+.buttons-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.play-btn {
+  flex-grow: 1;
+  display: flex;
+  justify-content: center;
+  gap: 0.625rem;
+  align-items: center;
+
+  && {
+    padding: 1rem;
+  }
+}
+
+.play-cost-container {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.play-cost-icon {
+  border: 0.125rem solid #FFF;
+  border-radius: 50%;
+  width: 1.5rem;
+  aspect-ratio: 1;
+}
+
+.play-cost-text {
+  color: #D4934D;
+  -webkit-text-stroke-width: 0.04rem;
+  -webkit-text-stroke-color: #FFF;
+  font-size: 1.375rem;
+  paint-order: stroke fill;
+}
+
+@supports (paint-order: stroke) {
+  .play-cost-text {
+    -webkit-text-stroke-width: 0.1625rem;
+  }
+}

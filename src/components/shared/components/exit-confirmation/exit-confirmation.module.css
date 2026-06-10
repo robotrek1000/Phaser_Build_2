@@ -1,0 +1,21 @@
+.modal-window {
+  font-family: "Jaro Cyrillic", sans-serif;
+  color: #FFFFFF;
+  min-height: 25rem;
+}
+
+.title {
+  font-size: 2rem;
+  text-align: center;
+}
+
+.separator {
+  margin-top: 0.75rem;
+}
+
+.buttons-bar {
+  display: grid;
+  align-items: center;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}

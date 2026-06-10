@@ -1,0 +1,21 @@
+.container {
+  canvas {
+    image-rendering: auto;
+  }
+}
+
+.game-overlay {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+
+  width: min(100vw, calc(var(--app-height) * var(--design-width) / var(--design-height)));
+  height: min(var(--app-height), calc(100vw * var(--design-height) / var(--design-width)));
+  aspect-ratio: var(--design-width) / var(--design-height);
+
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+
+  overflow: hidden;
+}

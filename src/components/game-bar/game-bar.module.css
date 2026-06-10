@@ -1,0 +1,43 @@
+.container {
+  position: absolute;
+  top: 0.625rem;
+  left: 1rem;
+  right: 1rem;
+  grid-template-columns: 1fr 2fr auto;
+  display: grid;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.chip {
+  display: grid;
+  gap: 1rem;
+  border-radius: 6.1875rem;
+  background: rgba(255, 255, 255, 0.20);
+  backdrop-filter: blur(1.25rem);
+  padding: 0.5rem 1rem;
+  min-height: 2.5rem;
+}
+
+.left-chip {
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+}
+
+.right-chip {
+  grid-template-columns: 1fr 2.9rem;
+  align-items: flex-end;
+}
+
+.distance-progress {
+  flex-grow: 1;
+}
+
+.timer {
+  text-align: right;
+}
+
+.close-btn {
+  pointer-events: auto;
+}
+

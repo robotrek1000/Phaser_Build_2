@@ -1,0 +1,24 @@
+.container {
+  background-image: url("../../../../assets/yacht-shadow.png");
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: 100% auto;
+
+  animation: sway 3s ease-in-out infinite;
+}
+
+.img {
+  width: 15rem;
+  aspect-ratio: 1;
+}
+
+@keyframes sway {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-0.75rem);
+    background-size: 92% auto;
+  }
+}

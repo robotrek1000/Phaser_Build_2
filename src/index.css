@@ -1,0 +1,61 @@
+@font-face {
+  font-family: "Jaro Cyrillic";
+  src: url("/fonts/jaro-cyrillic.otf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --app-height: 100vh;
+  --design-width: 390px;
+  --design-height: 844px;
+  --game-rem: 16px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+*:not(dialog) {
+  margin: 0;
+}
+
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
+input, button, textarea, select {
+  font: inherit;
+}
+
+p, h1, h2, h3, h4, h5, h6 {
+  overflow-wrap: break-word;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  text-wrap: balance;
+}
+
+html {
+  font-size: var(--game-rem);
+}
+
+body {
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  background: #0a4261;
+}
+
+#root {
+  isolation: isolate;
+  width: 100%;
+  height: var(--app-height);
+  overflow: hidden;
+  box-sizing: border-box;
+}

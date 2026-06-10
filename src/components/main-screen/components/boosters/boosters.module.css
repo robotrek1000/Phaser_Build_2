@@ -1,0 +1,57 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.booster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.booster-img-container {
+  position: relative;
+  width: 5.25rem;
+  height: 5.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.booster-img-body {
+  width: 3.125rem;
+  aspect-ratio: 50 / 28;
+}
+
+.booster-img-engine {
+  width: 1.75rem;
+  aspect-ratio: 28 / 41;
+}
+
+.booster-img-shield {
+  width: 3rem;
+  aspect-ratio: 1;
+}
+
+.booster-img-steering-wheel {
+  width: 2.75rem;
+  aspect-ratio: 1;
+}
+
+.icon-checkmark {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 1.5625rem;
+}
+
+.booster-title {
+  color: #FFFFFF;
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 0.75rem;
+  text-align: center;
+}

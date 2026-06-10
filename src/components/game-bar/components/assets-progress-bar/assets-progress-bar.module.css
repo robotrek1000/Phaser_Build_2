@@ -1,0 +1,49 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.icon-container {
+  width: 2rem;
+  height: 2rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background-image: url("../../../../assets/briefcase-white-shadow.png");
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.icon {
+  width: 1.75rem;
+  aspect-ratio: 1;
+  transition: filter 0.3s ease-in;
+}
+
+.icon-red {
+  filter: grayscale(1) sepia(1) hue-rotate(-45deg) saturate(5) brightness(1);
+}
+
+.icon-yellow {
+  filter: grayscale(1) sepia(1) hue-rotate(0deg) saturate(5) brightness(1);
+}
+
+.icon-green {
+  filter: grayscale(1) sepia(1) hue-rotate(70deg) saturate(5) brightness(0.7);
+}
+
+.progress-bar {
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 62rem;
+  border: 0.125rem solid #FFFFFF;
+}
+
+.progress-line {
+  height: 0.25rem;
+  transition: width 0.3s ease-in;
+}

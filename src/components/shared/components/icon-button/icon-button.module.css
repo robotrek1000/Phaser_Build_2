@@ -1,0 +1,28 @@
+.button {
+  pointer-events: auto;
+
+  border-radius: 50%;
+
+  width: 2.5rem;
+  aspect-ratio: 1;
+
+  background-color: rgba(0, 0, 0, 0.40);
+  background-repeat: no-repeat;
+  background-size: 1.125rem 1.125rem;
+  background-position: center;
+
+  padding: 0;
+  border: none;
+}
+
+.close-btn {
+  background-image: url("../../../../assets/cross-white.svg");
+}
+
+.settings-btn {
+  background-image: url("../../../../assets/gear-white.svg");
+}
+
+.exit-btn {
+  background-image: url("../../../../assets/exit-white.svg");
+}

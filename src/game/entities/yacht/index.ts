@@ -1,0 +1,1 @@
+export { Yacht } from './yacht';

@@ -1,0 +1,135 @@
+.container {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+
+  pointer-events: auto;
+}
+
+.level-1 {
+  background: linear-gradient(180deg, #0D45FE 0%, #000817 62.74%);
+}
+
+.level-2 {
+  background: linear-gradient(180deg, #546700 0%, #000F09 62.74%);
+}
+
+.level-3 {
+  background: linear-gradient(180deg, #709BB5 0%, #00070F 62.74%);
+}
+
+.top-bar {
+  position: relative;
+  z-index: 1;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.how-to-play-btn {
+  margin-right: auto;
+}
+
+.level-slider {
+  margin-top: -2.375rem;
+}
+
+.yacht-skins-btn {
+  pointer-events: auto;
+
+  overflow: hidden;
+
+  position: absolute;
+  z-index: 1;
+  top: 4rem;
+  left: 50%;
+  transform: translate(-50%, 0);
+
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+
+  padding: 0.875rem 0.75rem 0.9375rem 2.7rem;
+
+  border: none;
+  border-radius: 6.1875rem;
+
+  background: rgba(255, 255, 255, 0.10);
+  backdrop-filter: blur(20px);
+  background-image: url("../../assets/yacht-icon-gold.png");
+  background-repeat: no-repeat;
+  background-size: 2.375rem;
+
+  color: #FFFFFF;
+
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 0.75rem;
+
+  &:after {
+    content: url("../../assets/right-arrow.svg");
+    transform: translateY(0.2rem);
+  }
+}
+
+.yacht-skin-display-container {
+  position: absolute;
+  z-index: 1;
+  top: 6rem;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.separator {
+  margin: auto 0;
+}
+
+.boosters-title {
+  margin-top: auto;
+  text-align: center;
+  color: #FFFFFF;
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 1.375rem;
+}
+
+.boosters {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0 1rem;
+}
+
+.bottom-bar {
+  margin-top: 2.4375rem;
+  padding: 2.25rem;
+  position: relative;
+}
+
+.play-btn {
+  width: 100%;
+}
+
+.play-btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.play-btn-icon {
+  height: 1.5rem;
+}
+
+.bottom-bar-info-text {
+  position: absolute;
+  bottom: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+
+  color: rgba(255, 255, 255, 0.50);
+  text-align: center;
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 0.75rem;
+}

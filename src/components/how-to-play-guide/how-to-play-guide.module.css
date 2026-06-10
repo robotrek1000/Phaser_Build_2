@@ -1,0 +1,54 @@
+.modal-window {
+  min-height: 45rem;
+  font-family: "Jaro Cyrillic", sans-serif;
+  color: #FFFFFF;
+}
+
+.title {
+  text-align: center;
+  font-size: 2rem;
+}
+
+.separator {
+  margin: 0.75rem 0 1.25rem;
+}
+
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.onboarding-item {
+  display: flex;
+  align-items: center;
+  gap: 1.1875rem;
+}
+
+.onboarding-item-icon-container {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 5rem;
+  height: 5rem;
+
+  border-radius: 50%;
+  border: 0.1rem solid rgba(255, 255, 255, 0.20);
+  background: rgba(255, 255, 255, 0.20);
+}
+
+.onboarding-item-icon {
+  width: 4.875rem;
+  height: 4.875rem;
+}
+
+.onboarding-item-description {
+  font-size: 1rem;
+}
+
+.got-it-btn {
+  width: 100%;
+}
