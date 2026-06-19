@@ -5,16 +5,16 @@ import styles from './how-to-play-guide.module.css';
 import type { HowToPlayGuideProps } from './how-to-play-guide.types';
 
 import { RULES } from '@/components/how-to-play-guide/how-to-play-guide.constants';
-import { ModalWindow } from '@/components/shared/components/modal-window';
-import { SecondaryButton } from '@/components/shared/components/secondary-button';
-import { Separator } from '@/components/shared/components/separator';
+import { SailorModal } from '@/shared/components/sailor-modal';
+import { SecondaryButton } from '@/shared/components/secondary-button';
+import { Separator } from '@/shared/components/separator';
 
 export const HowToPlayGuide: FC<HowToPlayGuideProps> = ({
   isVisible,
   onConfirm,
 }) => {
   return (
-    <ModalWindow
+    <SailorModal
       isOpen={isVisible}
       variant="blue"
       sailorType="lookingFar"
@@ -47,6 +47,6 @@ export const HowToPlayGuide: FC<HowToPlayGuideProps> = ({
           </div>
         ))}
       </div>
-    </ModalWindow>
+    </SailorModal>
   );
 };

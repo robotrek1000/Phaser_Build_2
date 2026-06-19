@@ -1,16 +1,14 @@
 import type { ReactNode } from 'react';
 
-import type { LevelId } from '@/game/level-design';
+import type { ClientLevelNumber } from '@/shared/types';
 
 export interface LevelConfig {
-  title: ReactNode;
-  subtitle: ReactNode;
   bg: string;
 }
 
 export interface LevelSliderProps {
   className?: string;
-  level: LevelId;
+  level: ClientLevelNumber;
   children?: ReactNode;
-  onLevelChange(level: LevelId): void;
+  onLevelChange(level: ClientLevelNumber): void;
 }

@@ -43,7 +43,7 @@ export class WaterBackground {
 
     const pixelsPerSecond =
       this.gameState.gameState === 'playing'
-        ? this.gameState.speedKmh + this.gameState.fallSpeedPxPerKmh
+        ? this.gameState.worldFallSpeedPxPerSec
         : 0;
 
     const scrollDeltaPx = pixelsPerSecond * deltaSeconds;

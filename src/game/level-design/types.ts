@@ -1,4 +1,5 @@
-import type { SpawnObjectType, YachtSkin } from '@/game/game.types';
+import type { SpawnObjectType } from '@/game/game.types';
+import type { ClientLevelNumber, ClientYachtType } from '@/shared/types';
 
 export type SegmentObjectConfig = {
   type: SpawnObjectType;
@@ -26,8 +27,8 @@ export type SpawnObjectConfig = Omit<SegmentObjectConfig, 'meterOffset'> & {
 export type LevelId = 1 | 2 | 3;
 
 export interface GameSettings {
-  level: LevelId;
-  yachtSkin: YachtSkin;
+  level: ClientLevelNumber;
+  yachtSkin: ClientYachtType;
   speedKmh: number;
   fallSpeedPxPerKmh: number;
   isEngineImproved: boolean;

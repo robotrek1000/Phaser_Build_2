@@ -1,0 +1,126 @@
+.modal-window {
+  pointer-events: auto;
+
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: 1rem;
+  transform: translate(-50%, 0);
+
+  box-sizing: border-box;
+
+  width: calc(100% - 2rem);
+
+  padding: 1rem;
+
+  display: flex;
+  flex-direction: column;
+
+  border-radius: 2.625rem;
+  border: 0.125rem solid rgba(255, 255, 255, 0.20);
+
+  backdrop-filter: blur(1.25rem);
+
+  color: #FFFFFF;
+
+  &:before {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    background-size: 100% auto;
+    background-repeat: no-repeat;
+
+    border-top-left-radius: 2.625rem;
+    border-top-right-radius: 2.625rem;
+  }
+}
+
+.container-blue {
+  background: linear-gradient(145deg, rgba(13, 185, 254, 0.40) 20.41%, rgba(42, 155, 255, 0.40) 79.59%);
+}
+
+.container-dark-blue {
+  background: linear-gradient(180deg, rgba(0, 144, 252, 0.40) 0%, rgba(0, 75, 218, 0.40) 100%);
+}
+
+.container-gray {
+  background: linear-gradient(145deg, rgba(0, 0, 0, 0.40) 20.41%, rgba(255, 255, 255, 0.40) 79.59%);
+}
+
+.container-green {
+  background: linear-gradient(180deg, rgba(0, 248, 165, 0.40) 0%, rgba(0, 214, 0, 0.40) 100%);
+}
+
+.container-gold {
+  background: linear-gradient(180deg, rgba(255, 181, 0, 0.40) 0%, rgba(225, 104, 0, 0.40) 100%);
+}
+
+.container-violet {
+  background: linear-gradient(180deg, rgba(181, 0, 218, 0.40) 0%, rgba(110, 0, 218, 0.40) 100%);
+}
+
+.container-top-gradient-blue {
+  &:before {
+    background-image: url("../../../assets/ellipse-blue.svg");
+  }
+}
+
+.container-top-gradient-bright-blue {
+  &:before {
+    background-image: url("../../../assets/ellipse-bright-blue.svg");
+  }
+}
+
+.container-top-gradient-green {
+  &:before {
+    background-image: url("../../../assets/ellipse-green.svg");
+  }
+}
+
+.container-top-gradient-bright-green {
+  &:before {
+    background-image: url("../../../assets/ellipse-bright-green.svg");
+  }
+}
+
+.container-top-gradient-orange {
+  &:before {
+    background-image: url("../../../assets/ellipse-orange.svg");
+  }
+}
+
+.container-top-gradient-gray {
+  &:before {
+    background-image: url("../../../assets/ellipse-gray.svg");
+  }
+}
+
+.container-top-gradient-yellow {
+  &:before {
+    background-image: url("../../../assets/ellipse-yellow.svg");
+  }
+}
+
+.container-top-gradient-violet {
+  &:before {
+    background-image: url("../../../assets/ellipse-violet.svg");
+  }
+}
+
+.close-btn {
+  position: absolute;
+  z-index: 1;
+  top: 1rem;
+  right: 1rem;
+}
+
+.content {
+  position: relative;
+}
+
+.footer {
+  margin-top: auto;
+  position: relative;
+}

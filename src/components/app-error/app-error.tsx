@@ -2,21 +2,42 @@ import type { FC } from 'react';
 
 import styles from './app-error.module.css';
 
-import type { AppErrorProps } from './app-error.types';
+import { useAppError } from '@/components/app-error/use-app-error';
+import { IconButton } from '@/shared/components/icon-button';
+import { SailorPicture } from '@/shared/components/sailor-picture';
+import { SecondaryButton } from '@/shared/components/secondary-button';
 
-import { PrimaryButton } from '@/components/shared/components/primary-button';
+export const AppError: FC = () => {
+  const { handleExitButtonClick, handleRefreshButtonClick } = useAppError();
 
-export const AppError: FC<AppErrorProps> = ({ error }) => {
   return (
     <div className={styles.container}>
-      <div className={styles.text}>{JSON.stringify(error)}</div>
+      <div className={styles.topBar}>
+        <IconButton
+          className={styles.exitBtn}
+          icon="exit"
+          onClick={handleExitButtonClick}
+        />
+      </div>
 
-      <PrimaryButton
-        onClick={() => window.location.reload()}
-        className={styles.reloadBtn}
-      >
-        Перезагрузить
-      </PrimaryButton>
+      <SailorPicture variant="repair" />
+
+      <div className={styles.description}>
+        Ой, произошла
+        <br />
+        ошибка!
+        <br />
+        Обновите страницу
+      </div>
+
+      <div className={styles.bottomBar}>
+        <SecondaryButton
+          className={styles.refreshBtn}
+          onClick={handleRefreshButtonClick}
+        >
+          Обновить
+        </SecondaryButton>
+      </div>
     </div>
   );
 };

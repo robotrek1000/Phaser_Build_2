@@ -11,17 +11,11 @@ export const ASSETS_CONFIG = {
   lossPerAsset: 0.2,
 } as const;
 
-export const TIMER_CONFIG = {
-  bonusSeconds: 10,
-} as const;
-
 export const INVULNERABILITY_TIMER_MILLISECONDS = 1800;
-
-export const BASE_SPEED = 60;
 
 export const SOLID_COLLISION_CONFIG = {
   durationMilliseconds: 1_250,
-  dropKmh: 22,
+  dropKmh: 15,
   decelKmhPerSec: 45,
   recoverKmhPerSec: 30,
 } as const;

@@ -6,10 +6,10 @@ import type {
   FollowShadowScaleMotionConfig,
 } from '@/game/utils';
 
-import { NEW_ASSET_KEYS } from '@/game/asset-keys.config';
+import { ASSET_KEYS } from '@/game/asset-keys.config';
 
 export const ENERGY_CONFIG: BaseSpawnedObjectConfig = {
-  textureKey: NEW_ASSET_KEYS.common.energy,
+  textureKey: ASSET_KEYS.common.energy,
   width: 28.377,
   height: 47,
   depth: 20,
@@ -22,7 +22,7 @@ export const ENERGY_CONFIG: BaseSpawnedObjectConfig = {
 };
 
 export const ENERGY_SHADOW_CONFIG = {
-  textureKey: NEW_ASSET_KEYS.shadows.energy,
+  textureKey: ASSET_KEYS.shadows.energy,
   width: 74,
   height: 24,
   depth: 8,

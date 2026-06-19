@@ -1,3 +1,3 @@
-import type { LevelId } from '@/game/level-design';
+import type { ClientLevelNumber } from '@/shared/types';
 
-export type WaterBackgroundLevelConfig = Record<LevelId, string>;
+export type WaterBackgroundLevelConfig = Record<ClientLevelNumber, string>;

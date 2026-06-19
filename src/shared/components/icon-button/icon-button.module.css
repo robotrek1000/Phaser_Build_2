@@ -1,0 +1,22 @@
+.button {
+  pointer-events: auto;
+
+  border-radius: 50%;
+
+  width: 2.5rem;
+  aspect-ratio: 1;
+
+  background-color: rgba(0, 0, 0, 0.40);
+
+  padding: 0;
+  border: none;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon {
+  color: #FFFFFF;
+  width: 1.5rem;
+}

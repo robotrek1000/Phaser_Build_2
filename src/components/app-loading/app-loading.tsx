@@ -4,10 +4,21 @@ import styles from './app-loading.module.css';
 
 import type { AppLoadingProps } from './app-loading.types';
 
-export const AppLoading: FC<AppLoadingProps> = ({ progress }) => {
+import { APP_NAME } from '@/shared/constants';
+import { cn } from '@/utils';
+
+export const AppLoading: FC<AppLoadingProps> = ({
+  isAnimationDisabled,
+  progress,
+}) => {
   return (
-    <div className={styles.container}>
-      <div className={styles.text}>Загрузка...</div>
+    <div
+      className={cn(
+        styles.container,
+        !isAnimationDisabled && styles.animatedContainer
+      )}
+    >
+      <div className={styles.appName}>{APP_NAME}</div>
 
       <div className={styles.progressBar}>
         <div

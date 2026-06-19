@@ -1,2 +1,2 @@
 export * from './boosters';
-export type { BoostersProps, BoosterType } from './boosters.types';
+export type { BoostersProps } from './boosters.types';

@@ -11,6 +11,7 @@ import {
 } from '@/game/entities/base-spawned-object';
 import { Yacht } from '@/game/entities/yacht';
 import { GameState } from '@/game/system/game-state';
+import { prepareGameStateUpdatePayload } from '@/game/utils';
 
 export class CollisionManager {
   private scene: Phaser.Scene;
@@ -218,7 +219,10 @@ export class CollisionManager {
 
       if (objectType === 'wheelIsland') {
         this.setWheelIslandGameObject(spawnedObject);
-        this.scene.game.events.emit(GAME_EVENT_REACH_ISLAND);
+        this.scene.game.events.emit(
+          GAME_EVENT_REACH_ISLAND,
+          prepareGameStateUpdatePayload(this.gameState)
+        );
       }
 
       if (objectType === 'timeBonus') {

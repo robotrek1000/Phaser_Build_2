@@ -1,24 +1,19 @@
 import type { FC } from 'react';
 
+import { useYachtSkinDisplay } from './use-yacht-skin-display';
 import styles from './yacht-skin-display.module.css';
 
 import type { YachtSkinDisplayProps } from './yacht-skin-display.types';
 
-import yachtSkinDefault from '@/assets/yacht-skin-default.png';
-import yachtSkinGold from '@/assets/yacht-skin-gold.png';
+import { SKINS } from '@/components/main-screen/components/yacht-skin-display/yacht-skin-display.constants';
 import { cn } from '@/utils';
 
-export const YachtSkinDisplay: FC<YachtSkinDisplayProps> = ({
-  className,
-  isGold,
-}) => {
+export const YachtSkinDisplay: FC<YachtSkinDisplayProps> = ({ className }) => {
+  const { selectedYacht } = useYachtSkinDisplay();
+
   return (
     <div className={cn(className, styles.container)}>
-      <img
-        className={styles.img}
-        src={isGold ? yachtSkinGold : yachtSkinDefault}
-        alt="Yacht"
-      />
+      <img className={styles.img} src={SKINS[selectedYacht.type]} alt="Yacht" />
     </div>
   );
 };

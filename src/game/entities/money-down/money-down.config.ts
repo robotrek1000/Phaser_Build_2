@@ -3,10 +3,10 @@ import type { DriftMotionConfig } from '@/game/motions/drift-motion';
 import type { ApplyRectHitboxConfig } from '@/game/utils';
 import type { EnergyShieldRepulsionAnimationConfig } from '@/game/utils/play-energy-shield-repulsion-animation';
 
-import { NEW_ASSET_KEYS } from '@/game/asset-keys.config';
+import { ASSET_KEYS } from '@/game/asset-keys.config';
 
 export const MONEY_DOWN_CONFIG: BaseSpawnedObjectConfig = {
-  textureKey: NEW_ASSET_KEYS.common.moneyDown,
+  textureKey: ASSET_KEYS.common.moneyDown,
   width: 43.123,
   height: 65,
   depth: 14,

@@ -2,12 +2,12 @@
   "yacht": {
     "files": [
       {
-        "url": "assets/new/yacht_1.png",
+        "url": "assets/yacht_1.png",
         "type": "image",
         "key": "yacht-normal"
       },
       {
-        "url": "assets/new/yacht_2.png",
+        "url": "assets/yacht_2.png",
         "type": "image",
         "key": "yacht-gold"
       }
@@ -16,51 +16,51 @@
   "common": {
     "files": [
       {
-        "url": "assets/new/energy.png",
+        "url": "assets/energy.png",
         "type": "image",
-        "key": "energy-new"
+        "key": "energy"
       },
       {
-        "url": "assets/new/bonus_time.png",
+        "url": "assets/bonus_time.png",
         "type": "image",
-        "key": "time-bonus-new"
+        "key": "time-bonus"
       },
       {
-        "url": "assets/new/money_down.png",
+        "url": "assets/money_down.png",
         "type": "image",
-        "key": "money-down-new"
+        "key": "money-down"
       },
       {
-        "url": "assets/new/money_up.png",
+        "url": "assets/money_up.png",
         "type": "image",
-        "key": "money-up-new"
+        "key": "money-up"
       },
       {
-        "url": "assets/new/money_change_down.png",
+        "url": "assets/money_change_down.png",
         "type": "image",
-        "key": "money-change-down-new"
+        "key": "money-change-down"
       },
       {
-        "url": "assets/new/money_change_no.png",
+        "url": "assets/money_change_no.png",
         "type": "image",
-        "key": "money-change-no-new"
+        "key": "money-change-no"
       },
       {
-        "url": "assets/new/money_change_up.png",
+        "url": "assets/money_change_up.png",
         "type": "image",
-        "key": "money-change-up-new"
+        "key": "money-change-up"
       }
     ]
   },
   "shadows": {
     "files": [
       {
-        "url": "assets/new/energy-shadow.png",
+        "url": "assets/energy-shadow.png",
         "type": "image",
         "key": "energy-shadow"
       },
       {
-        "url": "assets/new/bonus-time-shadow.png",
+        "url": "assets/bonus-time-shadow.png",
         "type": "image",
         "key": "bonus-time-shadow"
       }
@@ -69,27 +69,27 @@
   "level-1": {
     "files": [
       {
-        "url": "assets/new/lvl_background_1.png",
+        "url": "assets/lvl_background_1.png",
         "type": "image",
         "key": "sea-lvl-1"
       },
       {
-        "url": "assets/new/harbor_lvl_1.png",
+        "url": "assets/harbor_lvl_1.png",
         "type": "image",
         "key": "harbor-lvl-1"
       },
       {
-        "url": "assets/new/island_lvl_1.png",
+        "url": "assets/island_lvl_1.png",
         "type": "image",
         "key": "island-lvl-1"
       },
       {
-        "url": "assets/new/obstacle_lvl_1_reef.png",
+        "url": "assets/obstacle_lvl_1_reef.png",
         "type": "image",
         "key": "solid-obstacle-lvl-1"
       },
       {
-        "url": "assets/new/obstacle_lvl_1_whirlpool.png",
+        "url": "assets/obstacle_lvl_1_whirlpool.png",
         "type": "image",
         "key": "whirlpool-lvl-1"
       }
@@ -98,27 +98,27 @@
   "level-2": {
     "files": [
       {
-        "url": "assets/new/lvl_background_2.png",
+        "url": "assets/lvl_background_2.png",
         "type": "image",
         "key": "sea-lvl-2"
       },
       {
-        "url": "assets/new/harbor_lvl_2.png",
+        "url": "assets/harbor_lvl_2.png",
         "type": "image",
         "key": "harbor-lvl-2"
       },
       {
-        "url": "assets/new/island_lvl_2.png",
+        "url": "assets/island_lvl_2.png",
         "type": "image",
         "key": "island-lvl-2"
       },
       {
-        "url": "assets/new/obstacle_lvl_2_branch.png",
+        "url": "assets/obstacle_lvl_2_branch.png",
         "type": "image",
         "key": "solid-obstacle-lvl-2"
       },
       {
-        "url": "assets/new/obstacle_lvl_2_whirlpool.png",
+        "url": "assets/obstacle_lvl_2_whirlpool.png",
         "type": "image",
         "key": "whirlpool-lvl-2"
       }
@@ -127,59 +127,29 @@
   "level-3": {
     "files": [
       {
-        "url": "assets/new/lvl_background_3.png",
+        "url": "assets/lvl_background_3.png",
         "type": "image",
         "key": "sea-lvl-3"
       },
       {
-        "url": "assets/new/harbor_lvl_3.png",
+        "url": "assets/harbor_lvl_3.png",
         "type": "image",
         "key": "harbor-lvl-3"
       },
       {
-        "url": "assets/new/island_lvl_3.png",
+        "url": "assets/island_lvl_3.png",
         "type": "image",
         "key": "island-lvl-3"
       },
       {
-        "url": "assets/new/obstacle_lvl_3_ice.png",
+        "url": "assets/obstacle_lvl_3_ice.png",
         "type": "image",
         "key": "solid-obstacle-lvl-3"
       },
       {
-        "url": "assets/new/obstacle_lvl_3_whirlpool.png",
+        "url": "assets/obstacle_lvl_3_whirlpool.png",
         "type": "image",
         "key": "whirlpool-lvl-3"
-      }
-    ]
-  },
-  "bonuses": {
-    "files": [
-      { "url": "assets/coin.png", "type": "image", "key": "coin" },
-      { "url": "assets/time_bonus.png", "type": "image", "key": "time-bonus" },
-      {
-        "url": "assets/energy_bonus.png",
-        "type": "image",
-        "key": "energy-bonus"
-      }
-    ]
-  },
-  "ui": {
-    "files": [
-      {
-        "url": "assets/skill_wheel_sector_1.png",
-        "type": "image",
-        "key": "skill-wheel-sector-1"
-      },
-      {
-        "url": "assets/skill_wheel_bar_body.png",
-        "type": "image",
-        "key": "skill-wheel-bar-body"
-      },
-      {
-        "url": "assets/skill_wheel_arrow.png",
-        "type": "image",
-        "key": "skill-wheel-arrow"
       }
     ]
   }

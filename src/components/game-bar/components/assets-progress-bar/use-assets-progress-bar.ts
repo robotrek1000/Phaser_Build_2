@@ -66,7 +66,7 @@ export const useAssetsProgressBar = () => {
 
   return {
     progress,
-    widthScale: assetsCapacity,
+    isIncreased: assetsCapacity > 1,
     ...getProgressStyle(progress),
   };
 };

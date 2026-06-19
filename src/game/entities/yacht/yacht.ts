@@ -13,11 +13,11 @@ import type { YachtAnimationType } from '@/game/entities/yacht/yacht.types';
 import { GameState } from '@/game/system/game-state';
 import {
   applyRectHitbox,
-  delay,
   playBlinkAnimation,
   scaled,
   tweenToPromise,
 } from '@/game/utils';
+import { delay } from '@/utils';
 
 export class Yacht {
   private config = YACHT_CONFIG;
@@ -153,6 +153,8 @@ export class Yacht {
     const { offsetPx, duration, returnDuration, ease } =
       this.animationsConfig.bonusCatch;
 
+    this.disableInput();
+
     await tweenToPromise(this.scene, {
       targets: this.image,
       y: startY + offsetPx,
@@ -171,7 +173,7 @@ export class Yacht {
       ease,
     });
 
-    this.updateMovingTarget();
+    this.enableInput();
   }
 
   enableInput() {
@@ -182,30 +184,6 @@ export class Yacht {
 
   disableInput() {
     this.isInputEnabled = false;
-  }
-
-  pauseAnimation() {
-    if (!this.animation) {
-      return;
-    }
-
-    if (Array.isArray(this.animation)) {
-      this.animation.forEach((animation) => animation.pause());
-    } else {
-      this.animation.pause();
-    }
-  }
-
-  resumeAnimation() {
-    if (!this.animation) {
-      return;
-    }
-
-    if (Array.isArray(this.animation)) {
-      this.animation.forEach((animation) => animation.resume());
-    } else {
-      this.animation.resume();
-    }
   }
 
   private addShadow() {
@@ -472,7 +450,7 @@ export class Yacht {
   }
 
   private move() {
-    if (!this.image) {
+    if (!this.image || !this.isInputEnabled) {
       return;
     }
 

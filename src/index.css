@@ -1,19 +1,14 @@
 @font-face {
-  font-family: "Jaro Cyrillic";
-  src: url("/fonts/jaro-cyrillic.otf") format("truetype");
+  font-family: 'Jaro Cyrillic';
+  src: url('/fonts/jaro-cyrillic.otf') format('truetype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
-:root {
-  --app-height: 100vh;
-  --design-width: 390px;
-  --design-height: 844px;
-  --game-rem: 16px;
-}
-
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -21,16 +16,29 @@
   margin: 0;
 }
 
-img, picture, video, canvas, svg {
+img,
+picture,
+video,
+canvas,
+svg {
   display: block;
   max-width: 100%;
 }
 
-input, button, textarea, select {
+input,
+button,
+textarea,
+select {
   font: inherit;
 }
 
-p, h1, h2, h3, h4, h5, h6 {
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   overflow-wrap: break-word;
 }
 
@@ -38,7 +46,12 @@ p {
   text-wrap: pretty;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   text-wrap: balance;
 }
 
@@ -46,10 +59,18 @@ html {
   font-size: var(--game-rem);
 }
 
+html,
+body {
+  width: 100%;
+  height: var(--app-height);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  background: #0a4261;
+  user-select: none;
 }
 
 #root {

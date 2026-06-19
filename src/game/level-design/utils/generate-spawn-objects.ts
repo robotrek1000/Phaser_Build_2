@@ -9,11 +9,11 @@ import { getUnfilledIntervals } from './get-unfilled-intervals';
 import type {
   BonusesLevelConfig,
   GamePhase,
-  LevelId,
   Range,
   SpawnObjectConfig,
   SpawnObjectsScenario,
 } from '../types';
+import type { ClientLevelNumber } from '@/shared/types';
 
 interface GenerateSpawnObjectsArgs {
   scenario: SpawnObjectsScenario;
@@ -21,7 +21,7 @@ interface GenerateSpawnObjectsArgs {
   energyAmount: number;
   timeBonuses: BonusesLevelConfig;
   levelDistance: number;
-  level: LevelId;
+  level: ClientLevelNumber;
   fallSpeedPxPerKmh: number;
 }
 

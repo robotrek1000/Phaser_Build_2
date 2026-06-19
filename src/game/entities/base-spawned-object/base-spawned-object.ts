@@ -49,10 +49,8 @@ export abstract class BaseSpawnedObject extends Phaser.Physics.Arcade.Sprite {
     return this.scene.data.get(GAME_SCENE_OBJECT.PLAYER);
   }
 
-  protected get baseFallSpeedByKmh() {
-    return (
-      (this.gameState?.fallSpeedPxPerKmh ?? 0) + (this.gameState?.speedKmh ?? 0)
-    );
+  protected get worldFallSpeedPxPerSec() {
+    return this.gameState?.worldFallSpeedPxPerSec ?? 0;
   }
 
   preUpdate(time: number, delta: number) {
@@ -130,7 +128,12 @@ export abstract class BaseSpawnedObject extends Phaser.Physics.Arcade.Sprite {
   ) {}
 
   protected updateVelocityY() {
-    this.setVelocityY(this.baseFallSpeedByKmh * this.config.speedYMultiplier);
+    const velocityY =
+      this.worldFallSpeedPxPerSec * this.config.speedYMultiplier;
+
+    if (this.body?.velocity.y !== velocityY) {
+      this.setVelocityY(velocityY);
+    }
   }
 
   protected async playDespawnAnimation() {}

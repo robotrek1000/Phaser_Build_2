@@ -1,7 +1,7 @@
 import type { FC } from 'react';
 
-import { ExitConfirmation } from '@/components/shared/components/exit-confirmation';
 import { useExitConfirmation } from '@/contexts/exit-confirmation-context';
+import { ExitConfirmation } from '@/shared/components/exit-confirmation';
 
 export const AppExitConfirmation: FC = () => {
   const { isVisible, hide } = useExitConfirmation();

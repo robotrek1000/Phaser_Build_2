@@ -1,6 +1,8 @@
 .container {
   canvas {
     image-rendering: auto;
+    touch-action: none;
+    opacity: 0;
   }
 }
 
@@ -9,8 +11,14 @@
   z-index: 1;
   pointer-events: none;
 
-  width: min(100vw, calc(var(--app-height) * var(--design-width) / var(--design-height)));
-  height: min(var(--app-height), calc(100vw * var(--design-height) / var(--design-width)));
+  width: min(
+    100vw,
+    calc(var(--app-height) * var(--design-width) / var(--design-height))
+  );
+  height: min(
+    var(--app-height),
+    calc(100vw * var(--design-height) / var(--design-width))
+  );
   aspect-ratio: var(--design-width) / var(--design-height);
 
   left: 50%;

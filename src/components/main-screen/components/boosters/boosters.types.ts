@@ -1,13 +1,10 @@
-export type BoosterType = 'engine' | 'body' | 'steeringWheel' | 'shield';
+import type { ModalWindowProps } from '@/shared/components/modal-window';
 
 export interface BoosterConfig {
-  title: string;
   img: string;
-  className: string;
+  modalProps: Pick<ModalWindowProps, 'variant' | 'topGradient'>;
 }
 
 export interface BoostersProps {
   className?: string;
-  boostersState: Record<BoosterType, boolean>;
-  onBoosterClick(booster: BoosterType): void;
 }

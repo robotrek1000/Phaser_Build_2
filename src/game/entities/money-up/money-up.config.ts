@@ -2,10 +2,10 @@ import type { BaseSpawnedObjectConfig } from '../base-spawned-object';
 import type { AttractMotionConfig } from '@/game/motions/attract-motion';
 import type { ApplyRectHitboxConfig } from '@/game/utils';
 
-import { NEW_ASSET_KEYS } from '@/game/asset-keys.config';
+import { ASSET_KEYS } from '@/game/asset-keys.config';
 
 export const MONEY_UP_CONFIG: BaseSpawnedObjectConfig = {
-  textureKey: NEW_ASSET_KEYS.common.moneyUp,
+  textureKey: ASSET_KEYS.common.moneyUp,
   width: 43.123,
   height: 65,
   depth: 13,

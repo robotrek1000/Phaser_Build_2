@@ -1,4 +1,6 @@
-export type YachtSkin = 'normal' | 'gold';
+import type { GameSettings } from '@/game/level-design';
+import type { SkillWheelDisplayedBonusesValues } from '@/game/system/game-state';
+import type { ClientYachtType } from '@/shared/types';
 
 export type SpawnObjectType =
   | 'moneyDown'
@@ -20,7 +22,8 @@ export interface GameStateUpdatePayload {
   energy: number;
   coins: number;
   timeLeft: number;
-  yachtSkin: YachtSkin;
+  yachtSkin: ClientYachtType;
+  bonuses: SkillWheelDisplayedBonusesValues;
 }
 
 export interface GameFinishPayload extends Omit<
@@ -34,6 +37,7 @@ export type GameEvent =
   | 'loadProgress'
   | 'loadFinish'
   | 'gameReady'
+  | 'updateSettings'
   | 'reachIsland'
   | 'gameStateUpdate'
   | 'finish';
@@ -42,7 +46,8 @@ export interface GameEventMap {
   loadProgress: number;
   loadFinish: undefined;
   gameReady: undefined;
-  reachIsland: undefined;
+  updateSettings: GameSettings;
+  reachIsland: GameStateUpdatePayload;
   gameStateUpdate: GameStateUpdatePayload;
   finish: GameFinishPayload;
 }

@@ -8,7 +8,9 @@ import {
   GAME_EVENT_LOAD_FINISH,
   GAME_EVENT_LOAD_PROGRESS,
   GAME_EVENT_REACH_ISLAND,
+  GAME_EVENT_UPDATE_SETTINGS,
 } from './game.config';
+import { DEFAULT_GAME_SETTINGS } from './level-design/config';
 import { BOOT_SCENE_NAME } from './scenes/boot-scene';
 
 import type { GameEvent, GameEventMap } from './game.types';
@@ -20,7 +22,9 @@ import { GAME_SCENE_NAME, GameScene } from '@/game/scenes/game-scene';
 export class Game {
   private game: Phaser.Game;
 
-  private gameSettings?: GameSettings;
+  private gameSettings: GameSettings = DEFAULT_GAME_SETTINGS;
+
+  private gameSessionId?: string;
 
   private events = new Phaser.Events.EventEmitter();
 
@@ -94,10 +98,32 @@ export class Game {
     this.game.scene.start(BOOT_SCENE_NAME);
   }
 
+  getSettings() {
+    return this.gameSettings;
+  }
+
   setSettings(gameSettings: GameSettings) {
     this.gameSettings = gameSettings;
 
     this.initGameScene();
+
+    this.events.emit(GAME_EVENT_UPDATE_SETTINGS, this.gameSettings);
+  }
+
+  updateSettings(gameSettings: Partial<GameSettings>) {
+    this.setSettings({ ...this.gameSettings, ...gameSettings });
+  }
+
+  getSessionId() {
+    return this.gameSessionId;
+  }
+
+  setSessionId(sessionId: string) {
+    this.gameSessionId = sessionId;
+  }
+
+  resetSessionId() {
+    this.gameSessionId = undefined;
   }
 
   start() {
@@ -121,6 +147,7 @@ export class Game {
   }
 
   stop() {
+    this.resetSessionId();
     this.initGameScene();
   }
 
@@ -176,6 +203,10 @@ export class Game {
   }
 
   private togglePause({ key }: KeyboardEvent) {
+    if (key == ']') {
+      throw new Error('Test error')
+    }
+
     if (key !== ' ') {
       return;
     }

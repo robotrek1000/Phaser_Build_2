@@ -33,6 +33,16 @@ export const useApp = () => {
       isExitConfirmationVisible,
     ]);
 
+  const hideSplashScreen = useCallback(() => {
+    const gameCanvas = containerRef.current?.querySelector('canvas');
+    const splashScreen = document.getElementById('app-splash-screen');
+
+    if (gameCanvas) {
+      gameCanvas.style.opacity = '1';
+      splashScreen?.remove();
+    }
+  }, []);
+
   useEffect(() => {
     if (!containerRef.current) {
       return;
@@ -63,5 +73,10 @@ export const useApp = () => {
     };
   }, []);
 
-  return { containerRef, game, exitConfirmationContextValue };
+  return {
+    containerRef,
+    game,
+    exitConfirmationContextValue,
+    hideSplashScreen,
+  };
 };

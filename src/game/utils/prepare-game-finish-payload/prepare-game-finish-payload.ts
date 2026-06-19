@@ -14,5 +14,6 @@ export const prepareGameFinishPayload = (
     coins: gameState.coinsProgress,
     timeLeft: gameState.timer,
     yachtSkin: gameState.yachtSkin,
+    bonuses: gameState.skillWheelBonuses,
   };
 };

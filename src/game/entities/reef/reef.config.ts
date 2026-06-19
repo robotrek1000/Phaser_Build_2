@@ -1,13 +1,13 @@
 import type { BaseSpawnedObjectConfig } from '../base-spawned-object';
 import type { ApplyRectHitboxConfig } from '@/game/utils';
 
-import { NEW_ASSET_KEYS } from '@/game/asset-keys.config';
+import { ASSET_KEYS } from '@/game/asset-keys.config';
 
 export const REEF_CONFIG: BaseSpawnedObjectConfig = {
   textureKey: {
-    1: NEW_ASSET_KEYS.level1.solidObstacle,
-    2: NEW_ASSET_KEYS.level2.solidObstacle,
-    3: NEW_ASSET_KEYS.level3.solidObstacle,
+    1: ASSET_KEYS.level1.solidObstacle,
+    2: ASSET_KEYS.level2.solidObstacle,
+    3: ASSET_KEYS.level3.solidObstacle,
   },
   width: {
     1: 124,

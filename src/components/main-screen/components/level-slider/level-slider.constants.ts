@@ -1,5 +1,5 @@
 import type { LevelConfig } from '@/components/main-screen/components/level-slider/level-slider.types';
-import type { LevelId } from '@/game/level-design';
+import type { ClientLevelNumber } from '@/shared/types';
 import type {
   MotionNodeAnimationOptions,
   MotionNodeDraggableOptions,
@@ -9,27 +9,17 @@ import lvl1Bg from '@/assets/lvl-1-bg.png';
 import lvl2Bg from '@/assets/lvl-2-bg.png';
 import lvl3Bg from '@/assets/lvl-3-bg.png';
 
-const levels: Record<LevelId, LevelConfig> = {
+export const LEVELS_CONFIG: Record<ClientLevelNumber, LevelConfig> = {
   1: {
-    title: 'Море',
-    subtitle: '1 уровень',
     bg: lvl1Bg,
   },
   2: {
-    title: 'Джунгли',
-    subtitle: '2 уровень',
     bg: lvl2Bg,
   },
   3: {
-    title: 'Арктика',
-    subtitle: '3 уровень',
     bg: lvl3Bg,
   },
 };
-
-export const LEVEL_CONFIGS = Object.entries(levels).sort(
-  ([lvl1], [lvl2]) => Number(lvl2) - Number(lvl1)
-);
 
 export const IMG_ANIMATION_CONFIG: MotionNodeAnimationOptions = {
   initial: { opacity: 0 },

@@ -1,17 +1,17 @@
-.container {
+.boosters-list {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
-.booster {
+.boosters-list-item {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.5rem;
 }
 
-.booster-img-container {
+.boosters-list-item-img-container {
   position: relative;
   width: 5.25rem;
   height: 5.25rem;
@@ -22,36 +22,76 @@
   background: rgba(255, 255, 255, 0.10);
 }
 
-.booster-img-body {
-  width: 3.125rem;
-  aspect-ratio: 50 / 28;
-}
-
-.booster-img-engine {
-  width: 1.75rem;
-  aspect-ratio: 28 / 41;
-}
-
-.booster-img-shield {
+.boosters-list-item-img {
   width: 3rem;
-  aspect-ratio: 1;
 }
 
-.booster-img-steering-wheel {
-  width: 2.75rem;
-  aspect-ratio: 1;
-}
-
-.icon-checkmark {
+.boosters-list-item-icon-checkmark {
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 1.5625rem;
+  width: 1.25rem;
+  color: #FFFFFF;
+  box-sizing: content-box;
+  border-radius: 50%;
+  border: 0.125rem solid #000818;
 }
 
-.booster-title {
+.boosters-list-item-title {
   color: #FFFFFF;
   font-family: "Jaro Cyrillic", sans-serif;
   font-size: 0.75rem;
   text-align: center;
+}
+
+.booster-details-img-container {
+  display: flex;
+  justify-content: center;
+  margin: -8rem 0 2rem;
+}
+
+.booster-details-img {
+  width: 17rem;
+  aspect-ratio: 1 / 1;
+}
+
+.booster-details-description {
+  margin-top: 0.75rem;
+
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 1rem;
+  color: #FFFFFF;
+
+  white-space: pre-wrap;
+  text-align: center;
+}
+
+.booster-details-separator {
+  margin: 0.75rem 0;
+}
+
+.booster-details-extra-text {
+  padding: 1.5rem;
+  border-radius: 1.5rem;
+  background: rgba(255, 255, 255, 0.10);
+
+  text-align: center;
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 1rem;
+  color: #FFFFFF;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.booster-details-extra-text-icon {
+  color: #FFFFFF;
+  width: 1.5rem;
+}
+
+.booster-details-btn {
+  margin-top: 1.75rem;
+  width: 100%;
 }

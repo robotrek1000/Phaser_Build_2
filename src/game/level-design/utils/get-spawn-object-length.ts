@@ -1,5 +1,6 @@
-import type { LevelId, SpawnObjectConfig } from '../types';
+import type { SpawnObjectConfig } from '../types';
 import type { SpawnObjectType } from '@/game/game.types';
+import type { ClientLevelNumber } from '@/shared/types';
 
 import { DYNAMIC_BUOY_CONFIG } from '@/game/entities/dynamic-buoy/dynamic-buoy.config';
 import { ENERGY_CONFIG } from '@/game/entities/energy/energy.config';
@@ -14,7 +15,7 @@ import { calculateSpawnObjectLength } from '@/game/level-design/utils/calculate-
 
 const spawnObjectHeights: Record<
   SpawnObjectType,
-  number | Record<LevelId, number>
+  number | Record<ClientLevelNumber, number>
 > = {
   dynamicBuoy: DYNAMIC_BUOY_CONFIG.height,
   energy: ENERGY_CONFIG.height,
@@ -31,7 +32,7 @@ const spawnObjectHeights: Record<
 interface GetSpawnObjectLengthArgs {
   spawnObjectConfig: SpawnObjectConfig;
   fallSpeedPxPerKmh: number;
-  level: LevelId;
+  level: ClientLevelNumber;
 }
 
 export const getSpawnObjectLength = ({

@@ -1,6 +1,5 @@
 export * from './apply-rect-hitbox';
 export * from './apply-round-hitbox';
-export * from './delay';
 export * from './follow-shadow-scale-motion';
 export * from './get-height-ratio';
 export * from './input-once-to-promise';

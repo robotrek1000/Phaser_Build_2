@@ -1,0 +1,58 @@
+.container {
+  margin: 0.5714rem 0;
+  position: relative;
+  padding-bottom: 1.125rem;
+}
+
+.bonus-list {
+  position: relative;
+
+  display: flex;
+
+  overflow: hidden;
+
+  height: 4rem;
+  border-radius: 2rem;
+  border: 0.25rem solid #FFFFFF;
+  box-shadow: 0 0.25rem 0 0 rgba(0, 0, 0, 0.50);
+
+  &:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 0.25rem;
+    background: rgba(0, 0, 0, 0.25);
+  }
+}
+
+.bonus {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bonus-image {
+  width: 2.4rem;
+}
+
+.pointer {
+  height: 1.46rem;
+  aspect-ratio: 36 / 35;
+  transform: translateX(-50%);
+  position: absolute;
+  bottom: 0.5rem;
+
+  animation: pointer-motion 2s ease-in-out infinite;
+}
+
+@keyframes pointer-motion {
+  0%, 100% {
+    left: calc(0% + 1rem);
+  }
+
+  50% {
+    left: calc(100% - 1rem);
+  }
+}

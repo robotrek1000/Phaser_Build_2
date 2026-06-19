@@ -62,7 +62,7 @@ export class MoneyUp extends BaseSpawnedObject {
 
     if (this.attractMotion?.isActive) {
       this.attractMotion.update(
-        this.baseFallSpeedByKmh * this.config.speedYMultiplier
+        this.worldFallSpeedPxPerSec * this.config.speedYMultiplier
       );
     }
   }

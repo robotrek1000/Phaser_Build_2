@@ -1,31 +1,18 @@
 export const ASSETS_PACK_NAME = 'game-assets';
 
 export const ASSET_KEYS = {
-  bonuses: {
-    energy: 'energy-bonus',
-    coin: 'coin',
-    timeBonus: 'time-bonus',
-  },
-  ui: {
-    skillWheelBarBody: 'skill-wheel-bar-body',
-    skillWheelArrow: 'skill-wheel-arrow',
-    skillWheelSector_1: 'skill-wheel-sector-1',
-  },
-} as const;
-
-export const NEW_ASSET_KEYS = {
   yacht: {
     normal: 'yacht-normal',
     gold: 'yacht-gold',
   },
   common: {
-    energy: 'energy-new',
-    timeBonus: 'time-bonus-new',
-    moneyDown: 'money-down-new',
-    moneyUp: 'money-up-new',
-    moneyChangeDown: 'money-change-down-new',
-    moneyChangeNo: 'money-change-no-new',
-    moneyChangeUp: 'money-change-up-new',
+    energy: 'energy',
+    timeBonus: 'time-bonus',
+    moneyDown: 'money-down',
+    moneyUp: 'money-up',
+    moneyChangeDown: 'money-change-down',
+    moneyChangeNo: 'money-change-no',
+    moneyChangeUp: 'money-change-up',
   },
   shadows: {
     energy: 'energy-shadow',

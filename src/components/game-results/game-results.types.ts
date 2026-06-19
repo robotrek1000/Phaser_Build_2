@@ -1,8 +1,8 @@
-import type { GameFinishPayload } from '@/game/game.types';
+import type { GameSessionResult } from '@/shared/api/finish-game-session';
 
 export interface GameResultsProps {
   isVisible?: boolean;
-  gameResults?: GameFinishPayload;
+  gameResults?: GameSessionResult;
   onGoToMain(): void;
   onPlayAgain(): void;
 }

@@ -1,0 +1,41 @@
+.container {
+  display: flex;
+  align-items: center;
+}
+
+.item {
+  width: 3rem;
+  height: 3rem;
+
+  position: relative;
+
+  background-image: url("../../../../assets/icon_bonus.png");
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.item-img {
+  width: 2.2rem;
+  transform: translate(0.3rem, 0.6rem);
+}
+
+.item-text {
+  position: absolute;
+  left: 50%;
+  bottom: -0.3rem;
+
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 0.875rem;
+  color: #FFFFFF;
+  -webkit-text-stroke-width: 0.05rem;
+  -webkit-text-stroke-color: #000000;
+  paint-order: stroke fill;
+
+  transform: translateX(-50%) rotate(-4.026deg);
+}
+
+@supports (paint-order: stroke) {
+  .item-text {
+    -webkit-text-stroke-width: 0.2rem;
+  }
+}

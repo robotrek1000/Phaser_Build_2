@@ -1,10 +1,10 @@
-import type { LevelId } from '@/game/level-design';
+import type { ClientLevelNumber } from '@/shared/types';
 
 export interface BaseSpawnedObjectConfig {
-  textureKey: string | Record<LevelId, string>;
+  textureKey: string | Record<ClientLevelNumber, string>;
   depth: number;
-  width: number | Record<LevelId, number>;
-  height: number | Record<LevelId, number>;
+  width: number | Record<ClientLevelNumber, number>;
+  height: number | Record<ClientLevelNumber, number>;
   speedYMultiplier: number;
   alpha: number;
   rotation: number;

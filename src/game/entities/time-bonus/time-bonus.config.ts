@@ -3,10 +3,10 @@ import type { BobMotionConfig } from '@/game/motions/bob-motion';
 import type { ZigzagMotionConfig } from '@/game/motions/zigzag-motion';
 import type { FollowShadowScaleMotionConfig } from '@/game/utils';
 
-import { NEW_ASSET_KEYS } from '@/game/asset-keys.config';
+import { ASSET_KEYS } from '@/game/asset-keys.config';
 
 export const TIME_BONUS_CONFIG: BaseSpawnedObjectConfig = {
-  textureKey: NEW_ASSET_KEYS.common.timeBonus,
+  textureKey: ASSET_KEYS.common.timeBonus,
   width: 48,
   height: 47,
   depth: 20,
@@ -19,7 +19,7 @@ export const TIME_BONUS_CONFIG: BaseSpawnedObjectConfig = {
 };
 
 export const TIME_BONUS_SHADOW_CONFIG = {
-  textureKey: NEW_ASSET_KEYS.shadows.timeBonus,
+  textureKey: ASSET_KEYS.shadows.timeBonus,
   width: 74,
   height: 24,
   depth: 8,

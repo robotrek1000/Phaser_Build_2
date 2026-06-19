@@ -1,18 +1,23 @@
-import { memo } from 'react';
+import { memo, lazy, Suspense } from 'react';
 
 import { useAppContent } from './use-app-content';
 
+import type { AppContentProps } from './app-content.types';
+
 import { AppError } from '@/components/app-error';
 import { AppLoading } from '@/components/app-loading';
-import { FortuneWheel } from '@/components/fortune-wheel';
+import { BonusWheel } from '@/components/bonus-wheel';
 import { GameBar } from '@/components/game-bar';
 import { GameResults } from '@/components/game-results';
-import { MainScreen } from '@/components/main-screen';
 
-export const AppContent = memo(() => {
+const MainScreen = lazy(() => import('@/components/main-screen'));
+
+export const AppContent = memo<AppContentProps>(({ onContentReady }) => {
   const {
     state,
+    isGamePending,
     loadProgress,
+    gameProgress,
     gameResults,
     error,
     startGame,
@@ -23,30 +28,39 @@ export const AppContent = memo(() => {
   } = useAppContent();
 
   if (error) {
-    return <AppError error={error} />;
+    return <AppError />;
   }
 
   switch (state) {
     case 'main':
-      return <MainScreen onStartGame={startGame} />;
+      return (
+        <Suspense fallback={<AppLoading progress={0.99} isAnimationDisabled />}>
+          <MainScreen
+            isGamePending={isGamePending}
+            onContentReady={onContentReady}
+            onStartGame={startGame}
+          />
+        </Suspense>
+      );
     case 'loading':
       return <AppLoading progress={loadProgress} />;
     default:
       return (
         <>
           <GameBar
-            isVisible={state === 'playing' || state === 'fortuneWheel'}
+            isVisible={state === 'playing' || state === 'bonusWheel'}
             onClose={leaveGame}
           />
 
-          <FortuneWheel
-            isVisible={state === 'fortuneWheel'}
+          <BonusWheel
+            isVisible={state === 'bonusWheel'}
+            gameProgress={gameProgress}
             onCollectBonus={collectBonus}
           />
 
           <GameResults
             isVisible={state === 'result'}
-            gameResults={gameResults}
+            gameResults={gameResults?.sessionResult}
             onGoToMain={goToMain}
             onPlayAgain={playAgain}
           />

@@ -1,4 +1,4 @@
-import { BASE_REM, DESIGN_HEIGHT, DESIGN_WIDTH } from '@/constants';
+import { BASE_REM, DESIGN_HEIGHT, DESIGN_WIDTH } from '@/shared/constants';
 
 export const syncAppViewportHeight = () => {
   const width = window.visualViewport?.width ?? window.innerWidth;

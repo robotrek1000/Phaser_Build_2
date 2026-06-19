@@ -62,7 +62,7 @@ export class Energy extends BaseSpawnedObject {
     ) {
       this.attractMotion.start();
       this.attractMotion.update(
-        this.baseFallSpeedByKmh * this.config.speedYMultiplier
+        this.worldFallSpeedPxPerSec * this.config.speedYMultiplier
       );
     } else {
       this.attractMotion?.stop();

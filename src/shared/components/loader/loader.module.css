@@ -1,0 +1,40 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon {
+  width: 100%;
+
+  aspect-ratio: 1;
+
+  animation: spin 1.4s linear infinite;
+}
+
+.variantWhite {
+  color: #FFFFFF;
+}
+
+.variantTranslucentBlack {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.sizeS {
+  width: 1.875rem;
+  height: 1.875rem;
+}
+
+.sizeM {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

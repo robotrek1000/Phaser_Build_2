@@ -3,7 +3,7 @@ import { type FC, Fragment } from 'react';
 
 import {
   IMG_ANIMATION_CONFIG,
-  LEVEL_CONFIGS,
+  LEVELS_CONFIG,
   SLIDE_DRAG_CONFIG,
   TEXT_ART_ANIMATION_CONFIG,
 } from './level-slider.constants';
@@ -12,11 +12,11 @@ import styles from './level-slider.module.css';
 import type { LevelSliderProps } from './level-slider.types';
 
 import { useLevelSlider } from '@/components/main-screen/components/level-slider/use-level-slider';
-import { SliderPagination } from '@/components/shared/components/slider-pagination';
-import { TextArt } from '@/components/shared/components/text-art';
+import { SliderPagination } from '@/shared/components/slider-pagination';
+import { TextArt } from '@/shared/components/text-art';
 
 export const LevelSlider: FC<LevelSliderProps> = (props) => {
-  const { handleSlideDragEnd } = useLevelSlider(props);
+  const { levels, handleSlideDragEnd } = useLevelSlider(props);
 
   return (
     <div className={props.className}>
@@ -28,15 +28,15 @@ export const LevelSlider: FC<LevelSliderProps> = (props) => {
         <div className={styles.content}>{props.children}</div>
 
         <AnimatePresence>
-          {LEVEL_CONFIGS.map(
-            ([lvl, { bg, title, subtitle }]) =>
+          {levels.map(
+            ({ number: lvl, title }) =>
               Number(lvl) === props.level && (
                 <Fragment key={lvl}>
                   <motion.img
                     {...IMG_ANIMATION_CONFIG}
                     key={`${lvl}-img`}
                     className={styles.levelImg}
-                    src={bg}
+                    src={LEVELS_CONFIG[lvl].bg}
                     alt=""
                   />
 
@@ -44,7 +44,7 @@ export const LevelSlider: FC<LevelSliderProps> = (props) => {
                     <TextArt
                       className={styles.textArt}
                       title={title}
-                      subtitle={subtitle}
+                      subtitle={`${lvl} уровень`}
                     />
                   </motion.div>
                 </Fragment>

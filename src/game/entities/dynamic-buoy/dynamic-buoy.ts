@@ -49,8 +49,6 @@ export class DynamicBuoy extends BaseSpawnedObject {
 
     applyRectHitbox(this, DYNAMIC_BUOY_HITBOX_CONFIG);
 
-    this.setVelocityY(this.baseFallSpeedByKmh * this.config.speedYMultiplier);
-
     this.driftMotion = new DriftMotion(this, DRIFT_MOTION_CONFIG);
 
     this.attractMotion = new AttractMotion({
@@ -99,7 +97,7 @@ export class DynamicBuoy extends BaseSpawnedObject {
 
     if (this.attractMotion?.isActive) {
       this.attractMotion.update(
-        this.baseFallSpeedByKmh * this.config.speedYMultiplier
+        this.worldFallSpeedPxPerSec * this.config.speedYMultiplier
       );
     }
 

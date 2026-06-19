@@ -1,13 +1,14 @@
 import { getSpawnObjectLength } from './get-spawn-object-length';
 
-import type { LevelId, Range, SpawnObjectConfig } from '../types';
+import type { Range, SpawnObjectConfig } from '../types';
+import type { ClientLevelNumber } from '@/shared/types';
 
 const MIN_UNFILLED_INTERVAL_LENGTH = 2;
 
 interface GetUnfilledIntervalsArgs {
   objects: SpawnObjectConfig[];
   fallSpeedPxPerKmh: number;
-  level: LevelId;
+  level: ClientLevelNumber;
 }
 
 export const getUnfilledIntervals = ({

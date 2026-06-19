@@ -1,9 +1,9 @@
-import type { LevelId } from '@/game/level-design';
+import type { ClientLevelNumber } from '@/shared/types';
 
 interface CalculateSpawnObjectLengthArgs {
-  height: number | Record<LevelId, number>;
+  height: number | Record<ClientLevelNumber, number>;
   fallSpeedPxPerKmh: number;
-  level: LevelId;
+  level: ClientLevelNumber;
 }
 
 export const calculateSpawnObjectLength = ({

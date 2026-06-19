@@ -1,20 +1,15 @@
 import {
-  LEVEL_2_CONFIG,
   LEVEL_1_CONFIG,
+  LEVEL_2_CONFIG,
   LEVEL_3_CONFIG,
 } from './levels-config';
 
-import type {
-  GamePhase,
-  GameSettings,
-  LevelConfig,
-  LevelId,
-  Segment,
-} from './types';
+import type { GamePhase, GameSettings, LevelConfig, Segment } from './types';
+import type { ClientLevelNumber } from '@/shared/types';
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = {
   level: 1,
-  yachtSkin: 'normal',
+  yachtSkin: 'Normal',
   speedKmh: 25,
   fallSpeedPxPerKmh: 500,
   isEngineImproved: false,
@@ -23,7 +18,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = {
   isShieldReinforced: false,
 };
 
-export const LEVEL_CONFIGS: Record<LevelId, LevelConfig> = {
+export const LEVEL_CONFIGS: Record<ClientLevelNumber, LevelConfig> = {
   1: LEVEL_1_CONFIG,
   2: LEVEL_2_CONFIG,
   3: LEVEL_3_CONFIG,

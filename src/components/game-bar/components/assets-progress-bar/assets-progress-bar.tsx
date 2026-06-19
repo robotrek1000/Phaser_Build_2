@@ -10,7 +10,8 @@ import { cn } from '@/utils';
 
 export const AssetsProgressBar = memo<AssetsProgressBarProps>(
   ({ className }) => {
-    const { progress, iconClassName, gradient } = useAssetsProgressBar();
+    const { progress, iconClassName, gradient, isIncreased } =
+      useAssetsProgressBar();
 
     return (
       <div className={cn(className, styles.container)}>
@@ -22,7 +23,12 @@ export const AssetsProgressBar = memo<AssetsProgressBarProps>(
           />
         </div>
 
-        <div className={styles.progressBar}>
+        <div
+          className={cn(
+            styles.progressBar,
+            isIncreased ? styles.progressBarIncreased : styles.progressBarNormal
+          )}
+        >
           <div
             style={{
               width: `${progress * 100}%`,

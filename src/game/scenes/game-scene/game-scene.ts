@@ -1,6 +1,10 @@
 import * as Phaser from 'phaser';
 
-import { GAME_SCENE_NAME, GAME_SCENE_OBJECT } from './game-scene.config';
+import {
+  GAME_SCENE_NAME,
+  GAME_SCENE_OBJECT,
+  GAME_STATE_UPDATE_INTERVAL_MS,
+} from './game-scene.config';
 
 import {
   GAME_EVENT_FINISH,
@@ -33,6 +37,8 @@ export class GameScene extends Phaser.Scene {
 
   private isGameOver = false;
 
+  private lastGameStateUpdateTime = 0;
+
   private wheelIslandGameObject?: BaseSpawnedObject;
 
   constructor() {
@@ -55,6 +61,7 @@ export class GameScene extends Phaser.Scene {
 
   init(gameSettings: GameSettings) {
     this.isGameOver = false;
+    this.lastGameStateUpdateTime = 0;
 
     const { spawnObjectsScenario, ...level } = prepareLevel(gameSettings);
 
@@ -85,10 +92,7 @@ export class GameScene extends Phaser.Scene {
     // gameState должен обновляться первым, т.к. от него зависит все остальное
     this.gameState.update(time, delta);
 
-    this.game.events.emit(
-      GAME_EVENT_GAME_STATE_UPDATE,
-      prepareGameStateUpdatePayload(this.gameState)
-    );
+    this.emitGameStateUpdate(time);
 
     this.waterBackground.update(delta);
 
@@ -121,6 +125,22 @@ export class GameScene extends Phaser.Scene {
 
   private setWheelIslandGameObject(wheelIslandGameObject: BaseSpawnedObject) {
     this.wheelIslandGameObject = wheelIslandGameObject;
+  }
+
+  private emitGameStateUpdate(time: number, force = false) {
+    if (
+      !force &&
+      time - this.lastGameStateUpdateTime < GAME_STATE_UPDATE_INTERVAL_MS
+    ) {
+      return;
+    }
+
+    this.lastGameStateUpdateTime = time;
+
+    this.game.events.emit(
+      GAME_EVENT_GAME_STATE_UPDATE,
+      prepareGameStateUpdatePayload(this.gameState)
+    );
   }
 
   private async finishGame() {

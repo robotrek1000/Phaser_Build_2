@@ -3,14 +3,18 @@ import {
   ENERGY_CONFIG,
   INVULNERABILITY_TIMER_MILLISECONDS,
   SOLID_COLLISION_CONFIG,
-  TIMER_CONFIG,
   WHIRLPOOL_COLLISION_CONFIG,
 } from './game-state.config';
 
-import type { GameStateTypes, SkillWheelBonus } from './game-state.types';
+import type {
+  GameStateTypes,
+  SkillWheelBonus,
+  SkillWheelDisplayedBonuses,
+  SkillWheelDisplayedBonusesValues,
+} from './game-state.types';
 import type { GameSettings, Level } from '@/game/level-design';
 
-import { DEFAULT_GAME_SETTINGS } from '@/game';
+import { DEFAULT_GAME_SETTINGS, FIXED_BONUSES } from '@/game';
 import { moveTowardValue, scaled } from '@/game/utils';
 
 export class GameState {
@@ -38,8 +42,6 @@ export class GameState {
 
   private bonusCoins = 0;
 
-  private timeBonusMultiplier = 1;
-
   private isGoalAchieved = false;
 
   private invulnerabilityTimer = 0;
@@ -62,12 +64,12 @@ export class GameState {
     return this.gameSettings.yachtSkin;
   }
 
-  get speedKmh() {
+  get distanceSpeedKmh() {
     return scaled(this.speed);
   }
 
-  get fallSpeedPxPerKmh() {
-    return scaled(this.gameSettings.fallSpeedPxPerKmh);
+  get worldFallSpeedPxPerSec() {
+    return scaled(this.gameSettings.fallSpeedPxPerKmh) * this.speedRatio;
   }
 
   get totalDistance() {
@@ -123,17 +125,19 @@ export class GameState {
   }
 
   get skillWheelBonuses() {
-    const all: Record<Exclude<SkillWheelBonus, 'coins'>, number> = {
+    const all: Record<SkillWheelDisplayedBonuses, number> = {
       assets: this.assetsMultiplier - 1,
-      time: this.timeBonusMultiplier - 1,
       energy: this.energyMultiplier - 1,
     };
 
-    return Object.entries(all).reduce<
-      { type: SkillWheelBonus; amount: number }[]
-    >(
+    return Object.entries(all).reduce<SkillWheelDisplayedBonusesValues>(
       (acc, [type, amount]) =>
-        amount ? [...acc, { type: type as SkillWheelBonus, amount }] : acc,
+        amount
+          ? [
+              ...acc,
+              { type: type as SkillWheelDisplayedBonuses, amount: amount + 1 },
+            ]
+          : acc,
       []
     );
   }
@@ -142,18 +146,28 @@ export class GameState {
     return this.gameSettings.isSteeringWheelFast;
   }
 
+  private get speedRatio() {
+    const baseSpeedKmh = this.gameSettings.speedKmh;
+
+    if (baseSpeedKmh <= 0) {
+      return 0;
+    }
+
+    return Math.max(0, Math.min(this.speed / baseSpeedKmh, 1));
+  }
+
   init({ gameSettings, timer, distance }: Omit<Level, 'spawnObjectsScenario'>) {
     this.state = 'intro';
     this.totalDistanceMeters = distance;
     this.totalAssets = gameSettings.isBodyReinforced ? 1.5 : 1;
     this.assets = this.totalAssets / 2;
     this.remainingTimeSeconds = timer;
+    this.gameSettings = gameSettings;
 
     this.distanceMeters = 0;
     this.energy = 0;
     this.assetsMultiplier = 1;
     this.energyMultiplier = 1;
-    this.timeBonusMultiplier = 1;
 
     this.bonusCoins = 0;
 
@@ -162,6 +176,7 @@ export class GameState {
     this.invulnerabilityTimer = 0;
     this.speedSlowdownTimer = 0;
     this.whirlpoolDebuffTimer = 0;
+    this.speed = 0;
   }
 
   update(time: number, delta: number) {
@@ -201,8 +216,7 @@ export class GameState {
   }
 
   catchTimeBonus() {
-    this.remainingTimeSeconds +=
-      TIMER_CONFIG.bonusSeconds * this.timeBonusMultiplier;
+    this.remainingTimeSeconds += FIXED_BONUSES.time;
   }
 
   reachGameGoal() {
@@ -265,8 +279,8 @@ export class GameState {
   }
 
   private updatePlayingState(_time: number, deltaMs: number) {
-    this.updateDistance(deltaMs);
     this.updateSpeed(deltaMs);
+    this.updateDistance(deltaMs);
     this.updateRemainingTimeSeconds(deltaMs);
     this.updateInvulnerabilityTimer(deltaMs);
     this.updateSpeedSlowdownTimer(deltaMs);
@@ -298,13 +312,13 @@ export class GameState {
   private applySkillWheelBonus(bonus: SkillWheelBonus) {
     switch (bonus) {
       case 'coins':
-        this.bonusCoins += 10;
+        this.bonusCoins += FIXED_BONUSES.coins;
         break;
       case 'assets':
         this.assetsMultiplier += 1;
         break;
       case 'time':
-        this.timeBonusMultiplier += 1;
+        this.catchTimeBonus();
         break;
       case 'energy':
         this.energyMultiplier += 1;
@@ -332,7 +346,7 @@ export class GameState {
 
   private updateDistance(deltaMs: number) {
     const deltaSeconds = deltaMs / 1000;
-    const speedMetersPerSecond = (this.speedKmh * 1000) / 3600;
+    const speedMetersPerSecond = (this.distanceSpeedKmh * 1000) / 3600;
 
     this.distanceMeters += speedMetersPerSecond * deltaSeconds;
   }

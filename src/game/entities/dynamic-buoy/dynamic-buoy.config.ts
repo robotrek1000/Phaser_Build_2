@@ -8,10 +8,10 @@ import type { DriftMotionConfig } from '@/game/motions/drift-motion';
 import type { ApplyRectHitboxConfig } from '@/game/utils';
 import type { EnergyShieldRepulsionAnimationConfig } from '@/game/utils/play-energy-shield-repulsion-animation';
 
-import { NEW_ASSET_KEYS } from '@/game/asset-keys.config';
+import { ASSET_KEYS } from '@/game/asset-keys.config';
 
 export const DYNAMIC_BUOY_CONFIG: BaseSpawnedObjectConfig = {
-  textureKey: NEW_ASSET_KEYS.common.moneyChangeNo,
+  textureKey: ASSET_KEYS.common.moneyChangeNo,
   width: 43.123,
   height: 65,
   depth: 14,
@@ -37,15 +37,15 @@ export const DYNAMIC_BUOY_STATES: Record<
   }
 > = {
   up: {
-    textureKey: NEW_ASSET_KEYS.common.moneyChangeUp,
+    textureKey: ASSET_KEYS.common.moneyChangeUp,
     dwellMs: 1000,
   },
   down: {
-    textureKey: NEW_ASSET_KEYS.common.moneyChangeDown,
+    textureKey: ASSET_KEYS.common.moneyChangeDown,
     dwellMs: 1000,
   },
   no: {
-    textureKey: NEW_ASSET_KEYS.common.moneyChangeNo,
+    textureKey: ASSET_KEYS.common.moneyChangeNo,
   },
 };
 

@@ -67,11 +67,10 @@
 
   font-family: "Jaro Cyrillic", sans-serif;
   font-size: 0.75rem;
+}
 
-  &:after {
-    content: url("../../assets/right-arrow.svg");
-    transform: translateY(0.2rem);
-  }
+.yacht-skins-btn-arrow-icon {
+  width: 1rem;
 }
 
 .yacht-skin-display-container {
@@ -119,7 +118,8 @@
 }
 
 .play-btn-icon {
-  height: 1.5rem;
+  width: 1.5rem;
+  color: rgba(0, 0, 0, 0.5);
 }
 
 .bottom-bar-info-text {

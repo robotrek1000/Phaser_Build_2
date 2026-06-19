@@ -1,12 +1,12 @@
 import type { YachtBlinkAnimationConfig } from './yacht.types';
-import type { YachtSkin } from '@/game/game.types';
 import type { ApplyRectHitboxConfig } from '@/game/utils';
+import type { ClientYachtType } from '@/shared/types';
 
-import { NEW_ASSET_KEYS } from '@/game/asset-keys.config';
+import { ASSET_KEYS } from '@/game/asset-keys.config';
 
-const textures: Record<YachtSkin, string> = {
-  normal: NEW_ASSET_KEYS.yacht.normal,
-  gold: NEW_ASSET_KEYS.yacht.gold,
+const textures: Record<ClientYachtType, string> = {
+  Normal: ASSET_KEYS.yacht.normal,
+  Gold: ASSET_KEYS.yacht.gold,
 };
 
 const movingLerp = {

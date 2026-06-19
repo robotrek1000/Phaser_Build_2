@@ -3,41 +3,40 @@
   top: 0.625rem;
   left: 1rem;
   right: 1rem;
-  grid-template-columns: 1fr 2fr auto;
-  display: grid;
-  align-items: center;
-  gap: 0.25rem;
 }
 
-.chip {
-  display: grid;
-  gap: 1rem;
-  border-radius: 6.1875rem;
-  background: rgba(255, 255, 255, 0.20);
-  backdrop-filter: blur(1.25rem);
-  padding: 0.5rem 1rem;
-  min-height: 2.5rem;
+.top-bar {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0.625rem;
 }
 
-.left-chip {
-  grid-template-columns: 1fr 1fr;
-  align-items: center;
+.assets-and-energy {
+  display: flex;
+  flex-direction: column;
 }
 
-.right-chip {
-  grid-template-columns: 1fr 2.9rem;
+.distance-and-timer {
+  flex-grow: 1;
+  display: flex;
   align-items: flex-end;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  margin: 0 0.5rem 0 1.625rem;
 }
 
-.distance-progress {
+.distance-progress-bar {
   flex-grow: 1;
 }
 
-.timer {
-  text-align: right;
+.bottom-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .close-btn {
   pointer-events: auto;
+  align-self: center;
 }
 

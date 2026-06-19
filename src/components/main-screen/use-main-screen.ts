@@ -1,18 +1,33 @@
 import { useEffect, useState } from 'react';
 
-import type { LevelId } from '@/game/level-design';
+import type { MainScreenProps } from '@/components/main-screen/main-screen.types';
+import type { ClientLevelNumber } from '@/shared/types';
 
-import { type BoosterType } from '@/components/main-screen/components/boosters';
-import { BOOSTER_SETTING } from '@/components/main-screen/main-screen.constants';
 import { useGame } from '@/contexts/game-context';
-import { DEFAULT_GAME_SETTINGS } from '@/game';
+import { useClientProfile } from '@/hooks/use-client-profile';
+import { useGameSettings } from '@/hooks/use-game-settings';
 
-export const useMainScreen = () => {
+export const useMainScreen = ({ onContentReady }: MainScreenProps) => {
   const game = useGame();
 
-  const [gameSettings, setGameSettings] = useState(DEFAULT_GAME_SETTINGS);
+  const { gameSettings, updateGameSettings } = useGameSettings();
 
-  const [isHowToPlayGuideVisible, setIsHowToPlayGuideVisible] = useState(false);
+  if (!game) {
+    throw new Error('Game is not defined');
+  }
+
+  const { data } = useClientProfile();
+
+  const levels = data?.levels;
+
+  const settings = data?.settings;
+
+  const [isHowToPlayGuideVisible, setIsHowToPlayGuideVisible] = useState(
+    !settings?.tutorialComplete
+  );
+
+  const [isYachtSkinSelectVisible, setIsYachtSkinSelectVisible] =
+    useState(false);
 
   const showHowToPlayGuide = () => {
     setIsHowToPlayGuideVisible(true);
@@ -22,44 +37,33 @@ export const useMainScreen = () => {
     setIsHowToPlayGuideVisible(false);
   };
 
-  const handleLevelChange = (level: LevelId) => {
-    setGameSettings({ ...gameSettings, level });
+  const showYachtSkinSelect = () => {
+    setIsYachtSkinSelectVisible(true);
   };
 
-  const boostersState: Record<BoosterType, boolean> = {
-    body: gameSettings.isBodyReinforced,
-    engine: gameSettings.isEngineImproved,
-    shield: gameSettings.isShieldReinforced,
-    steeringWheel: gameSettings.isSteeringWheelFast,
+  const hideYachtSkinSelect = () => {
+    setIsYachtSkinSelectVisible(false);
   };
 
-  const handleBoosterClick = (booster: BoosterType) => {
-    const property = BOOSTER_SETTING[booster];
-
-    setGameSettings({ ...gameSettings, [property]: !gameSettings[property] });
-  };
-
-  const toggleSkin = () => {
-    setGameSettings({
-      ...gameSettings,
-      yachtSkin: gameSettings.yachtSkin === 'gold' ? 'normal' : 'gold',
-    });
+  const handleLevelChange = (level: ClientLevelNumber) => {
+    updateGameSettings({ level });
   };
 
   useEffect(() => {
-    game?.setSettings(gameSettings);
-  }, [game, gameSettings]);
+    onContentReady();
+  }, [onContentReady]);
 
   return {
     level: gameSettings.level,
-    isLevelAvailable: gameSettings.level === 1,
-    boostersState,
+    isLevelAvailable: levels?.find(
+      ({ number }) => number === gameSettings.level
+    )?.isAvailable,
     isHowToPlayGuideVisible,
-    isGoldSkin: gameSettings.yachtSkin === 'gold',
+    isYachtSkinSelectVisible,
     showHowToPlayGuide,
     hideHowToPlayGuide,
+    showYachtSkinSelect,
+    hideYachtSkinSelect,
     handleLevelChange,
-    handleBoosterClick,
-    toggleSkin,
   };
 };

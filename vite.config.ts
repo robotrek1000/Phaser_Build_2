@@ -2,12 +2,24 @@ import { fileURLToPath, URL } from 'url';
 
 import react from '@vitejs/plugin-react';
 import { defineConfig, loadEnv } from 'vite';
+import { createHtmlPlugin } from 'vite-plugin-html';
+
+import { APP_NAME, BASE_REM, DESIGN_HEIGHT, DESIGN_WIDTH } from './src/shared/constants';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    plugins: [react()],
+    plugins: [react(), createHtmlPlugin({
+      inject: {
+        data: {
+          APP_NAME,
+          BASE_REM,
+          DESIGN_WIDTH,
+          DESIGN_HEIGHT
+        },
+      },
+    }),],
     base: env.VITE_BASE_URL || '/',
     resolve: {
       alias: {

@@ -38,7 +38,7 @@ export class MoneyDownMagnet extends MoneyDown {
       this.driftMotion?.stop();
       this.attractMotion.start();
       this.attractMotion.update(
-        this.baseFallSpeedByKmh * this.config.speedYMultiplier
+        this.worldFallSpeedPxPerSec * this.config.speedYMultiplier
       );
     } else {
       this.attractMotion?.stop();

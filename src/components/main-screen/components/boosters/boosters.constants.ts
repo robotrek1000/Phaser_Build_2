@@ -1,38 +1,48 @@
-import styles from './boosters.module.css';
+import type { BoosterConfig } from './boosters.types';
+import type { ClientYachtImprovementType } from '@/shared/types';
 
-import type { BoosterConfig, BoosterType } from './boosters.types';
+import boosterEngine from '@/assets/booster_1.png';
+import boosterBody from '@/assets/booster_2.png';
+import boosterSteeringWheel from '@/assets/booster_3.png';
+import boosterShield from '@/assets/booster_4.png';
 
-import boosterBody from '@/assets/booster-body.png';
-import boosterEngine from '@/assets/booster-engine.png';
-import boosterShield from '@/assets/booster-shield.png';
-import boosterSteeringWheel from '@/assets/booster-steering-wheel.png';
-
-const config: Record<BoosterType, BoosterConfig> = {
-  body: {
-    title: 'Корпус',
+export const BOOSTERS_CONFIG: Record<
+  ClientYachtImprovementType,
+  BoosterConfig
+> = {
+  Frame: {
     img: boosterBody,
-    className: styles.boosterImgBody,
+    modalProps: {
+      variant: 'green',
+      topGradient: 'brightGreen',
+    },
   },
-  engine: {
-    title: 'Мотор',
+  Engine: {
     img: boosterEngine,
-    className: styles.boosterImgEngine,
+    modalProps: {
+      variant: 'darkBlue',
+      topGradient: 'brightBlue',
+    },
   },
-  shield: {
-    title: 'Щит',
+  Shield: {
     img: boosterShield,
-    className: styles.boosterImgShield,
+    modalProps: {
+      variant: 'violet',
+      topGradient: 'violet',
+    },
   },
-  steeringWheel: {
-    title: 'Штурвал',
+  Wheel: {
     img: boosterSteeringWheel,
-    className: styles.boosterImgSteeringWheel,
+    modalProps: {
+      variant: 'gold',
+      topGradient: 'yellow',
+    },
   },
 };
 
-const order: BoosterType[] = ['engine', 'body', 'steeringWheel', 'shield'];
-
-export const BOOSTERS = order.map((type) => ({
-  type,
-  ...config[type],
-}));
+export const BOOSTERS_ORDER: ClientYachtImprovementType[] = [
+  'Engine',
+  'Frame',
+  'Wheel',
+  'Shield',
+];

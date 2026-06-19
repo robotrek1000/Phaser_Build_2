@@ -8,13 +8,13 @@ import { useGameBar } from './use-game-bar';
 
 import type { GameBarProps } from '@/components/game-bar/game-bar.types';
 
+import { Bonuses } from '@/components/game-bar/components/bonuses';
 import { DistanceProgressBar } from '@/components/game-bar/components/distance-progress-bar';
 import { EnergyProgressBar } from '@/components/game-bar/components/energy-progress-bar';
+import { Timer } from '@/components/game-bar/components/timer';
 import { ANIMATION_CONFIG } from '@/components/game-bar/game-bar.constants';
-import { Timer } from '@/components/game-bar/timer';
-import { ExitConfirmation } from '@/components/shared/components/exit-confirmation';
-import { IconButton } from '@/components/shared/components/icon-button';
-import { cn } from '@/utils';
+import { ExitConfirmation } from '@/shared/components/exit-confirmation';
+import { IconButton } from '@/shared/components/icon-button';
 
 export const GameBar: FC<GameBarProps> = ({ isVisible, onClose }) => {
   const { isExitConfirmationVisible, handleCloseClick, handleDeclineExit } =
@@ -25,23 +25,29 @@ export const GameBar: FC<GameBarProps> = ({ isVisible, onClose }) => {
       <AnimatePresence>
         {isVisible && (
           <motion.div {...ANIMATION_CONFIG} className={styles.container}>
-            <div className={cn(styles.chip, styles.leftChip)}>
-              <AssetsProgressBar />
+            <div className={styles.topBar}>
+              <div className={styles.assetsAndEnergy}>
+                <AssetsProgressBar />
 
-              <EnergyProgressBar />
+                <EnergyProgressBar />
+              </div>
+
+              <div className={styles.distanceAndTimer}>
+                <DistanceProgressBar className={styles.distanceProgressBar} />
+
+                <Timer />
+              </div>
+
+              <IconButton
+                icon="close"
+                className={styles.closeBtn}
+                onClick={handleCloseClick}
+              />
             </div>
 
-            <div className={cn(styles.chip, styles.rightChip)}>
-              <DistanceProgressBar className={styles.distanceProgress} />
-
-              <Timer className={styles.timer} />
+            <div className={styles.bottomBar}>
+              <Bonuses />
             </div>
-
-            <IconButton
-              icon="close"
-              className={styles.closeBtn}
-              onClick={handleCloseClick}
-            />
           </motion.div>
         )}
       </AnimatePresence>

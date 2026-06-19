@@ -8,38 +8,38 @@ import styles from './main-screen.module.css';
 
 import type { MainScreenProps } from '@/components/main-screen/main-screen.types';
 
-import closedLock from '@/assets/lock-closed.svg';
 import { HowToPlayGuide } from '@/components/how-to-play-guide';
 import { CoinsBalance } from '@/components/main-screen/components/coins-balance';
+import { YachtSkinSelect } from '@/components/main-screen/components/yacht-skin-select';
 import { useMainScreen } from '@/components/main-screen/use-main-screen';
-import { IconButton } from '@/components/shared/components/icon-button';
-import { PrimaryButton } from '@/components/shared/components/primary-button';
-import { SecondaryButton } from '@/components/shared/components/secondary-button';
-import { Separator } from '@/components/shared/components/separator';
 import { useExitConfirmation } from '@/contexts/exit-confirmation-context';
+import { IconButton } from '@/shared/components/icon-button';
+import { LockIcon, RightArrowIcon } from '@/shared/components/icons';
+import { PrimaryButton } from '@/shared/components/primary-button';
+import { SecondaryButton } from '@/shared/components/secondary-button';
+import { Separator } from '@/shared/components/separator';
 import { cn } from '@/utils';
 
-export const MainScreen: FC<MainScreenProps> = ({ onStartGame }) => {
+export const MainScreen: FC<MainScreenProps> = (props) => {
   const { show: showExitConfirmation } = useExitConfirmation();
 
   const {
     level,
     isLevelAvailable,
-    boostersState,
     isHowToPlayGuideVisible,
-    isGoldSkin,
+    isYachtSkinSelectVisible,
     showHowToPlayGuide,
     hideHowToPlayGuide,
+    showYachtSkinSelect,
+    hideYachtSkinSelect,
     handleLevelChange,
-    handleBoosterClick,
-    toggleSkin,
-  } = useMainScreen();
+  } = useMainScreen(props);
 
   return (
     <>
       <div className={cn(styles.container, BACKGROUND[level])}>
         <div className={styles.topBar}>
-          <CoinsBalance amount={400} />
+          <CoinsBalance />
 
           <SecondaryButton
             className={styles.howToPlayBtn}
@@ -54,8 +54,9 @@ export const MainScreen: FC<MainScreenProps> = ({ onStartGame }) => {
           <IconButton icon="exit" onClick={showExitConfirmation} />
         </div>
 
-        <button className={styles.yachtSkinsBtn} onClick={toggleSkin}>
+        <button className={styles.yachtSkinsBtn} onClick={showYachtSkinSelect}>
           Скины
+          <RightArrowIcon className={styles.yachtSkinsBtnArrowIcon} />
         </button>
 
         <LevelSlider
@@ -64,7 +65,7 @@ export const MainScreen: FC<MainScreenProps> = ({ onStartGame }) => {
           onLevelChange={handleLevelChange}
         >
           <div className={styles.yachtSkinDisplayContainer}>
-            <YachtSkinDisplay isGold={isGoldSkin} />
+            <YachtSkinDisplay />
           </div>
         </LevelSlider>
 
@@ -72,23 +73,20 @@ export const MainScreen: FC<MainScreenProps> = ({ onStartGame }) => {
 
         <div className={styles.boostersTitle}>Улучшения</div>
 
-        <Boosters
-          className={styles.boosters}
-          boostersState={boostersState}
-          onBoosterClick={handleBoosterClick}
-        />
+        <Boosters className={styles.boosters} />
 
         <div className={styles.bottomBar}>
           <PrimaryButton
             // disabled={!isLevelAvailable}
+            isPending={props.isGamePending}
             className={styles.playBtn}
-            onClick={onStartGame}
+            onClick={props.onStartGame}
           >
             {isLevelAvailable && 'играть'}
 
             {!isLevelAvailable && (
               <span className={styles.playBtnContent}>
-                <img className={styles.playBtnIcon} src={closedLock} alt="" />
+                <LockIcon className={styles.playBtnIcon} />
 
                 <span>Уровень закрыт</span>
               </span>
@@ -106,6 +104,11 @@ export const MainScreen: FC<MainScreenProps> = ({ onStartGame }) => {
       <HowToPlayGuide
         isVisible={isHowToPlayGuideVisible}
         onConfirm={hideHowToPlayGuide}
+      />
+
+      <YachtSkinSelect
+        isVisible={isYachtSkinSelectVisible}
+        onClose={hideYachtSkinSelect}
       />
     </>
   );
