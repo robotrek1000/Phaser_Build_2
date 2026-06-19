@@ -27,10 +27,7 @@ export const BonusWheel: FC<BonusWheelProps> = (props) => {
         isVisible={props.isVisible && !bonus}
         onStopButtonClick={handleStopButtonClick}
       >
-        <BonusWheelVisualization
-          bonus={bonus}
-          pointerElementRef={pointerElementRef}
-        />
+        <BonusWheelVisualization ref={pointerElementRef} />
       </BonusWheelModalWindow>
 
       {bonus && (
