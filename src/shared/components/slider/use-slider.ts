@@ -1,5 +1,3 @@
-import { useState } from 'react';
-
 import { SLIDE_ANIMATION_CONFIG } from './slider.constants';
 
 import type { SliderProps } from './slider.types';
@@ -14,8 +12,6 @@ export const useSlider = ({
   getSlideAnimationConfig = SLIDE_ANIMATION_CONFIG,
   onSlideChange,
 }: SliderProps) => {
-  const [isTrackActive, setIsTrackActive] = useState(false);
-
   const handleSlideDragEnd = (_event: MouseEvent, info: PanInfo) => {
     const offset = info.offset.x;
     const velocity = info.velocity.x;
@@ -36,19 +32,8 @@ export const useSlider = ({
     }
   };
 
-  const handleAnimationStart = () => {
-    setIsTrackActive(false);
-  };
-
-  const handleAnimationComplete = () => {
-    setIsTrackActive(true);
-  };
-
   return {
-    isTrackActive,
     getSlideAnimationConfig,
     handleSlideDragEnd,
-    handleAnimationStart,
-    handleAnimationComplete,
   };
 };

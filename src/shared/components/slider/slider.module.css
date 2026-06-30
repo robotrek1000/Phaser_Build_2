@@ -8,14 +8,6 @@
   pointer-events: auto;
 }
 
-.active-track {
-  pointer-events: auto;
-}
-
-.inactive-track {
-  pointer-events: none;
-}
-
 .slide {
   flex-shrink: 0;
   width: 100%;

@@ -12,11 +12,8 @@ import { cn } from '@/utils';
 
 export const Slider: FC<SliderProps> = (props) => {
   const {
-    isTrackActive,
     getSlideAnimationConfig,
     handleSlideDragEnd,
-    handleAnimationStart,
-    handleAnimationComplete,
   } = useSlider(props);
 
   return (
@@ -24,13 +21,8 @@ export const Slider: FC<SliderProps> = (props) => {
       <motion.div
         {...SLIDE_DRAG_CONFIG}
         {...SLIDER_ANIMATION_CONFIG(props.activeSlideIndex)}
-        className={cn(
-          styles.track,
-          isTrackActive ? styles.activeTrack : styles.inactiveTrack
-        )}
+        className={styles.track}
         onDragEnd={handleSlideDragEnd}
-        onAnimationStart={handleAnimationStart}
-        onAnimationComplete={handleAnimationComplete}
       >
         {props.slides.map((slideContent, index) => (
           <motion.div
