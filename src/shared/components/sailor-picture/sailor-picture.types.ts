@@ -3,8 +3,10 @@ export type SailorPictureVariant =
   | 'happy'
   | 'sad'
   | 'lookingFar'
+  | 'lookingFarOrange'
   | 'farewell'
-  | 'repair';
+  | 'repair'
+  | 'thumbsUp';
 
 export interface SailorPictureProps {
   variant: SailorPictureVariant;

@@ -1,0 +1,14 @@
+main:
+  name: yacht-game
+  description: Фронтенд для игры Яхта
+  type: Не сервис
+  business: Клиентский Фронт
+  owners:
+    - Махняев Илья Игоревич <mahnyaevii@mi-broker.ru>
+  developers:
+    - Сентюрин Сергей Викторович <sergey.sentyurin@bscmsc.ru>
+  analysts:
+    - Шпанко Никита Сергеевич <ShpankoNS@bcs.ru>
+  status: Выведено на прод
+  swagger: https://nothing.local/swagger/index.html
+  spec: Отсутствует

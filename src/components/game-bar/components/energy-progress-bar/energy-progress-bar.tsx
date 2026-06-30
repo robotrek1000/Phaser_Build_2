@@ -5,7 +5,7 @@ import { useEnergyProgressBar } from './use-energy-progress-bar';
 
 import type { EnergyProgressBarProps } from './energy-progress-bar.types';
 
-import energyShield from '@/assets/energy-shield.png';
+import energyShield from '@/assets/energy-shield.webp';
 import { cn } from '@/utils';
 
 export const EnergyProgressBar = memo<EnergyProgressBarProps>(

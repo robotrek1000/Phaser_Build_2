@@ -1,0 +1,245 @@
+{
+  "yacht": {
+    "files": [
+      {
+        "url": "textures/yacht_1.webp",
+        "type": "image",
+        "key": "yacht-normal"
+      },
+      {
+        "url": "textures/yacht_2.webp",
+        "type": "image",
+        "key": "yacht-gold"
+      }
+    ]
+  },
+  "common": {
+    "files": [
+      {
+        "url": "textures/glow.webp",
+        "type": "image",
+        "key": "play-field-glow"
+      },
+      {
+        "url": "textures/energy.webp",
+        "type": "image",
+        "key": "energy"
+      },
+      {
+        "url": "textures/bonus_time.webp",
+        "type": "image",
+        "key": "time-bonus"
+      },
+      {
+        "url": "textures/money_down.webp",
+        "type": "image",
+        "key": "money-down"
+      },
+      {
+        "url": "textures/money_up.webp",
+        "type": "image",
+        "key": "money-up"
+      },
+      {
+        "url": "textures/money_change_down.webp",
+        "type": "image",
+        "key": "money-change-down"
+      },
+      {
+        "url": "textures/money_change_no.webp",
+        "type": "image",
+        "key": "money-change-no"
+      },
+      {
+        "url": "textures/money_change_up.webp",
+        "type": "image",
+        "key": "money-change-up"
+      }
+    ]
+  },
+  "shadows": {
+    "files": [
+      {
+        "url": "textures/energy-shadow.webp",
+        "type": "image",
+        "key": "energy-shadow"
+      },
+      {
+        "url": "textures/bonus-time-shadow.webp",
+        "type": "image",
+        "key": "bonus-time-shadow"
+      }
+    ]
+  },
+  "level-1": {
+    "files": [
+      {
+        "url": "textures/lvl_background_1.webp",
+        "type": "image",
+        "key": "sea-lvl-1"
+      },
+      {
+        "url": "textures/harbor_lvl_1.webp",
+        "type": "image",
+        "key": "harbor-lvl-1"
+      },
+      {
+        "url": "textures/island_lvl_1.webp",
+        "type": "image",
+        "key": "island-lvl-1"
+      },
+      {
+        "url": "textures/obstacle_lvl_1_reef.webp",
+        "type": "image",
+        "key": "solid-obstacle-lvl-1"
+      },
+      {
+        "url": "textures/obstacle_lvl_1_whirlpool.webp",
+        "type": "image",
+        "key": "whirlpool-lvl-1"
+      }
+    ]
+  },
+  "level-2": {
+    "files": [
+      {
+        "url": "textures/lvl_background_2.webp",
+        "type": "image",
+        "key": "sea-lvl-2"
+      },
+      {
+        "url": "textures/harbor_lvl_2.webp",
+        "type": "image",
+        "key": "harbor-lvl-2"
+      },
+      {
+        "url": "textures/island_lvl_2.webp",
+        "type": "image",
+        "key": "island-lvl-2"
+      },
+      {
+        "url": "textures/obstacle_lvl_2_branch.webp",
+        "type": "image",
+        "key": "solid-obstacle-lvl-2"
+      },
+      {
+        "url": "textures/obstacle_lvl_2_whirlpool.webp",
+        "type": "image",
+        "key": "whirlpool-lvl-2"
+      }
+    ]
+  },
+  "level-3": {
+    "files": [
+      {
+        "url": "textures/lvl_background_3.webp",
+        "type": "image",
+        "key": "sea-lvl-3"
+      },
+      {
+        "url": "textures/harbor_lvl_3.webp",
+        "type": "image",
+        "key": "harbor-lvl-3"
+      },
+      {
+        "url": "textures/island_lvl_3.webp",
+        "type": "image",
+        "key": "island-lvl-3"
+      },
+      {
+        "url": "textures/obstacle_lvl_3_ice.webp",
+        "type": "image",
+        "key": "solid-obstacle-lvl-3"
+      },
+      {
+        "url": "textures/obstacle_lvl_3_whirlpool.webp",
+        "type": "image",
+        "key": "whirlpool-lvl-3"
+      }
+    ]
+  },
+  "sounds": {
+    "files": [
+      {
+        "type": "audio",
+        "key": "interface-music",
+        "url": ["audio/bubble_piano_game_loop.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "gameplay-music",
+        "url": ["audio/day_dream_beat_loop.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "bong-1",
+        "url": ["audio/bong_001.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "chords-1",
+        "url": ["audio/chords_001.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "chords-3",
+        "url": ["audio/chords_003.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "drop-1",
+        "url": ["audio/drop_001.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "drop-2",
+        "url": ["audio/drop_002.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "drop-3",
+        "url": ["audio/drop_003.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "glass-1",
+        "url": ["audio/glass_001.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "glass-5",
+        "url": ["audio/glass_005.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "maximize-5",
+        "url": ["audio/maximize_005.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "minimize-5",
+        "url": ["audio/minimize_005.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "minimize-6",
+        "url": ["audio/minimize_006.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "noise-1",
+        "url": ["audio/noise_01.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "select-1",
+        "url": ["audio/select_001.ogg"]
+      },
+      {
+        "type": "audio",
+        "key": "select-2",
+        "url": ["audio/select_002.ogg"]
+      }
+    ]
+  }
+}

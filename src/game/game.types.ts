@@ -40,7 +40,18 @@ export type GameEvent =
   | 'updateSettings'
   | 'reachIsland'
   | 'gameStateUpdate'
+  | 'gameplayEvent'
   | 'finish';
+
+export type GameplayEvent =
+  | 'moneyUp'
+  | 'moneyDown'
+  | 'energy'
+  | 'timeBonus'
+  | 'whirlpool'
+  | 'reef'
+  | 'activateEnergyShield'
+  | 'deactivateEnergyShield';
 
 export interface GameEventMap {
   loadProgress: number;
@@ -49,5 +60,6 @@ export interface GameEventMap {
   updateSettings: GameSettings;
   reachIsland: GameStateUpdatePayload;
   gameStateUpdate: GameStateUpdatePayload;
+  gameplayEvent: GameplayEvent;
   finish: GameFinishPayload;
 }

@@ -1,10 +1,11 @@
-import * as Phaser from 'phaser';
+import { Events, Game as PhaserGame } from 'phaser';
 
 import {
   GAME_CONFIG,
   GAME_EVENT_FINISH,
   GAME_EVENT_GAME_READY,
   GAME_EVENT_GAME_STATE_UPDATE,
+  GAME_EVENT_GAMEPLAY_EVENT,
   GAME_EVENT_LOAD_FINISH,
   GAME_EVENT_LOAD_PROGRESS,
   GAME_EVENT_REACH_ISLAND,
@@ -18,15 +19,18 @@ import type { GameSettings } from '@/game/level-design';
 import type { SkillWheelBonus } from '@/game/system/game-state';
 
 import { GAME_SCENE_NAME, GameScene } from '@/game/scenes/game-scene';
+import { SoundManager } from '@/game/system/sound-manager';
 
 export class Game {
-  private game: Phaser.Game;
+  soundManager: SoundManager;
+
+  private game: PhaserGame;
 
   private gameSettings: GameSettings = DEFAULT_GAME_SETTINGS;
 
   private gameSessionId?: string;
 
-  private events = new Phaser.Events.EventEmitter();
+  private events = new Events.EventEmitter();
 
   private isLoaded = false;
 
@@ -37,10 +41,12 @@ export class Game {
   }
 
   constructor(parent: string | HTMLElement) {
-    this.game = new Phaser.Game({
+    this.game = new PhaserGame({
       ...GAME_CONFIG,
       parent,
     });
+
+    this.soundManager = new SoundManager(this.game);
 
     window.addEventListener('keypress', this.togglePause.bind(this));
 
@@ -87,8 +93,17 @@ export class Game {
       }
     );
 
+    this.game.events.on(
+      GAME_EVENT_GAMEPLAY_EVENT,
+      (payload: GameEventMap[typeof GAME_EVENT_GAMEPLAY_EVENT]) => {
+        this.events.emit(GAME_EVENT_GAMEPLAY_EVENT, payload);
+      }
+    );
+
     this.game.events.once(GAME_EVENT_LOAD_FINISH, () => {
       this.isLoaded = true;
+
+      this.soundManager.create();
 
       this.events.emit(GAME_EVENT_LOAD_FINISH);
     });
@@ -204,7 +219,7 @@ export class Game {
 
   private togglePause({ key }: KeyboardEvent) {
     if (key == ']') {
-      throw new Error('Test error')
+      throw new Error('Test error');
     }
 
     if (key !== ' ') {

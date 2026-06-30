@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Math as PhaserMath, Physics } from 'phaser';
 
 import { BaseSpawnedObject } from '../base-spawned-object';
 
@@ -20,7 +20,7 @@ export class WheelIsland extends BaseSpawnedObject {
   spawn(config: SpawnObjectConfig, gameState?: GameState) {
     super.spawn(config, gameState);
 
-    const body = this.body as Phaser.Physics.Arcade.Body;
+    const body = this.body as Physics.Arcade.Body;
 
     body.setSize(this.scene.scale.width * 2, 1, false);
     body.setOffset(-this.x, this.height + WHEEL_ISLAND_BODY_Y_OFFSET_PX);
@@ -30,7 +30,7 @@ export class WheelIsland extends BaseSpawnedObject {
     const playArea = this.playArea;
     const spawnX = super.resolveSpawnX(config);
 
-    return Phaser.Math.Clamp(
+    return PhaserMath.Clamp(
       spawnX,
       playArea.left - WHEEL_ISLAND_SPAWN_MAX_OFFSET_PX,
       playArea.right + WHEEL_ISLAND_SPAWN_MAX_OFFSET_PX

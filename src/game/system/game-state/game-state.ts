@@ -224,7 +224,7 @@ export class GameState {
     this.finishGame();
   }
 
-  applyLoss() {
+  applyLoss(callback: () => void) {
     if (this.hasEnergyShield || this.isInvulnerable) {
       return;
     }
@@ -232,9 +232,11 @@ export class GameState {
     this.invulnerabilityTimer = INVULNERABILITY_TIMER_MILLISECONDS;
 
     this.decreaseAssets();
+
+    callback();
   }
 
-  applySolidDamage() {
+  applySolidDamage(callback: () => void) {
     if (
       this.gameSettings.isEngineImproved ||
       this.hasEnergyShield ||
@@ -244,9 +246,11 @@ export class GameState {
     }
 
     this.speedSlowdownTimer = SOLID_COLLISION_CONFIG.durationMilliseconds;
+
+    callback();
   }
 
-  applyWhirlpoolDamage() {
+  applyWhirlpoolDamage(callback: () => void) {
     if (
       this.gameSettings.isEngineImproved ||
       this.hasEnergyShield ||
@@ -256,6 +260,8 @@ export class GameState {
     }
 
     this.whirlpoolDebuffTimer = WHIRLPOOL_COLLISION_CONFIG.durationMilliseconds;
+
+    callback();
   }
 
   private decreaseEnergy(deltaMs: number) {

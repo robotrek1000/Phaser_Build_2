@@ -1,9 +1,9 @@
 import type { Rule } from './how-to-play-guide.types';
 
-import buoys from '@/assets/buoys.png';
-import clock from '@/assets/clock.png';
-import coinXL from '@/assets/coin-xl.png';
-import energy from '@/assets/energy.png';
+import buoys from '@/assets/onboarding_1_buoys.webp';
+import energy from '@/assets/onboarding_2_energy.webp';
+import coinXL from '@/assets/onboarding_3_coin.webp';
+import clock from '@/assets/onboarding_4_time.webp';
 
 export const RULES: Rule[] = [
   {

@@ -1,7 +1,8 @@
 import type { ModalWindowProps } from '@/shared/components/modal-window';
 
 export interface BoosterConfig {
-  img: string;
+  fullImg: string;
+  previewImg: string;
   modalProps: Pick<ModalWindowProps, 'variant' | 'topGradient'>;
 }
 

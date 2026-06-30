@@ -19,7 +19,8 @@ export default defineConfig(({ mode }) => {
           DESIGN_HEIGHT
         },
       },
-    }),],
+    }),
+    ],
     base: env.VITE_BASE_URL || '/',
     resolve: {
       alias: {
@@ -31,5 +32,38 @@ export default defineConfig(({ mode }) => {
         localsConvention: 'camelCase',
       },
     },
+    build: {
+      assetsInlineLimit: 0,
+      chunkSizeWarningLimit: 800,
+      sourcemap: 'hidden',
+      rollupOptions: {
+        treeshake: true,
+        output: {
+          manualChunks(id) {
+            if (!id.includes('node_modules')) {
+              return
+            }
+
+            if (id.includes('react') || id.includes('scheduler')) {
+              return 'react-vendor'
+            }
+
+            if (id.includes('phaser')) {
+              return 'phaser-vendor'
+            }
+
+            if (id.includes('@tanstack/react-query')) {
+              return 'query-vendor'
+            }
+
+            if (id.includes('motion')) {
+              return 'motion-vendor'
+            }
+
+            return 'vendor'
+          },
+        },
+      },
+    }
   }
 })

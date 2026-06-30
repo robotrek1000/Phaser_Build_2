@@ -22,19 +22,6 @@
   backdrop-filter: blur(1.25rem);
 
   color: #FFFFFF;
-
-  &:before {
-    content: "";
-
-    position: absolute;
-    inset: 0;
-
-    background-size: 100% auto;
-    background-repeat: no-repeat;
-
-    border-top-left-radius: 2.625rem;
-    border-top-right-radius: 2.625rem;
-  }
 }
 
 .container-blue {
@@ -61,52 +48,13 @@
   background: linear-gradient(180deg, rgba(181, 0, 218, 0.40) 0%, rgba(110, 0, 218, 0.40) 100%);
 }
 
-.container-top-gradient-blue {
-  &:before {
-    background-image: url("../../../assets/ellipse-blue.svg");
-  }
-}
-
-.container-top-gradient-bright-blue {
-  &:before {
-    background-image: url("../../../assets/ellipse-bright-blue.svg");
-  }
-}
-
-.container-top-gradient-green {
-  &:before {
-    background-image: url("../../../assets/ellipse-green.svg");
-  }
-}
-
-.container-top-gradient-bright-green {
-  &:before {
-    background-image: url("../../../assets/ellipse-bright-green.svg");
-  }
-}
-
-.container-top-gradient-orange {
-  &:before {
-    background-image: url("../../../assets/ellipse-orange.svg");
-  }
-}
-
-.container-top-gradient-gray {
-  &:before {
-    background-image: url("../../../assets/ellipse-gray.svg");
-  }
-}
-
-.container-top-gradient-yellow {
-  &:before {
-    background-image: url("../../../assets/ellipse-yellow.svg");
-  }
-}
-
-.container-top-gradient-violet {
-  &:before {
-    background-image: url("../../../assets/ellipse-violet.svg");
-  }
+.top-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  border-top-left-radius: 2.625rem;
+  border-top-right-radius: 2.625rem;
 }
 
 .close-btn {

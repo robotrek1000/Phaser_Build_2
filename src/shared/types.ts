@@ -8,6 +8,8 @@ export type ClientYachtImprovementType =
 
 export type ClientLevelNumber = 1 | 2 | 3;
 
+export type Rating = 1 | 2 | 3 | 4 | 5;
+
 export interface ClientProfile {
   settings: ClientSettings;
   yachts: ClientYacht[];
@@ -65,4 +67,11 @@ export interface ClientPaidAttemptPrice {
 export interface ClientCurrencies {
   goldCoins: number;
   diamonds: number;
+}
+
+export interface RuntimeConfig {
+  apiBaseUrl?: string;
+  apiWithCredentials?: boolean | string;
+  authBaseUrl?: string;
+  authClientId?: string;
 }

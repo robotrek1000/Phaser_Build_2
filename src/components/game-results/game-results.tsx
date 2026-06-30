@@ -4,22 +4,26 @@ import styles from './game-results.module.css';
 
 import type { GameResultsProps } from './game-results.types';
 
-import coin from '@/assets/coin.png';
-import whiteCup from '@/assets/cup-white.svg';
-import whiteFlag from '@/assets/flag-white.svg';
-import xp from '@/assets/xp.png';
+import coin from '@/assets/coin.webp';
+import xp from '@/assets/xp.webp';
 import { useGameResults } from '@/components/game-results/use-game-results';
 import { Backdrop } from '@/shared/components/backdrop';
+import { Hr } from '@/shared/components/hr';
+import {
+  CupIcon,
+  FlagIcon,
+  LaurelLeftIcon,
+  LaurelRightIcon,
+} from '@/shared/components/icons';
 import { Loader } from '@/shared/components/loader';
 import { PrimaryButton } from '@/shared/components/primary-button';
 import { SailorModal } from '@/shared/components/sailor-modal';
 import { SecondaryButton } from '@/shared/components/secondary-button';
-import { Separator } from '@/shared/components/separator';
 import { TextArt } from '@/shared/components/text-art';
 import { cn } from '@/utils';
 
 export const GameResults: FC<GameResultsProps> = (props) => {
-  const { modalWindowProps } = useGameResults(props);
+  const { isWin, modalWindowProps } = useGameResults(props);
 
   return (
     <>
@@ -61,24 +65,41 @@ export const GameResults: FC<GameResultsProps> = (props) => {
         {props.gameResults && (
           <>
             <div className={styles.distanceContainer}>
-              <img
-                src={props.gameResults.type === 'Good' ? whiteCup : whiteFlag}
-                alt="Icon"
-                className={styles.distanceIcon}
-              />
+              {isWin && <CupIcon className={styles.distanceIcon} />}
 
-              <TextArt
-                title={props.gameResults.distanceCovered}
-                titleClassName={cn(
-                  props.gameResults.type === 'Good' && styles.winValue
+              {props.gameResults.type !== 'Good' && (
+                <FlagIcon className={styles.distanceIcon} />
+              )}
+
+              <div className={styles.textArtContainer}>
+                {isWin && (
+                  <LaurelLeftIcon
+                    className={cn(
+                      styles.winValueLaurel,
+                      styles.winValueLaurelLeft
+                    )}
+                  />
                 )}
-                subtitle={`из ${props.gameResults.goalDistance}`}
-              />
+
+                <TextArt
+                  title={props.gameResults.distanceCovered}
+                  subtitle={`из ${props.gameResults.goalDistance}`}
+                />
+
+                {isWin && (
+                  <LaurelRightIcon
+                    className={cn(
+                      styles.winValueLaurel,
+                      styles.winValueLaurelRight
+                    )}
+                  />
+                )}
+              </div>
             </div>
 
             <div className={styles.text}>{props.gameResults.description}</div>
 
-            <Separator className={styles.separator} />
+            <Hr className={styles.separator} />
 
             <div className={styles.rewardTitle}>Награда</div>
 

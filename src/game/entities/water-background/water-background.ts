@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { GameObjects, Scene } from 'phaser';
 
 import {
   WATER_BACKGROUND_DEPTH,
@@ -8,13 +8,13 @@ import {
 import { GameState } from '@/game/system/game-state';
 
 export class WaterBackground {
-  private scene: Phaser.Scene;
+  private scene: Scene;
 
   private gameState: GameState;
 
-  private tileSprite?: Phaser.GameObjects.TileSprite;
+  private tileSprite?: GameObjects.TileSprite;
 
-  constructor(scene: Phaser.Scene, gameState: GameState) {
+  constructor(scene: Scene, gameState: GameState) {
     this.scene = scene;
     this.gameState = gameState;
   }

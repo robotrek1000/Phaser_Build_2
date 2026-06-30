@@ -53,6 +53,7 @@ export const GameBar: FC<GameBarProps> = ({ isVisible, onClose }) => {
       </AnimatePresence>
 
       <ExitConfirmation
+        subtitle="Внимание! Вы потеряете попытку"
         isVisible={isExitConfirmationVisible}
         onConfirm={onClose}
         onDecline={handleDeclineExit}

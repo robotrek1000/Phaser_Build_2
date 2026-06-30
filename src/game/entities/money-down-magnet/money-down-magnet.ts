@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import { GameObjects } from 'phaser';
 
 import { MoneyDown } from '../money-down';
 
@@ -26,7 +26,7 @@ export class MoneyDownMagnet extends MoneyDown {
   preUpdate(time: number, delta: number) {
     super.preUpdate(time, delta);
 
-    if (!this.active) {
+    if (!this.active || this.isMarkedToDelete) {
       return;
     }
 
@@ -47,7 +47,7 @@ export class MoneyDownMagnet extends MoneyDown {
   }
 
   override async handleEnergyShieldCollision(
-    energyShield: Phaser.GameObjects.Graphics
+    energyShield: GameObjects.Graphics
   ) {
     if (this.isEnergyShieldRepulsionAnimationActive) {
       return;

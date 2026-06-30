@@ -4,10 +4,10 @@ import type {
   SkillWheelFixedBonuses,
 } from '@/game/system/game-state';
 
-import coinXL from '@/assets/wheel_1.png';
-import buoys from '@/assets/wheel_2.png';
-import clock from '@/assets/wheel_3.png';
-import energy from '@/assets/wheel_4.png';
+import coinXL from '@/assets/wheel_1.webp';
+import buoys from '@/assets/wheel_2.webp';
+import clock from '@/assets/wheel_3.webp';
+import energy from '@/assets/wheel_4.webp';
 import { FIXED_BONUSES } from '@/game';
 
 export const BONUSES_CONFIG: BonusConfig[] = [

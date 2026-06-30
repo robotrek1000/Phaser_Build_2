@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Utils } from 'phaser';
 
 import type { Range } from '../types';
 
@@ -53,7 +53,7 @@ export const pickUnfilledIntervals = ({
   while (attempts < maxAttempts) {
     attempts++;
 
-    const shuffled = Phaser.Utils.Array.Shuffle(filtered);
+    const shuffled = Utils.Array.Shuffle(filtered);
     const picked: Range[] = [];
 
     for (const interval of shuffled) {

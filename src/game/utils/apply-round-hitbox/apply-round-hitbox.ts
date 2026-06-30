@@ -1,10 +1,10 @@
-import * as Phaser from 'phaser';
+import { Physics } from 'phaser';
 
 export const applyRoundHitbox = (
-  sprite: Phaser.Physics.Arcade.Sprite,
+  sprite: Physics.Arcade.Sprite,
   radiusRatio: number
 ) => {
-  const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+  const body = sprite.body as Physics.Arcade.Body | undefined;
 
   if (!body) {
     return;

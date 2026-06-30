@@ -5,8 +5,7 @@ import { useDistanceProgressBar } from './use-distance-progress-bar';
 
 import type { DistanceProgressBarProps } from './distance-progress-bar.types';
 
-import blackFlag from '@/assets/flag-black.png';
-import blackYacht from '@/assets/yacht-black.png';
+import { StrokedFlagIcon, YachtIcon } from '@/shared/components/icons';
 import { cn } from '@/utils';
 
 export const DistanceProgressBar = memo<DistanceProgressBarProps>(
@@ -17,10 +16,10 @@ export const DistanceProgressBar = memo<DistanceProgressBarProps>(
       <div className={cn(className, styles.container)}>
         <div className={styles.icons}>
           <span className={styles.yachtIconContainer}>
-            <img src={blackYacht} alt="Yacht" className={styles.yachtIcon} />
+            <YachtIcon className={styles.yachtIcon} stroke="#FFFFFF" />
           </span>
 
-          <img src={blackFlag} alt="Flag" className={styles.flagIcon} />
+          <StrokedFlagIcon className={styles.flagIcon} stroke="#FFFFFF" />
         </div>
 
         <div className={styles.progressBar}>

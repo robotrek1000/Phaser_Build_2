@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { GameObjects, Math as PhaserMath, Physics } from 'phaser';
 
 import { BaseSpawnedObject } from '../base-spawned-object';
 
@@ -26,7 +26,7 @@ import {
 export class Energy extends BaseSpawnedObject {
   protected config = ENERGY_CONFIG;
 
-  private shadow?: Phaser.GameObjects.Image;
+  private shadow?: GameObjects.Image;
 
   protected attractMotion?: AttractMotion;
 
@@ -86,7 +86,7 @@ export class Energy extends BaseSpawnedObject {
   protected override async playDespawnAnimation() {
     const player = this.player;
 
-    const body = this.body as Phaser.Physics.Arcade.Body | undefined;
+    const body = this.body as Physics.Arcade.Body | undefined;
 
     if (body) {
       body.stop();
@@ -104,8 +104,8 @@ export class Energy extends BaseSpawnedObject {
     const startScaleY = this.scaleY;
 
     const state = { t: 0 };
-    const arcOffsetX = Phaser.Math.Between(-60, 60);
-    const arcOffsetY = -Phaser.Math.Between(40, 110);
+    const arcOffsetX = PhaserMath.Between(-60, 60);
+    const arcOffsetY = -PhaserMath.Between(40, 110);
 
     await tweenToPromise(this.scene, {
       targets: state,
@@ -120,17 +120,17 @@ export class Energy extends BaseSpawnedObject {
         const midX = (startX + endX) * 0.5 + arcOffsetX;
         const midY = Math.min(startY, endY) + arcOffsetY;
 
-        const ax = Phaser.Math.Linear(startX, midX, t);
-        const ay = Phaser.Math.Linear(startY, midY, t);
-        const bx = Phaser.Math.Linear(midX, endX, t);
-        const by = Phaser.Math.Linear(midY, endY, t);
+        const ax = PhaserMath.Linear(startX, midX, t);
+        const ay = PhaserMath.Linear(startY, midY, t);
+        const bx = PhaserMath.Linear(midX, endX, t);
+        const by = PhaserMath.Linear(midY, endY, t);
 
-        this.x = Phaser.Math.Linear(ax, bx, t);
-        this.y = Phaser.Math.Linear(ay, by, t);
+        this.x = PhaserMath.Linear(ax, bx, t);
+        this.y = PhaserMath.Linear(ay, by, t);
 
-        const scaleFactor = Phaser.Math.Linear(1, 0, t);
+        const scaleFactor = PhaserMath.Linear(1, 0, t);
         this.setScale(startScaleX * scaleFactor, startScaleY * scaleFactor);
-        this.setAlpha(Phaser.Math.Linear(1, 0, t));
+        this.setAlpha(PhaserMath.Linear(1, 0, t));
       },
     });
   }

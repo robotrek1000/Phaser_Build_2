@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Math as PhaserMath, Utils } from 'phaser';
 
 import { addIdToSegment } from './add-id-to-segment';
 import { getGuaranteedSegments } from './get-guaranteed-segments';
@@ -40,7 +40,7 @@ export const generateGamePhaseObjects = (
     }
 
     const segment =
-      Phaser.Math.RND.weightedPick(availableSegments) ??
+      PhaserMath.RND.weightedPick(availableSegments) ??
       addIdToSegment({
         lengthMeters: 50,
         objectList: [],
@@ -52,7 +52,7 @@ export const generateGamePhaseObjects = (
     remainingLength -= segment.lengthMeters;
   }
 
-  return Phaser.Utils.Array.Shuffle(result)
+  return Utils.Array.Shuffle(result)
     .flatMap((segment, index) =>
       getSpawnObjectConfig(
         segment,

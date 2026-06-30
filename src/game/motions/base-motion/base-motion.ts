@@ -1,7 +1,7 @@
-import * as Phaser from 'phaser';
+import { BaseSpawnedObject } from '@/game/entities/base-spawned-object';
 
 export abstract class BaseMotion {
-  protected sprite: Phaser.Physics.Arcade.Sprite;
+  protected sprite: BaseSpawnedObject;
 
   protected isEnabled = false;
 
@@ -9,7 +9,7 @@ export abstract class BaseMotion {
     return this.isEnabled;
   }
 
-  constructor(sprite: Phaser.Physics.Arcade.Sprite) {
+  constructor(sprite: BaseSpawnedObject) {
     this.sprite = sprite;
   }
 

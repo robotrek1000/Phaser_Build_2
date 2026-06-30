@@ -4,10 +4,15 @@ import { BONUSES_CONFIG } from '../../bonus-wheel.contants';
 
 import styles from './bonus-wheel-visualization.module.css';
 
-import pointer from '@/assets/pointer.svg';
+import type { BonusWheelVisualizationProps } from './bonus-wheel-visualization.types.ts';
 
-export const BonusWheelVisualization = forwardRef<HTMLImageElement>(
-  (_props, ref) => (
+import { RoundedTriangleIcon } from '@/shared/components/icons';
+
+export const BonusWheelVisualization = forwardRef<
+  SVGSVGElement,
+  BonusWheelVisualizationProps
+>((_props, pointerElementRef) => {
+  return (
     <div className={styles.container}>
       <div className={styles.bonusList}>
         {BONUSES_CONFIG.map(({ type, img, bgColor, size }) => (
@@ -21,9 +26,10 @@ export const BonusWheelVisualization = forwardRef<HTMLImageElement>(
         ))}
       </div>
 
-      <img ref={ref} className={styles.pointer} src={pointer} alt="" />
+      <RoundedTriangleIcon
+        ref={pointerElementRef}
+        className={styles.pointer}
+      />
     </div>
-  )
-);
-
-BonusWheelVisualization.displayName = 'BonusWheelVisualization';
+  );
+});

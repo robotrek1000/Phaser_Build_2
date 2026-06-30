@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Physics, Scene } from 'phaser';
 
 import { SPAWN_GROUP_MAP_CONFIG } from './spawn-manager.config';
 
@@ -9,15 +9,15 @@ import { BaseSpawnedObject } from '@/game/entities/base-spawned-object';
 import { GameState } from '@/game/system/game-state';
 
 export class SpawnManager {
-  private scene: Phaser.Scene;
+  private scene: Scene;
 
   private gameState: GameState;
 
   private spawnObjectsScenario: SpawnObjectConfig[] = [];
 
-  private spawnGroups = new Map<SpawnObjectType, Phaser.Physics.Arcade.Group>();
+  private spawnGroups = new Map<SpawnObjectType, Physics.Arcade.Group>();
 
-  constructor(scene: Phaser.Scene, gameState: GameState) {
+  constructor(scene: Scene, gameState: GameState) {
     this.scene = scene;
     this.gameState = gameState;
   }

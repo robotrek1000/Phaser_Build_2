@@ -1,7 +1,7 @@
-import * as Phaser from 'phaser';
+import { Utils } from 'phaser';
 
 import type { Segment, SegmentWithId } from '../types';
 
 export const addIdToSegment = (segment: Segment): SegmentWithId => {
-  return { id: Phaser.Utils.String.UUID(), ...segment };
+  return { id: Utils.String.UUID(), ...segment };
 };

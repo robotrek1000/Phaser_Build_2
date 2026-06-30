@@ -1,1 +1,1 @@
-export * from './app-error';
+export { AppError as default } from './app-error';

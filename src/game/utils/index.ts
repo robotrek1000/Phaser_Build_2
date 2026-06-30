@@ -1,7 +1,6 @@
 export * from './apply-rect-hitbox';
 export * from './apply-round-hitbox';
 export * from './follow-shadow-scale-motion';
-export * from './get-height-ratio';
 export * from './input-once-to-promise';
 export * from './move-toward-value';
 export * from './play-blink-animation';

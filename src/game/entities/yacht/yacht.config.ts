@@ -87,13 +87,6 @@ const increaseTierAnimation = {
   ease: 'Sine.ease',
 } as const;
 
-const bonusCatchAnimation = {
-  offsetPx: 160,
-  duration: 270,
-  returnDuration: 720,
-  ease: 'Sine.easeOut',
-} as const;
-
 export const YACHT_ANIMATIONS_CONFIG = {
   intro: introAnimation,
   energyShieldAction: energyShieldActionAnimation,
@@ -105,7 +98,6 @@ export const YACHT_ANIMATIONS_CONFIG = {
   deathFall: deathFallAnimation,
   whirlpool: whirlpoolAnimation,
   increaseTier: increaseTierAnimation,
-  bonusCatch: bonusCatchAnimation,
 } as const;
 
 export const SHADOW_CONFIG = {

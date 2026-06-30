@@ -1,0 +1,14 @@
+.textarea {
+  resize: none;
+  background: rgba(255, 255, 255, 0.20);
+  padding: 1rem;
+  border: none;
+  border-radius: 1.5rem;
+  box-sizing: border-box;
+  height: 10rem;
+  outline: none;
+  color: #FFFFFF;
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}

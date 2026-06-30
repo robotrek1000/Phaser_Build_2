@@ -1,11 +1,16 @@
 .modal-window {
   font-family: "Jaro Cyrillic", sans-serif;
   color: #FFFFFF;
-  min-height: 25rem;
 }
 
 .title {
   font-size: 2rem;
+  text-align: center;
+}
+
+.subtitle {
+  margin-top: 1.125rem;
+  font-size: 1.375rem;
   text-align: center;
 }
 
@@ -14,6 +19,7 @@
 }
 
 .buttons-bar {
+  margin-top: 4rem;
   display: grid;
   align-items: center;
   grid-template-columns: 1fr 1fr;

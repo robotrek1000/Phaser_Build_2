@@ -1,10 +1,10 @@
-import * as Phaser from 'phaser';
+import { GameObjects, Physics, Scene, type Types } from 'phaser';
 
 import { ALL_OBJECTS, ASSETS_LOSS_HAZARDS } from './collision-manager.config';
 
-import type { SpawnObjectType } from '@/game/game.types';
+import type { GameplayEvent, SpawnObjectType } from '@/game/game.types';
 
-import { GAME_EVENT_REACH_ISLAND } from '@/game';
+import { GAME_EVENT_GAMEPLAY_EVENT, GAME_EVENT_REACH_ISLAND } from '@/game';
 import {
   BaseSpawnedObject,
   SPAWN_OBJECT_DATA,
@@ -14,25 +14,22 @@ import { GameState } from '@/game/system/game-state';
 import { prepareGameStateUpdatePayload } from '@/game/utils';
 
 export class CollisionManager {
-  private scene: Phaser.Scene;
+  private scene: Scene;
 
   private gameState: GameState;
 
   private player?: Yacht;
 
-  private spawnGroups?: ReadonlyMap<
-    SpawnObjectType,
-    Phaser.Physics.Arcade.Group
-  >;
+  private spawnGroups?: ReadonlyMap<SpawnObjectType, Physics.Arcade.Group>;
 
-  private colliders: Phaser.Physics.Arcade.Collider[] = [];
+  private colliders: Physics.Arcade.Collider[] = [];
 
   private setWheelIslandGameObject: (
     wheelIslandGameObject: BaseSpawnedObject
   ) => void;
 
   constructor(
-    scene: Phaser.Scene,
+    scene: Scene,
     gameState: GameState,
     setWheelIslandGameObject: (wheelIslandGameObject: BaseSpawnedObject) => void
   ) {
@@ -43,7 +40,7 @@ export class CollisionManager {
 
   create(
     player: Yacht,
-    spawnGroups: ReadonlyMap<SpawnObjectType, Phaser.Physics.Arcade.Group>
+    spawnGroups: ReadonlyMap<SpawnObjectType, Physics.Arcade.Group>
   ) {
     this.player = player;
     this.spawnGroups = spawnGroups;
@@ -173,75 +170,89 @@ export class CollisionManager {
     this.colliders.push(collider);
   }
 
-  private handlePlayerCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
-    (_player, object) => {
-      const spawnedObject = object as BaseSpawnedObject;
+  private handlePlayerCollision: Types.Physics.Arcade.ArcadePhysicsCallback = (
+    _player,
+    object
+  ) => {
+    const spawnedObject = object as BaseSpawnedObject;
 
-      if (!spawnedObject.active) {
-        return;
-      }
+    if (!spawnedObject.active || spawnedObject.isMarkedToDelete) {
+      return;
+    }
 
-      const objectType: SpawnObjectType = spawnedObject.getData(
-        SPAWN_OBJECT_DATA.TYPE
+    const objectType: SpawnObjectType = spawnedObject.getData(
+      SPAWN_OBJECT_DATA.TYPE
+    );
+    const objectSubtype = spawnedObject.getData(SPAWN_OBJECT_DATA.SUBTYPE);
+
+    if (objectType === 'reef') {
+      this.gameState.applySolidDamage(() => {
+        this.emitGameGameplayEvent('reef');
+      });
+    }
+
+    if (objectType === 'whirlpool') {
+      this.gameState.applyWhirlpoolDamage(() => {
+        this.emitGameGameplayEvent('whirlpool');
+      });
+    }
+
+    if (objectType === 'energy') {
+      this.emitGameGameplayEvent('energy');
+      this.gameState.collectEnergy();
+      void spawnedObject.despawn();
+    }
+
+    if (
+      objectType === 'moneyUp' ||
+      (objectType === 'dynamicBuoy' && objectSubtype === 'up')
+    ) {
+      this.emitGameGameplayEvent('moneyUp');
+      this.gameState.collectAsset();
+      void this.player?.playPositiveHitAnimation();
+      void spawnedObject.despawn();
+    }
+
+    if (
+      (!this.gameState.hasEnergyShield &&
+        ASSETS_LOSS_HAZARDS.includes(objectType)) ||
+      (objectType === 'dynamicBuoy' && objectSubtype === 'down')
+    ) {
+      this.gameState.applyLoss(() => {
+        this.emitGameGameplayEvent('moneyDown');
+      });
+      void spawnedObject.despawn();
+    }
+
+    if (objectType === 'wheelIsland') {
+      this.setWheelIslandGameObject(spawnedObject);
+      this.scene.game.events.emit(
+        GAME_EVENT_REACH_ISLAND,
+        prepareGameStateUpdatePayload(this.gameState)
       );
-      const objectSubtype = spawnedObject.getData(SPAWN_OBJECT_DATA.SUBTYPE);
+    }
 
-      if (objectType === 'reef') {
-        this.gameState.applySolidDamage();
-      }
+    if (objectType === 'timeBonus') {
+      this.emitGameGameplayEvent('timeBonus');
+      this.gameState.catchTimeBonus();
+      void spawnedObject.despawn();
+    }
 
-      if (objectType === 'whirlpool') {
-        this.gameState.applyWhirlpoolDamage();
-      }
+    if (objectType === 'harbor') {
+      this.gameState.reachGameGoal();
+    }
+  };
 
-      if (objectType === 'energy') {
-        this.gameState.collectEnergy();
-        void spawnedObject.despawn();
-      }
+  private emitGameGameplayEvent(gameplayEvent: GameplayEvent) {
+    this.scene.game.events.emit(GAME_EVENT_GAMEPLAY_EVENT, gameplayEvent);
+  }
 
-      if (
-        objectType === 'moneyUp' ||
-        (objectType === 'dynamicBuoy' && objectSubtype === 'up')
-      ) {
-        this.gameState.collectAsset();
-        void this.player?.playPositiveHitAnimation();
-        void spawnedObject.despawn();
-      }
-
-      if (
-        (!this.gameState.hasEnergyShield &&
-          ASSETS_LOSS_HAZARDS.includes(objectType)) ||
-        (objectType === 'dynamicBuoy' && objectSubtype === 'down')
-      ) {
-        this.gameState.applyLoss();
-        void spawnedObject.despawn();
-      }
-
-      if (objectType === 'wheelIsland') {
-        this.setWheelIslandGameObject(spawnedObject);
-        this.scene.game.events.emit(
-          GAME_EVENT_REACH_ISLAND,
-          prepareGameStateUpdatePayload(this.gameState)
-        );
-      }
-
-      if (objectType === 'timeBonus') {
-        this.gameState.catchTimeBonus();
-        void this.player?.playBonusCatchAnimation();
-        void spawnedObject.despawn();
-      }
-
-      if (objectType === 'harbor') {
-        this.gameState.reachGameGoal();
-      }
-    };
-
-  private handleEnergyShieldCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback =
+  private handleEnergyShieldCollision: Types.Physics.Arcade.ArcadePhysicsCallback =
     (energyShield, object) => {
       const spawnedObject = object as BaseSpawnedObject;
 
       void spawnedObject.handleEnergyShieldCollision(
-        energyShield as Phaser.GameObjects.Graphics
+        energyShield as GameObjects.Graphics
       );
     };
 }

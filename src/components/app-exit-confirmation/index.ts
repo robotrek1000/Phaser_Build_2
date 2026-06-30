@@ -1,1 +1,1 @@
-export * from './app-exit-confirmation';
+export { AppExitConfirmation as default } from './app-exit-confirmation';

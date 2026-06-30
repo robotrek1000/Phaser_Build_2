@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { GameObjects } from 'phaser';
 
 import { BaseSpawnedObject } from '../base-spawned-object';
 
@@ -26,7 +26,7 @@ import {
 export class TimeBonus extends BaseSpawnedObject {
   protected config = TIME_BONUS_CONFIG;
 
-  private shadow?: Phaser.GameObjects.Image;
+  private shadow?: GameObjects.Image;
 
   private zigzagMotion?: ZigzagMotion;
 
@@ -62,7 +62,7 @@ export class TimeBonus extends BaseSpawnedObject {
   preUpdate(time: number, delta: number) {
     super.preUpdate(time, delta);
 
-    if (!this.active) {
+    if (!this.active || this.isMarkedToDelete) {
       return;
     }
 

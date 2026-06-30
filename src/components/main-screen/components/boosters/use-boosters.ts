@@ -8,6 +8,7 @@ import type {
 } from '@/shared/types';
 
 import { useClientProfile } from '@/hooks/use-client-profile';
+import { useUiInteractionSound } from '@/hooks/use-ui-interaction-sound';
 
 export const useBoosters = () => {
   const [selectedBoosterType, setSelectedBoosterType] =
@@ -34,8 +35,11 @@ export const useBoosters = () => {
     ? boosters?.find(({ type }) => type === selectedBoosterType)
     : undefined;
 
+  const { playInteractionSound } = useUiInteractionSound();
+
   const handleBoosterClick = (booster: ClientYachtImprovementType) => {
     setSelectedBoosterType(booster);
+    playInteractionSound();
   };
 
   const handleCloseBoosterModal = () => {

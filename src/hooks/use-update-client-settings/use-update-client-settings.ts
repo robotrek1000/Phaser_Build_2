@@ -33,7 +33,8 @@ const patchClientProfile = (
 
 export const useUpdateClientSettings = (
   isOptimisticUpdate = true,
-  onSuccess?: () => void
+  onSuccess?: () => void,
+  shouldInvalidateCache = true
 ) => {
   const queryClient = useQueryClient();
 
@@ -42,9 +43,11 @@ export const useUpdateClientSettings = (
   const { mutate, isPending: isUpdateClientSettingsPending } = useMutation({
     mutationFn: updateClientSettingsApiFn,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: CLIENT_PROFILE_QUERY_KEY,
-      });
+      if (shouldInvalidateCache) {
+        await queryClient.invalidateQueries({
+          queryKey: CLIENT_PROFILE_QUERY_KEY,
+        });
+      }
 
       onSuccess?.();
     },

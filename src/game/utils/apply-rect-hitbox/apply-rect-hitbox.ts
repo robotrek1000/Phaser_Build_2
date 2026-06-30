@@ -1,12 +1,12 @@
-import * as Phaser from 'phaser';
+import { Physics } from 'phaser';
 
 import type { ApplyRectHitboxConfig } from './apply-rect-hitbox.types';
 
 export const applyRectHitbox = (
-  sprite: Phaser.Physics.Arcade.Sprite | Phaser.Physics.Arcade.Image,
+  sprite: Physics.Arcade.Sprite | Physics.Arcade.Image,
   config: ApplyRectHitboxConfig
 ) => {
-  const body = sprite.body as Phaser.Physics.Arcade.Body | undefined;
+  const body = sprite.body as Physics.Arcade.Body | undefined;
 
   if (!body) {
     return;

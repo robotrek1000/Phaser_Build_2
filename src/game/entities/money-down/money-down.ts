@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+import { GameObjects, Tweens } from 'phaser';
 
 import { BaseSpawnedObject } from '../base-spawned-object';
 
@@ -28,14 +28,14 @@ export class MoneyDown extends BaseSpawnedObject {
 
   protected isEnergyShieldRepulsionAnimationActive = false;
 
-  protected swayTween?: Phaser.Tweens.Tween;
+  protected swayTween?: Tweens.Tween;
 
   protected driftMotion?: DriftMotion;
 
   preUpdate(time: number, delta: number) {
     super.preUpdate(time, delta);
 
-    if (!this.active) {
+    if (!this.active || this.isMarkedToDelete) {
       return;
     }
 
@@ -58,7 +58,7 @@ export class MoneyDown extends BaseSpawnedObject {
   }
 
   override async handleEnergyShieldCollision(
-    energyShield: Phaser.GameObjects.Graphics
+    energyShield: GameObjects.Graphics
   ) {
     if (this.isEnergyShieldRepulsionAnimationActive) {
       return;

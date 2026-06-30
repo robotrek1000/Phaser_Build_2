@@ -1,2 +1,2 @@
 export * from './finish-game-session';
-export * from './types';
+export * from './finish-game-session.types';

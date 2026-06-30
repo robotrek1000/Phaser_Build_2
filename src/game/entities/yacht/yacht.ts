@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Input, Math as PhaserMath, Physics, Scene, Tweens } from 'phaser';
 
 import { EnergyShield } from '../energy-shield';
 
@@ -23,15 +23,15 @@ export class Yacht {
   private config = YACHT_CONFIG;
   private animationsConfig = YACHT_ANIMATIONS_CONFIG;
 
-  private scene: Phaser.Scene;
+  private scene: Scene;
 
   private gameState: GameState;
 
   private energyShield: EnergyShield;
 
-  private image?: Phaser.Physics.Arcade.Image;
+  private image?: Physics.Arcade.Image;
 
-  private animation?: Phaser.Tweens.Tween | Phaser.Tweens.Tween[];
+  private animation?: Tweens.Tween | Tweens.Tween[];
 
   private animationType?: YachtAnimationType;
 
@@ -52,14 +52,14 @@ export class Yacht {
   }
 
   private get imageBody() {
-    return this.image?.body as Phaser.Physics.Arcade.Body;
+    return this.image?.body as Physics.Arcade.Body;
   }
 
   private get textureKey() {
     return YACHT_CONFIG.textures[this.gameState.yachtSkin];
   }
 
-  constructor(scene: Phaser.Scene, gameState: GameState) {
+  constructor(scene: Scene, gameState: GameState) {
     this.scene = scene;
     this.gameState = gameState;
 
@@ -135,45 +135,6 @@ export class Yacht {
     });
 
     this.updateMovingTarget();
-  }
-
-  async playBonusCatchAnimation() {
-    if (!this.image) {
-      return;
-    }
-
-    if (
-      this.animationType &&
-      ['damageHit', 'positiveHit'].includes(this.animationType)
-    ) {
-      await this.stopAnimation();
-    }
-
-    const startY = this.image.y;
-    const { offsetPx, duration, returnDuration, ease } =
-      this.animationsConfig.bonusCatch;
-
-    this.disableInput();
-
-    await tweenToPromise(this.scene, {
-      targets: this.image,
-      y: startY + offsetPx,
-      duration,
-      ease,
-    });
-
-    if (!this.image) {
-      return;
-    }
-
-    await tweenToPromise(this.scene, {
-      targets: this.image,
-      y: startY,
-      duration: returnDuration,
-      ease,
-    });
-
-    this.enableInput();
   }
 
   enableInput() {
@@ -298,7 +259,7 @@ export class Yacht {
     this.scene.input.off('pointerupoutside', this.handlePointerUp, this);
   }
 
-  private handlePointerDown(pointer: Phaser.Input.Pointer) {
+  private handlePointerDown(pointer: Input.Pointer) {
     if (!this.isInputEnabled) {
       return;
     }
@@ -308,7 +269,7 @@ export class Yacht {
     this.isDragging = true;
   }
 
-  private async handlePointerMove(pointer: Phaser.Input.Pointer) {
+  private async handlePointerMove(pointer: Input.Pointer) {
     if (!this.image || !this.isDragging || !this.isInputEnabled) {
       return;
     }
@@ -322,13 +283,13 @@ export class Yacht {
     this.lastPointerX = pointer.x;
     this.lastPointerY = pointer.y;
 
-    const x = Phaser.Math.Clamp(
+    const x = PhaserMath.Clamp(
       this.targetX + deltaX,
       0,
       this.scene.scale.width
     );
 
-    const y = Phaser.Math.Clamp(
+    const y = PhaserMath.Clamp(
       this.targetY + deltaY,
       verticalInset,
       this.scene.scale.height - verticalInset
@@ -468,8 +429,8 @@ export class Yacht {
       );
     })();
 
-    this.image.x = Phaser.Math.Linear(this.image.x, this.targetX, lerp);
-    this.image.y = Phaser.Math.Linear(this.image.y, this.targetY, lerp);
+    this.image.x = PhaserMath.Linear(this.image.x, this.targetX, lerp);
+    this.image.y = PhaserMath.Linear(this.image.y, this.targetY, lerp);
 
     if (Math.abs(this.image.x - this.targetX) < 0.5) {
       this.image.x = this.targetX;

@@ -3,7 +3,7 @@ import { SESSION_RESPONSE } from './mock';
 import type {
   StartGameSessionRequest,
   StartGameSessionResponse,
-} from './types';
+} from './start-game-session.types';
 
 import { delay } from '@/utils';
 

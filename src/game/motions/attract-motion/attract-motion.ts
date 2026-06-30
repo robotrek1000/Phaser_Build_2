@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { GameObjects, Math as PhaserMath, Physics } from 'phaser';
 
 import { BaseMotion } from '../base-motion';
 
@@ -12,14 +12,14 @@ import { scaled } from '@/game/utils';
 export class AttractMotion extends BaseMotion {
   private config: AttractMotionConfig;
 
-  private targetObject: Phaser.GameObjects.GameObject;
+  private targetObject: GameObjects.GameObject;
 
   private get attractedObjectBody() {
-    return this.sprite.body as Phaser.Physics.Arcade.Body;
+    return this.sprite.body as Physics.Arcade.Body;
   }
 
   private get targetObjectBody() {
-    return this.targetObject.body as Phaser.Physics.Arcade.Body;
+    return this.targetObject.body as Physics.Arcade.Body;
   }
 
   private get dx() {
@@ -59,7 +59,11 @@ export class AttractMotion extends BaseMotion {
   }
 
   update(baseVelocityY: number) {
-    if (!this.isEnabled || !this.sprite.active) {
+    if (
+      !this.isEnabled ||
+      !this.sprite.active ||
+      this.sprite.isMarkedToDelete
+    ) {
       return;
     }
 
@@ -67,7 +71,7 @@ export class AttractMotion extends BaseMotion {
     const dy = this.dy;
     const distance = this.distance;
 
-    const normalizedDistance = Phaser.Math.Clamp(
+    const normalizedDistance = PhaserMath.Clamp(
       distance / this.config.radius,
       0,
       1
@@ -77,7 +81,7 @@ export class AttractMotion extends BaseMotion {
       Math.max(0.05, this.config.falloffPower)
     );
 
-    const desiredPullX = Phaser.Math.Clamp(
+    const desiredPullX = PhaserMath.Clamp(
       (-dx / distance) *
         this.config.forcePxPerSec *
         falloff *
@@ -86,7 +90,7 @@ export class AttractMotion extends BaseMotion {
       this.config.maxPullSpeedXPxPerSec
     );
 
-    const desiredPullY = Phaser.Math.Clamp(
+    const desiredPullY = PhaserMath.Clamp(
       (-dy / distance) *
         this.config.forcePxPerSec *
         falloff *

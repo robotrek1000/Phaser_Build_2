@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Tweens } from 'phaser';
 
 import { BaseSpawnedObject } from '../base-spawned-object';
 
@@ -24,7 +24,7 @@ export class MoneyUp extends BaseSpawnedObject {
 
   protected attractMotion?: AttractMotion;
 
-  protected swayTween?: Phaser.Tweens.Tween;
+  protected swayTween?: Tweens.Tween;
 
   spawn(config: SpawnObjectConfig, gameState?: GameState) {
     super.spawn(config, gameState);
@@ -43,7 +43,7 @@ export class MoneyUp extends BaseSpawnedObject {
   preUpdate(time: number, delta: number) {
     super.preUpdate(time, delta);
 
-    if (!this.active) {
+    if (!this.active || this.isMarkedToDelete) {
       return;
     }
 

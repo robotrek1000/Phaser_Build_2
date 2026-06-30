@@ -1,11 +1,11 @@
-import * as Phaser from 'phaser';
+import { GameObjects, Physics } from 'phaser';
 
 export interface EnergyShieldRepulsionAnimationConfig {
   distancePx: number;
 }
 
 export interface PlayEnergyShieldRepulsionAnimationArgs {
-  object: Phaser.Physics.Arcade.Sprite;
-  energyShield: Phaser.GameObjects.Graphics;
+  object: Physics.Arcade.Sprite;
+  energyShield: GameObjects.Graphics;
   config: EnergyShieldRepulsionAnimationConfig;
 }

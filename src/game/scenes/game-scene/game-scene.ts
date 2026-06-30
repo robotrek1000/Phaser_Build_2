@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Scene, Scenes } from 'phaser';
 
 import {
   GAME_SCENE_NAME,
@@ -12,28 +12,27 @@ import {
   GAME_EVENT_GAME_STATE_UPDATE,
 } from '@/game';
 import { BaseSpawnedObject } from '@/game/entities/base-spawned-object';
+import { GlowForeground } from '@/game/entities/glow-foreground';
 import { WaterBackground } from '@/game/entities/water-background';
 import { Yacht } from '@/game/entities/yacht';
 import { type GameSettings, prepareLevel } from '@/game/level-design';
 import { CollisionManager } from '@/game/system/collision-manager';
 import { GameState, type SkillWheelBonus } from '@/game/system/game-state';
 import { SpawnManager } from '@/game/system/spawn-manager';
-import { IntroGoText } from '@/game/ui/intro-go-text';
 import {
   prepareGameFinishPayload,
   prepareGameStateUpdatePayload,
 } from '@/game/utils';
 
-export class GameScene extends Phaser.Scene {
+export class GameScene extends Scene {
   private gameState: GameState;
 
   private spawnManager: SpawnManager;
   private collisionManager: CollisionManager;
 
+  private glowForeground: GlowForeground;
   private waterBackground: WaterBackground;
   private player: Yacht;
-
-  private introGoText: IntroGoText;
 
   private isGameOver = false;
 
@@ -47,6 +46,7 @@ export class GameScene extends Phaser.Scene {
     this.gameState = new GameState();
 
     this.player = new Yacht(this, this.gameState);
+    this.glowForeground = new GlowForeground(this);
     this.waterBackground = new WaterBackground(this, this.gameState);
 
     this.spawnManager = new SpawnManager(this, this.gameState);
@@ -55,8 +55,6 @@ export class GameScene extends Phaser.Scene {
       this.gameState,
       this.setWheelIslandGameObject.bind(this)
     );
-
-    this.introGoText = new IntroGoText(this);
   }
 
   init(gameSettings: GameSettings) {
@@ -72,9 +70,9 @@ export class GameScene extends Phaser.Scene {
   create() {
     this.player.create();
 
+    this.glowForeground.create();
     this.waterBackground.create();
     this.spawnManager.create();
-    this.introGoText.create();
 
     this.collisionManager.create(
       this.player,
@@ -83,7 +81,7 @@ export class GameScene extends Phaser.Scene {
 
     this.data.set(GAME_SCENE_OBJECT.PLAYER, this.player.arcadeColliderType);
 
-    this.events.once(Phaser.Scenes.Events.DESTROY, this.handleCleanup, this);
+    this.events.once(Scenes.Events.DESTROY, this.handleCleanup, this);
 
     this.game.events.emit(GAME_EVENT_GAME_READY);
   }
@@ -109,10 +107,7 @@ export class GameScene extends Phaser.Scene {
   async startGame() {
     this.player.disableInput();
 
-    await Promise.all([
-      this.player.playIntroAnimation(),
-      this.introGoText.play(),
-    ]);
+    await this.player.playIntroAnimation();
 
     this.player.enableInput();
     this.gameState.play();
@@ -162,6 +157,7 @@ export class GameScene extends Phaser.Scene {
 
   private handleCleanup() {
     this.collisionManager.destroy();
+    this.glowForeground.destroy();
     this.waterBackground.destroy();
     this.player.destroy();
   }

@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Math as PhaserMath } from 'phaser';
 
 import { type FollowShadowScaleMotionArgs, scaled } from '@/game/utils';
 
@@ -13,7 +13,7 @@ export const followShadowScaleMotion = ({
     return;
   }
 
-  const scale = Phaser.Math.Linear(
+  const scale = PhaserMath.Linear(
     config.minScale,
     config.maxScale,
     (1 + targetYOffsetRatio) / 2

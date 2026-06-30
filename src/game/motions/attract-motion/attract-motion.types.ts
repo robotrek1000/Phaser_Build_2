@@ -1,4 +1,6 @@
-import * as Phaser from 'phaser';
+import { GameObjects } from 'phaser';
+
+import { BaseSpawnedObject } from '@/game/entities/base-spawned-object';
 
 export interface AttractMotionConfig {
   radius: number;
@@ -14,7 +16,7 @@ export interface AttractMotionConfig {
 }
 
 export interface AttractMotionConstructorArgs {
-  sprite: Phaser.Physics.Arcade.Sprite;
-  targetObject: Phaser.GameObjects.GameObject;
+  sprite: BaseSpawnedObject;
+  targetObject: GameObjects.GameObject;
   config: AttractMotionConfig;
 }

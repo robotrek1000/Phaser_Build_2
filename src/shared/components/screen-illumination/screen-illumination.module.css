@@ -1,0 +1,46 @@
+.container {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+}
+
+.game-start {
+  background: rgba(255, 255, 255, 0.01);
+  box-shadow:
+    0 0 0.375rem -0.125rem #008EFF,
+    0 -1.25rem 1.25rem -0.375rem rgba(255, 255, 255, 0.40) inset,
+    0 -2.5rem 3rem 2rem rgba(0, 142, 255, 0.50) inset,
+    0 -5rem 3.75rem -1.875rem #008EFF inset;
+
+  animation: fade-in 1.8s ease-in-out forwards;
+}
+
+.damage {
+  background: rgba(255, 255, 255, 0.01);
+  box-shadow:
+    0 0 0.375rem -0.125rem #FF0001,
+    0 -1.25rem 1.25rem -0.375rem rgba(255, 255, 255, 0.40) inset,
+    0 -2.5rem 3rem 2rem rgba(255, 0, 0, 0.50) inset,
+    0 -5rem 3.75rem -1.875rem #F00 inset;
+
+  animation: fade-in 0.6s ease-in-out forwards;
+}
+
+.paused {
+  animation-play-state: paused;
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+  }
+  32% {
+    opacity: 1;
+  }
+  68% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

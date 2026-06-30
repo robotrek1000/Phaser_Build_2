@@ -1,28 +1,29 @@
 import type { FC } from 'react';
 
 import styles from './primary-button.module.css';
+import { usePrimaryButton } from './use-primary-button';
 
 import type { PrimaryButtonProps } from './primary-button.types';
 
 import { Loader } from '@/shared/components/loader';
 import { cn } from '@/utils';
 
-export const PrimaryButton: FC<PrimaryButtonProps> = ({
-  disabled,
-  isPending,
-  className,
-  children,
-  onClick,
-}) => {
+export const PrimaryButton: FC<PrimaryButtonProps> = (props) => {
+  const { handleClick } = usePrimaryButton(props);
+
   return (
     <button
-      disabled={disabled}
-      className={cn(className, styles.button, isPending && styles.loading)}
-      onClick={() => onClick?.()}
+      disabled={props.disabled}
+      className={cn(
+        props.className,
+        styles.button,
+        props.isPending && styles.loading
+      )}
+      onClick={handleClick}
     >
-      {!isPending && children}
+      {!props.isPending && props.children}
 
-      {isPending && <Loader variant="translucentBlack" size="s" />}
+      {props.isPending && <Loader variant="translucentBlack" size="s" />}
     </button>
   );
 };

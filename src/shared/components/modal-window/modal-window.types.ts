@@ -14,6 +14,7 @@ export type ModalWindowTopGradient =
   | 'green'
   | 'brightGreen'
   | 'orange'
+  | 'red'
   | 'gray'
   | 'yellow'
   | 'violet';

@@ -5,9 +5,9 @@ import styles from './how-to-play-guide.module.css';
 import type { HowToPlayGuideProps } from './how-to-play-guide.types';
 
 import { RULES } from '@/components/how-to-play-guide/how-to-play-guide.constants';
+import { Hr } from '@/shared/components/hr';
 import { SailorModal } from '@/shared/components/sailor-modal';
 import { SecondaryButton } from '@/shared/components/secondary-button';
-import { Separator } from '@/shared/components/separator';
 
 export const HowToPlayGuide: FC<HowToPlayGuideProps> = ({
   isVisible,
@@ -28,22 +28,16 @@ export const HowToPlayGuide: FC<HowToPlayGuideProps> = ({
     >
       <div className={styles.title}>Как играть</div>
 
-      <Separator className={styles.separator} />
+      <Hr className={styles.separator} />
 
-      <div className={styles.onboarding}>
+      <div className={styles.rules}>
         {RULES.map(({ key, icon, description }) => (
-          <div key={key} className={styles.onboardingItem}>
-            <div className={styles.onboardingItemIconContainer}>
-              <img
-                src={icon}
-                alt="Icon"
-                className={styles.onboardingItemIcon}
-              />
+          <div key={key} className={styles.rule}>
+            <div className={styles.ruleIconContainer}>
+              <img src={icon} alt="Icon" className={styles.ruleIcon} />
             </div>
 
-            <div className={styles.onboardingItemDescription}>
-              {description}
-            </div>
+            <div className={styles.ruleDescription}>{description}</div>
           </div>
         ))}
       </div>

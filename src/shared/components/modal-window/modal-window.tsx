@@ -12,6 +12,7 @@ import styles from './modal-window.module.css';
 import type { ModalWindowProps } from './modal-window.types';
 
 import { Backdrop } from '@/shared/components/backdrop';
+import { ColoredEllipseBackground } from '@/shared/components/colored-ellipse-background';
 import { IconButton } from '@/shared/components/icon-button';
 import { cn } from '@/utils';
 
@@ -36,10 +37,14 @@ export const ModalWindow: FC<ModalWindowProps> = ({
             className={cn(
               className,
               styles.modalWindow,
-              CONTAINER_BACKGROUND[variant],
-              TOP_GRADIENT[topGradient]
+              CONTAINER_BACKGROUND[variant]
             )}
           >
+            <ColoredEllipseBackground
+              className={styles.topGradient}
+              {...TOP_GRADIENT[topGradient]}
+            />
+
             {onClose && (
               <IconButton
                 icon="close"

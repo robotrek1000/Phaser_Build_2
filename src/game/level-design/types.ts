@@ -24,8 +24,6 @@ export type SpawnObjectConfig = Omit<SegmentObjectConfig, 'meterOffset'> & {
   spawnDistance: number;
 };
 
-export type LevelId = 1 | 2 | 3;
-
 export interface GameSettings {
   level: ClientLevelNumber;
   yachtSkin: ClientYachtType;

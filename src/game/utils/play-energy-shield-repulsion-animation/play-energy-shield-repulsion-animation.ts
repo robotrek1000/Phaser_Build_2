@@ -1,9 +1,10 @@
+import { Physics } from 'phaser';
+
 import { tweenToPromise } from '../tween-to-promise';
 
 import { ENERGY_SHIELD_REPULSION_TWEEN_CONFIG } from './play-energy-shield-repulsion-animation.config';
 
 import type { PlayEnergyShieldRepulsionAnimationArgs } from './play-energy-shield-repulsion-animation.types';
-import type * as Phaser from 'phaser';
 
 import { scaled } from '@/game/utils';
 
@@ -12,10 +13,8 @@ export const playEnergyShieldRepulsionAnimation = async ({
   energyShield,
   config,
 }: PlayEnergyShieldRepulsionAnimationArgs) => {
-  const objectBody = object.body as Phaser.Physics.Arcade.Body | undefined;
-  const shieldBody = energyShield.body as
-    | Phaser.Physics.Arcade.Body
-    | undefined;
+  const objectBody = object.body as Physics.Arcade.Body | undefined;
+  const shieldBody = energyShield.body as Physics.Arcade.Body | undefined;
 
   if (!objectBody || !shieldBody) {
     return;

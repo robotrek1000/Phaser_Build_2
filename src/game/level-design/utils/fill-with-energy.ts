@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Math as PhaserMath } from 'phaser';
 
 import type { Range, SpawnObjectConfig } from '../types';
 
@@ -31,16 +31,13 @@ export const fillWithEnergy = (
       .map<SpawnObjectConfig>((_, index) => {
         return {
           type: 'energy',
-          xRatio: Phaser.Math.FloatBetween(
+          xRatio: PhaserMath.FloatBetween(
             xInterval * index,
             xInterval * index + xInterval
           ),
           spawnDistance:
             start +
-            Phaser.Math.FloatBetween(
-              0,
-              intervalLength * index + intervalLength
-            ),
+            PhaserMath.FloatBetween(0, intervalLength * index + intervalLength),
         };
       })
       .slice(0, amount - result.length);

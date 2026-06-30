@@ -1,38 +1,46 @@
 import type { BoosterConfig } from './boosters.types';
 import type { ClientYachtImprovementType } from '@/shared/types';
 
-import boosterEngine from '@/assets/booster_1.png';
-import boosterBody from '@/assets/booster_2.png';
-import boosterSteeringWheel from '@/assets/booster_3.png';
-import boosterShield from '@/assets/booster_4.png';
+import boosterEngine from '@/assets/booster_1.webp';
+import boosterEnginePreview from '@/assets/booster_1_mini.webp';
+import boosterBody from '@/assets/booster_2.webp';
+import boosterBodyPreview from '@/assets/booster_2_mini.webp';
+import boosterSteeringWheel from '@/assets/booster_3.webp';
+import boosterSteeringWheelPreview from '@/assets/booster_3_mini.webp';
+import boosterShield from '@/assets/booster_4.webp';
+import boosterShieldPreview from '@/assets/booster_4_mini.webp';
 
 export const BOOSTERS_CONFIG: Record<
   ClientYachtImprovementType,
   BoosterConfig
 > = {
   Frame: {
-    img: boosterBody,
+    fullImg: boosterBody,
+    previewImg: boosterBodyPreview,
     modalProps: {
       variant: 'green',
       topGradient: 'brightGreen',
     },
   },
   Engine: {
-    img: boosterEngine,
+    fullImg: boosterEngine,
+    previewImg: boosterEnginePreview,
     modalProps: {
       variant: 'darkBlue',
       topGradient: 'brightBlue',
     },
   },
   Shield: {
-    img: boosterShield,
+    fullImg: boosterShield,
+    previewImg: boosterShieldPreview,
     modalProps: {
       variant: 'violet',
       topGradient: 'violet',
     },
   },
   Wheel: {
-    img: boosterSteeringWheel,
+    fullImg: boosterSteeringWheel,
+    previewImg: boosterSteeringWheelPreview,
     modalProps: {
       variant: 'gold',
       topGradient: 'yellow',

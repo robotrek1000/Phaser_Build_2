@@ -1,0 +1,42 @@
+.container {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content {
+  position: relative;
+  top: -4rem;
+  animation: apperance 1.8s ease-in-out forwards;
+}
+
+.text-art {
+  margin-top: -3rem;
+}
+
+.paused {
+  animation-play-state: paused;
+}
+
+@keyframes appearance {
+  0% {
+    transform: scale(2);
+    opacity: 0;
+  }
+  32% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  68% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0);
+    opacity: 0;
+  }
+}

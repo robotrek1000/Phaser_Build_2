@@ -1,4 +1,4 @@
-import type { FC } from 'react';
+import { type FC, lazy, Suspense } from 'react';
 
 import { Boosters } from './components/boosters';
 import { LevelSlider } from './components/level-slider';
@@ -8,17 +8,20 @@ import styles from './main-screen.module.css';
 
 import type { MainScreenProps } from '@/components/main-screen/main-screen.types';
 
-import { HowToPlayGuide } from '@/components/how-to-play-guide';
 import { CoinsBalance } from '@/components/main-screen/components/coins-balance';
-import { YachtSkinSelect } from '@/components/main-screen/components/yacht-skin-select';
 import { useMainScreen } from '@/components/main-screen/use-main-screen';
 import { useExitConfirmation } from '@/contexts/exit-confirmation-context';
+import { Hr } from '@/shared/components/hr';
 import { IconButton } from '@/shared/components/icon-button';
 import { LockIcon, RightArrowIcon } from '@/shared/components/icons';
 import { PrimaryButton } from '@/shared/components/primary-button';
 import { SecondaryButton } from '@/shared/components/secondary-button';
-import { Separator } from '@/shared/components/separator';
 import { cn } from '@/utils';
+
+const Feedback = lazy(() => import('@/components/feedback'));
+const HowToPlayGuide = lazy(() => import('@/components/how-to-play-guide'));
+const YachtSkinSelect = lazy(() => import('@/components/yacht-skin-select'));
+const AppSettings = lazy(() => import('@/components/app-settings'));
 
 export const MainScreen: FC<MainScreenProps> = (props) => {
   const { show: showExitConfirmation } = useExitConfirmation();
@@ -28,11 +31,17 @@ export const MainScreen: FC<MainScreenProps> = (props) => {
     isLevelAvailable,
     isHowToPlayGuideVisible,
     isYachtSkinSelectVisible,
+    isSettingsVisible,
+    isFeedbackVisible,
     showHowToPlayGuide,
     hideHowToPlayGuide,
     showYachtSkinSelect,
     hideYachtSkinSelect,
     handleLevelChange,
+    showSettings,
+    hideSettings,
+    showFeedback,
+    hideFeedback,
   } = useMainScreen(props);
 
   return (
@@ -49,7 +58,7 @@ export const MainScreen: FC<MainScreenProps> = (props) => {
             как играть
           </SecondaryButton>
 
-          <IconButton icon="settings" />
+          <IconButton icon="settings" onClick={showSettings} />
 
           <IconButton icon="exit" onClick={showExitConfirmation} />
         </div>
@@ -69,7 +78,7 @@ export const MainScreen: FC<MainScreenProps> = (props) => {
           </div>
         </LevelSlider>
 
-        <Separator className={styles.separator} />
+        <Hr className={styles.separator} />
 
         <div className={styles.boostersTitle}>Улучшения</div>
 
@@ -101,15 +110,26 @@ export const MainScreen: FC<MainScreenProps> = (props) => {
         </div>
       </div>
 
-      <HowToPlayGuide
-        isVisible={isHowToPlayGuideVisible}
-        onConfirm={hideHowToPlayGuide}
-      />
+      <Suspense>
+        <HowToPlayGuide
+          isVisible={isHowToPlayGuideVisible}
+          onConfirm={hideHowToPlayGuide}
+        />
 
-      <YachtSkinSelect
-        isVisible={isYachtSkinSelectVisible}
-        onClose={hideYachtSkinSelect}
-      />
+        <YachtSkinSelect
+          key={JSON.stringify(isYachtSkinSelectVisible)}
+          isVisible={isYachtSkinSelectVisible}
+          onClose={hideYachtSkinSelect}
+        />
+
+        <AppSettings
+          isVisible={isSettingsVisible}
+          onClose={hideSettings}
+          onRateButtonClick={showFeedback}
+        />
+
+        <Feedback isVisible={isFeedbackVisible} onClose={hideFeedback} />
+      </Suspense>
     </>
   );
 };

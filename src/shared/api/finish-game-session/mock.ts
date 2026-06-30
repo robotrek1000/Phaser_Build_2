@@ -1,4 +1,4 @@
-import type { FinishGameSessionResponse } from './types';
+import type { FinishGameSessionResponse } from './finish-game-session.types';
 
 export const SESSION_RESPONSE: FinishGameSessionResponse = {
   sessionResult: {

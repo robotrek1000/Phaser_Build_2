@@ -1,9 +1,9 @@
-import * as Phaser from 'phaser';
+import { Scene, Tweens, type Types } from 'phaser';
 
 export const tweenToPromise = (
-  scene: Phaser.Scene,
-  config: Phaser.Types.Tweens.TweenBuilderConfig
-): Promise<Phaser.Tweens.Tween> =>
+  scene: Scene,
+  config: Types.Tweens.TweenBuilderConfig
+): Promise<Tweens.Tween> =>
   new Promise((resolve) => {
     const tween = scene.tweens.add({
       ...config,

@@ -12,37 +12,45 @@
 }
 
 .distance-container {
+  margin-top: 3rem;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .distance-icon {
+  width: 4rem;
   position: absolute;
   top: 1.3rem;
   left: 50%;
-  transform: translate(-50%, -3.1rem);
+  transform: translate(-50%, -4.6rem);
 }
 
-.win-value {
+.text-art-container {
   position: relative;
-
-  &:before {
-    content: url("../../assets/laurel_left.png");
-    position: absolute;
-    left: 0.4rem;
-    width: 0.875rem;
-    transform: translateX(-1.9rem);
-  }
-
-  &:after {
-    content: url("../../assets/laurel_right.png");
-    position: absolute;
-    right: -0.1rem;
-    width: 0.875rem;
-    transform: translateX(1.4rem);
-  }
 }
 
-.app-name {
+.win-value-laurel {
+  position: absolute;
+  color: #FFFFFF;
+}
+
+.win-value-laurel-left {
+  bottom: 0.9rem;
+  right: calc(100% + 0.3rem);
+  width: 1.3125rem;
+  transform: rotate(-4deg);
+}
+
+.win-value-laurel-right {
+  bottom: 1.5rem;
+  left: calc(100% + 0.6rem);
+  width: 1.25rem;
+  transform: rotate(4deg);
+}
+
+.text {
   margin-top: 0.5rem;
   font-size: 1.375rem;
   text-align: center;

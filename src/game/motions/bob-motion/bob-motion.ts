@@ -1,9 +1,10 @@
-import * as Phaser from 'phaser';
+import { Math as PhaserMath } from 'phaser';
 
 import { BaseMotion } from '../base-motion';
 
 import type { BobMotionConfig } from './bob-motion.types';
 
+import { BaseSpawnedObject } from '@/game/entities/base-spawned-object';
 import { scaled } from '@/game/utils';
 
 export class BobMotion extends BaseMotion {
@@ -21,15 +22,19 @@ export class BobMotion extends BaseMotion {
     return this.prevYOffset / scaled(this.config.amplitude);
   }
 
-  constructor(sprite: Phaser.Physics.Arcade.Sprite, config: BobMotionConfig) {
+  constructor(sprite: BaseSpawnedObject, config: BobMotionConfig) {
     super(sprite);
 
     this.config = config;
-    this.phase = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    this.phase = PhaserMath.FloatBetween(0, Math.PI * 2);
   }
 
   update() {
-    if (!this.isEnabled || !this.sprite.active) {
+    if (
+      !this.isEnabled ||
+      !this.sprite.active ||
+      this.sprite.isMarkedToDelete
+    ) {
       return;
     }
 

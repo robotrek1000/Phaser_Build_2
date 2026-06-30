@@ -7,10 +7,10 @@ import type { ExitConfirmationProps } from './exit-confirmation.types';
 import { PrimaryButton } from '@/shared/components/primary-button';
 import { SailorModal } from '@/shared/components/sailor-modal';
 import { SecondaryButton } from '@/shared/components/secondary-button';
-import { Separator } from '@/shared/components/separator';
 
 export const ExitConfirmation: FC<ExitConfirmationProps> = ({
   title = 'Выйти из игры?',
+  subtitle,
   isVisible,
   onConfirm,
   onDecline,
@@ -34,7 +34,7 @@ export const ExitConfirmation: FC<ExitConfirmationProps> = ({
     >
       <div className={styles.title}>{title}</div>
 
-      <Separator className={styles.separator} />
+      {subtitle && <div className={styles.subtitle}>{subtitle}</div>}
     </SailorModal>
   );
 };

@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Math as PhaserMath } from 'phaser';
 
 import { BaseSpawnedObject } from '../base-spawned-object';
 
@@ -27,7 +27,7 @@ export class Reef extends BaseSpawnedObject {
 
     const spawnX = super.resolveSpawnX(item);
 
-    return Phaser.Math.Clamp(
+    return PhaserMath.Clamp(
       spawnX,
       playArea.left - REEF_PARTIAL_SPAWN_MAX_OFFSET_PX,
       playArea.right + REEF_PARTIAL_SPAWN_MAX_OFFSET_PX

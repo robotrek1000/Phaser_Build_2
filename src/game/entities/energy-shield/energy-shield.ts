@@ -1,4 +1,10 @@
-import * as Phaser from 'phaser';
+import {
+  Display,
+  GameObjects,
+  Math as PhaserMath,
+  Physics,
+  Scene,
+} from 'phaser';
 
 import {
   ENERGY_SHIELD_CONFIG,
@@ -6,11 +12,14 @@ import {
   ENERGY_SHIELD_SHOW_ANIMATION,
 } from './energy-shield.config';
 
+import type { GameplayEvent } from '@/game/game.types';
+
+import { GAME_EVENT_GAMEPLAY_EVENT } from '@/game';
 import { scaled, tweenToPromise } from '@/game/utils';
 
 export class EnergyShield {
-  private readonly scene: Phaser.Scene;
-  private graphics?: Phaser.GameObjects.Graphics;
+  private readonly scene: Scene;
+  private graphics?: GameObjects.Graphics;
 
   private isShowAnimationActive = false;
 
@@ -21,10 +30,10 @@ export class EnergyShield {
   }
 
   private get body() {
-    return this.graphics?.body as Phaser.Physics.Arcade.Body;
+    return this.graphics?.body as Physics.Arcade.Body;
   }
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Scene) {
     this.scene = scene;
   }
 
@@ -55,6 +64,8 @@ export class EnergyShield {
       return;
     }
 
+    this.playSound('activateEnergyShield');
+
     this.isShowAnimationActive = true;
 
     this.graphics.setVisible(true);
@@ -75,6 +86,8 @@ export class EnergyShield {
     if (!this.graphics || this.isHideAnimationActive) {
       return Promise.resolve();
     }
+
+    this.playSound('deactivateEnergyShield');
 
     this.body.enable = false;
 
@@ -120,22 +133,22 @@ export class EnergyShield {
     const thickness = Math.max(1, scaled(cfg.thicknessPx));
     const steps = Math.max(4, scaled(cfg.gradientSteps));
 
-    const outerColor = Phaser.Display.Color.ValueToColor(cfg.outerColor);
-    const innerColor = Phaser.Display.Color.ValueToColor(cfg.innerColor);
+    const outerColor = Display.Color.ValueToColor(cfg.outerColor);
+    const innerColor = Display.Color.ValueToColor(cfg.innerColor);
 
     this.graphics.clear();
 
     for (let i = 0; i < steps; i += 1) {
       const t = i / (steps - 1);
-      const mixed = Phaser.Display.Color.Interpolate.ColorWithColor(
+      const mixed = Display.Color.Interpolate.ColorWithColor(
         outerColor,
         innerColor,
         100,
         Math.round(t * 100)
       );
 
-      const color = Phaser.Display.Color.GetColor(mixed.r, mixed.g, mixed.b);
-      const alpha = Phaser.Math.Linear(cfg.outerAlpha, cfg.innerAlpha, t);
+      const color = Display.Color.GetColor(mixed.r, mixed.g, mixed.b);
+      const alpha = PhaserMath.Linear(cfg.outerAlpha, cfg.innerAlpha, t);
       const ringRadius = radius - t * thickness;
 
       this.graphics.lineStyle(Math.max(1, thickness / steps), color, alpha);
@@ -147,5 +160,9 @@ export class EnergyShield {
       -scaled(ENERGY_SHIELD_CONFIG.radiusPx),
       -scaled(ENERGY_SHIELD_CONFIG.radiusPx)
     );
+  }
+
+  private playSound(gameplayEvent: GameplayEvent) {
+    this.scene.game.events.emit(GAME_EVENT_GAMEPLAY_EVENT, gameplayEvent);
   }
 }

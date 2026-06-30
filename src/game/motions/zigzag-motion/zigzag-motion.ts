@@ -1,16 +1,15 @@
-import Phaser from 'phaser';
+import { Utils } from 'phaser';
 
 import { BaseMotion } from '../base-motion';
 
 import type { Direction, ZigzagMotionConfig } from './zigzag-motion.types';
 
+import { BaseSpawnedObject } from '@/game/entities/base-spawned-object';
+
 export class ZigzagMotion extends BaseMotion {
   private config: ZigzagMotionConfig;
 
-  constructor(
-    sprite: Phaser.Physics.Arcade.Sprite,
-    config: ZigzagMotionConfig
-  ) {
+  constructor(sprite: BaseSpawnedObject, config: ZigzagMotionConfig) {
     super(sprite);
 
     this.config = config;
@@ -23,11 +22,15 @@ export class ZigzagMotion extends BaseMotion {
 
     super.start();
 
-    this.push(Phaser.Utils.Array.GetRandom<Direction>([1, -1]));
+    this.push(Utils.Array.GetRandom<Direction>([1, -1]));
   }
 
   update() {
-    if (!this.isEnabled || !this.sprite.active) {
+    if (
+      !this.isEnabled ||
+      !this.sprite.active ||
+      this.sprite.isMarkedToDelete
+    ) {
       return;
     }
 

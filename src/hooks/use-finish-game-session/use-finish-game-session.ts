@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { useGame } from '@/contexts/game-context';
 import { CLIENT_PROFILE_QUERY_KEY } from '@/hooks/use-client-profile';
-import { finishGameSession as finishGameSessionApiFn } from '@/shared/api/finish-game-session';
+import { finishGameSession as finishGameSessionApiFn } from '@/shared/api';
 
 export const useFinishGameSession = () => {
   const game = useGame();

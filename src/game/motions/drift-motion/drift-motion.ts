@@ -1,15 +1,17 @@
-import * as Phaser from 'phaser';
+import { Math as PhaserMath, Utils } from 'phaser';
 
 import { BaseMotion } from '../base-motion';
 
 import type { Direction, DriftMotionConfig } from './drift-motion.types';
+
+import { BaseSpawnedObject } from '@/game/entities/base-spawned-object';
 
 export class DriftMotion extends BaseMotion {
   private config: DriftMotionConfig;
   private initialX: number;
   private direction: Direction = 1;
 
-  constructor(sprite: Phaser.Physics.Arcade.Sprite, config: DriftMotionConfig) {
+  constructor(sprite: BaseSpawnedObject, config: DriftMotionConfig) {
     super(sprite);
 
     this.config = config;
@@ -25,13 +27,18 @@ export class DriftMotion extends BaseMotion {
 
     this.initialX = this.sprite.x;
 
-    this.direction = Phaser.Utils.Array.GetRandom<Direction>([1, -1]);
+    this.direction = Utils.Array.GetRandom<Direction>([1, -1]);
 
     this.applyPendulumVelocity();
   }
 
   update() {
-    if (!this.isEnabled || !this.sprite.active || !this.sprite.body) {
+    if (
+      !this.isEnabled ||
+      !this.sprite.active ||
+      this.sprite.isMarkedToDelete ||
+      !this.sprite.body
+    ) {
       return;
     }
 
@@ -62,13 +69,13 @@ export class DriftMotion extends BaseMotion {
     }
 
     const distanceFromCenter = Math.abs(this.sprite.x - this.initialX);
-    const normalizedDistance = Phaser.Math.Clamp(
+    const normalizedDistance = PhaserMath.Clamp(
       distanceFromCenter / halfAmplitude,
       0,
       1
     );
     const pendulumFactor = Math.sqrt(1 - normalizedDistance ** 2);
-    const speed = Phaser.Math.Linear(
+    const speed = PhaserMath.Linear(
       this.config.minVelocityX,
       this.config.maxVelocityX,
       pendulumFactor

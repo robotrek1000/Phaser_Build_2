@@ -15,13 +15,3 @@ export interface BaseSpawnedObjectConfig {
   damping?: boolean;
   drag?: number;
 }
-
-export interface BaseSpawnedObjectShadowConfig {
-  x?: number;
-  y?: number;
-  decay?: number;
-  power?: number;
-  color?: number;
-  samples?: number;
-  intensity?: number;
-}

@@ -6,6 +6,7 @@ import type { ClientLevelNumber } from '@/shared/types';
 import { useGame } from '@/contexts/game-context';
 import { useClientProfile } from '@/hooks/use-client-profile';
 import { useGameSettings } from '@/hooks/use-game-settings';
+import { useUiInteractionSound } from '@/hooks/use-ui-interaction-sound';
 
 export const useMainScreen = ({ onContentReady }: MainScreenProps) => {
   const game = useGame();
@@ -20,14 +21,16 @@ export const useMainScreen = ({ onContentReady }: MainScreenProps) => {
 
   const levels = data?.levels;
 
-  const settings = data?.settings;
-
-  const [isHowToPlayGuideVisible, setIsHowToPlayGuideVisible] = useState(
-    !settings?.tutorialComplete
-  );
+  const [isHowToPlayGuideVisible, setIsHowToPlayGuideVisible] = useState(false);
 
   const [isYachtSkinSelectVisible, setIsYachtSkinSelectVisible] =
     useState(false);
+
+  const [isSettingsVisible, setIsSettingsVisible] = useState(false);
+
+  const [isFeedbackVisible, setIsFeedbackVisible] = useState(false);
+
+  const { playInteractionSound } = useUiInteractionSound();
 
   const showHowToPlayGuide = () => {
     setIsHowToPlayGuideVisible(true);
@@ -39,10 +42,28 @@ export const useMainScreen = ({ onContentReady }: MainScreenProps) => {
 
   const showYachtSkinSelect = () => {
     setIsYachtSkinSelectVisible(true);
+    playInteractionSound();
   };
 
   const hideYachtSkinSelect = () => {
     setIsYachtSkinSelectVisible(false);
+  };
+
+  const showSettings = () => {
+    setIsSettingsVisible(true);
+  };
+
+  const hideSettings = () => {
+    setIsSettingsVisible(false);
+  };
+
+  const showFeedback = () => {
+    setIsSettingsVisible(false);
+    setIsFeedbackVisible(true);
+  };
+
+  const hideFeedback = () => {
+    setIsFeedbackVisible(false);
   };
 
   const handleLevelChange = (level: ClientLevelNumber) => {
@@ -60,10 +81,16 @@ export const useMainScreen = ({ onContentReady }: MainScreenProps) => {
     )?.isAvailable,
     isHowToPlayGuideVisible,
     isYachtSkinSelectVisible,
+    isSettingsVisible,
+    isFeedbackVisible,
     showHowToPlayGuide,
     hideHowToPlayGuide,
     showYachtSkinSelect,
     hideYachtSkinSelect,
     handleLevelChange,
+    showSettings,
+    hideSettings,
+    showFeedback,
+    hideFeedback,
   };
 };

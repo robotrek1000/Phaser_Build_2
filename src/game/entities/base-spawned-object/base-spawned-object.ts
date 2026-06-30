@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { GameObjects, Math as PhaserMath, Physics } from 'phaser';
 
 import {
   CLEANUP_Y_EXTRA,
@@ -13,10 +13,16 @@ import { GAME_SCENE_OBJECT } from '@/game/scenes/game-scene';
 import { GameState } from '@/game/system/game-state';
 import { scaled } from '@/game/utils';
 
-export abstract class BaseSpawnedObject extends Phaser.Physics.Arcade.Sprite {
+export abstract class BaseSpawnedObject extends Physics.Arcade.Sprite {
+  private isDespawning = false;
+
   protected abstract config: BaseSpawnedObjectConfig;
 
   protected gameState?: GameState;
+
+  get isMarkedToDelete() {
+    return this.isDespawning;
+  }
 
   get playArea() {
     const { width } = this.scene.scale;
@@ -45,7 +51,7 @@ export abstract class BaseSpawnedObject extends Phaser.Physics.Arcade.Sprite {
       : this.config.height[this.gameState?.level ?? 1];
   }
 
-  protected get player(): Phaser.Physics.Arcade.Image {
+  protected get player(): Physics.Arcade.Image {
     return this.scene.data.get(GAME_SCENE_OBJECT.PLAYER);
   }
 
@@ -58,7 +64,7 @@ export abstract class BaseSpawnedObject extends Phaser.Physics.Arcade.Sprite {
 
     super.preUpdate(time, delta);
 
-    if (!this.active) {
+    if (!this.active || this.isMarkedToDelete) {
       return;
     }
 
@@ -67,8 +73,9 @@ export abstract class BaseSpawnedObject extends Phaser.Physics.Arcade.Sprite {
 
   spawn(config: SpawnObjectConfig, gameState?: GameState) {
     this.gameState = gameState;
+    this.isDespawning = false;
 
-    const body = this.body as Phaser.Physics.Arcade.Body;
+    const body = this.body as Physics.Arcade.Body;
 
     this.setActive(true)
       .setVisible(true)
@@ -102,17 +109,19 @@ export abstract class BaseSpawnedObject extends Phaser.Physics.Arcade.Sprite {
   }
 
   async despawn(withAnimation = true) {
-    if (!this.active) {
+    if (!this.active || this.isMarkedToDelete) {
       return;
     }
 
-    this.setActive(false);
+    this.isDespawning = true;
 
     if (withAnimation) {
       await this.playDespawnAnimation();
     }
 
-    const body = this.body as Phaser.Physics.Arcade.Body;
+    this.setActive(false);
+
+    const body = this.body as Physics.Arcade.Body;
 
     body.stop();
 
@@ -123,9 +132,7 @@ export abstract class BaseSpawnedObject extends Phaser.Physics.Arcade.Sprite {
     this.gameState = undefined;
   }
 
-  async handleEnergyShieldCollision(
-    _energyShield: Phaser.GameObjects.Graphics
-  ) {}
+  async handleEnergyShieldCollision(_energyShield: GameObjects.Graphics) {}
 
   protected updateVelocityY() {
     const velocityY =
@@ -142,10 +149,10 @@ export abstract class BaseSpawnedObject extends Phaser.Physics.Arcade.Sprite {
     const playArea = this.playArea;
     const range = playArea.right - playArea.left;
     const ratio = config.xRatio ?? 0.5;
-    const baseX = playArea.left + range * Phaser.Math.Clamp(ratio, 0, 1);
+    const baseX = playArea.left + range * PhaserMath.Clamp(ratio, 0, 1);
     const x = baseX + (config.xOffsetPx ?? 0);
 
-    return Phaser.Math.Clamp(x, playArea.left + 8, playArea.right - 8);
+    return PhaserMath.Clamp(x, playArea.left + 8, playArea.right - 8);
   }
 
   protected resolveSpawnY(_config: SpawnObjectConfig) {

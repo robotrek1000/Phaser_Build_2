@@ -1,0 +1,26 @@
+.container {
+  overflow: hidden;
+}
+
+.track {
+  display: flex;
+  touch-action: pan-y;
+  pointer-events: auto;
+}
+
+.active-track {
+  pointer-events: auto;
+}
+
+.inactive-track {
+  pointer-events: none;
+}
+
+.slide {
+  flex-shrink: 0;
+  width: 100%;
+}
+
+.slide * {
+  pointer-events: none;
+}

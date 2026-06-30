@@ -9,6 +9,7 @@ import {
 import type { BonusWheelProps } from './bonus-wheel.types.ts';
 import type { GameStateUpdatePayload } from '@/game/game.types';
 
+import { useGame } from '@/contexts/game-context';
 import {
   FIXED_BONUSES,
   type SkillWheelBonus,
@@ -18,7 +19,7 @@ import {
 
 const pickByPointerPosition = <T extends { size: number }>(
   items: T[],
-  pointer: HTMLImageElement
+  pointer: SVGSVGElement
 ): T | undefined => {
   if (!pointer.parentElement) {
     return;
@@ -75,7 +76,11 @@ export const useBonusWheel = ({
 }: BonusWheelProps) => {
   const [bonus, setBonus] = useState<SkillWheelBonus>();
 
-  const pointerElementRef = useRef<HTMLImageElement>(null);
+  const pointerElementRef = useRef<SVGSVGElement>(null);
+
+  const game = useGame();
+
+  const soundManager = game?.soundManager;
 
   const handleStopButtonClick = () => {
     const pointer = pointerElementRef.current;
@@ -89,6 +94,8 @@ export const useBonusWheel = ({
     const bonus = pickByPointerPosition(BONUSES_CONFIG, pointer)?.type;
 
     if (bonus) {
+      soundManager?.playSound('chords3');
+
       setTimeout(() => {
         setBonus(bonus);
       }, 300);

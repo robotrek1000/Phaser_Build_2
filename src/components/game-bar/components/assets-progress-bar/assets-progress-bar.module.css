@@ -11,7 +11,7 @@
   align-items: center;
   justify-content: center;
 
-  background-image: url("../../../../assets/briefcase-white-shadow.png");
+  background-image: url("../../../../assets/briefcase-white-shadow.webp");
   background-repeat: no-repeat;
   background-size: cover;
 }
@@ -35,6 +35,7 @@
 }
 
 .progress-bar {
+  margin-top: 0.4rem;
   box-sizing: border-box;
   overflow: hidden;
   border-radius: 62rem;

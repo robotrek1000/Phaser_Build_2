@@ -1,3 +1,5 @@
+import { Tweens } from 'phaser';
+
 import { BaseSpawnedObject } from '../base-spawned-object';
 
 import {
@@ -14,7 +16,7 @@ import { applyRectHitbox } from '@/game/utils';
 export class Whirlpool extends BaseSpawnedObject {
   protected config = WHIRLPOOL_CONFIG;
 
-  private pulseTween?: Phaser.Tweens.Tween;
+  private pulseTween?: Tweens.Tween;
 
   spawn(config: SpawnObjectConfig, gameState?: GameState) {
     super.spawn(config, gameState);

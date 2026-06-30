@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { GameObjects, Physics } from 'phaser';
 
 export interface FollowShadowScaleMotionConfig {
   yOffset: number;
@@ -7,11 +7,8 @@ export interface FollowShadowScaleMotionConfig {
 }
 
 export interface FollowShadowScaleMotionArgs {
-  target: Phaser.Physics.Arcade.Sprite;
-  shadow?:
-    | Phaser.GameObjects.Image
-    | Phaser.GameObjects.Ellipse
-    | Phaser.GameObjects.Container;
+  target: Physics.Arcade.Sprite;
+  shadow?: GameObjects.Image | GameObjects.Ellipse | GameObjects.Container;
   config: FollowShadowScaleMotionConfig;
   targetYOffset?: number;
   targetYOffsetRatio?: number;

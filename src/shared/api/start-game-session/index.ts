@@ -1,2 +1,2 @@
 export * from './start-game-session';
-export * from './types';
+export * from './start-game-session.types';

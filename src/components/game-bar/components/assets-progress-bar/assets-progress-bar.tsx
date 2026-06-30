@@ -5,7 +5,7 @@ import { useAssetsProgressBar } from './use-assets-progress-bar';
 
 import type { AssetsProgressBarProps } from '@/components/game-bar/components/assets-progress-bar/assets-progress-bar.types';
 
-import briefcase from '@/assets/briefcase.png';
+import briefcase from '@/assets/briefcase.webp';
 import { cn } from '@/utils';
 
 export const AssetsProgressBar = memo<AssetsProgressBarProps>(

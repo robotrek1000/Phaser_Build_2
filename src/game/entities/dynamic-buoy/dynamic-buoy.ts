@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { GameObjects, Time, Tweens, Utils } from 'phaser';
 
 import { BaseSpawnedObject, SPAWN_OBJECT_DATA } from '../base-spawned-object';
 
@@ -36,8 +36,8 @@ export class DynamicBuoy extends BaseSpawnedObject {
   protected driftMotion?: DriftMotion;
   private attractMotion?: AttractMotion;
 
-  private swayTween?: Phaser.Tweens.Tween;
-  private stateTimer?: Phaser.Time.TimerEvent;
+  private swayTween?: Tweens.Tween;
+  private stateTimer?: Time.TimerEvent;
   private isEnergyShieldRepulsionAnimationActive = false;
 
   private gameplayState: DynamicBuoyGameplayState = 'up';
@@ -57,9 +57,7 @@ export class DynamicBuoy extends BaseSpawnedObject {
       config: ATTRACT_MOTION_CONFIG,
     });
 
-    this.gameplayState = Phaser.Utils.Array.GetRandom(
-      DYNAMIC_BUOY_INITIAL_STATES
-    );
+    this.gameplayState = Utils.Array.GetRandom(DYNAMIC_BUOY_INITIAL_STATES);
     this.blinkSourceState = this.gameplayState;
 
     this.applyVisualState(this.gameplayState);
@@ -71,7 +69,7 @@ export class DynamicBuoy extends BaseSpawnedObject {
   preUpdate(time: number, delta: number) {
     super.preUpdate(time, delta);
 
-    if (!this.active) {
+    if (!this.active || this.isMarkedToDelete) {
       return;
     }
 
@@ -105,7 +103,7 @@ export class DynamicBuoy extends BaseSpawnedObject {
   }
 
   override async handleEnergyShieldCollision(
-    energyShield: Phaser.GameObjects.Graphics
+    energyShield: GameObjects.Graphics
   ) {
     if (this.isEnergyShieldRepulsionAnimationActive) {
       return;
@@ -186,7 +184,7 @@ export class DynamicBuoy extends BaseSpawnedObject {
     let flashesLeft = BLINK_CONFIG.flashCount;
 
     const showNo = () => {
-      if (!this.active) {
+      if (!this.active || this.isMarkedToDelete) {
         return;
       }
 
@@ -199,7 +197,7 @@ export class DynamicBuoy extends BaseSpawnedObject {
     };
 
     const showSource = () => {
-      if (!this.active) {
+      if (!this.active || this.isMarkedToDelete) {
         return;
       }
 
@@ -221,7 +219,9 @@ export class DynamicBuoy extends BaseSpawnedObject {
     };
 
     const finalize = () => {
-      if (!this.active) return;
+      if (!this.active || this.isMarkedToDelete) {
+        return;
+      }
 
       this.gameplayState = targetState;
       this.blinkSourceState = targetState;

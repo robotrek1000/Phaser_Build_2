@@ -11,8 +11,12 @@
   animation: fadeIn 0.1s ease-in forwards;
 }
 
-.app-name {
+.app-name-container {
   position: relative;
+}
+
+.app-name {
+  display: inline-block;
   color: #004D74;
   font-family: "Jaro Cyrillic", sans-serif;
   font-size: 6.25rem;
@@ -21,24 +25,23 @@
   -webkit-text-stroke-width: 0.2rem;
   -webkit-text-stroke-color: #FFFFFF;
   paint-order: stroke fill;
+}
 
-  &:before {
-    content: url("../../assets/laurel_left.png");
-    position: absolute;
-    left: 0;
-    bottom: -0.6rem;
-    width: 0.875rem;
-    transform: translateX(-1.9rem);
-  }
+.app-name-laurel {
+  position: absolute;
+  color: #FFFFFF;
+}
 
-  &:after {
-    content: url("../../assets/laurel_right.png");
-    position: absolute;
-    right: 0.3rem;
-    bottom: -0.6rem;
-    width: 0.875rem;
-    transform: translateX(1.4rem);
-  }
+.app-name-laurel-left {
+  bottom: 0;
+  right: 100%;
+  width: 2.8125rem
+}
+
+.app-name-laurel-right {
+  bottom: 0.9rem;
+  left: 100%;
+  width: 2.4375rem
 }
 
 @supports (paint-order: stroke) {

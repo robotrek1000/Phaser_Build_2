@@ -5,7 +5,7 @@ import { useCoinsBalance } from './use-coins-balance';
 
 import type { CoinsBalanceProps } from './coins-balance.types';
 
-import coin from '@/assets/coin.png';
+import coin from '@/assets/coin.webp';
 import { cn } from '@/utils';
 
 export const CoinsBalance: FC<CoinsBalanceProps> = ({ className }) => {

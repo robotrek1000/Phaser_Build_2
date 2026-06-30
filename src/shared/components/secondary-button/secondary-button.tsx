@@ -2,23 +2,21 @@ import type { FC } from 'react';
 
 import { SIZE } from './secondary-button.constants';
 import styles from './secondary-button.module.css';
+import { useSecondaryButton } from './use-secondary-button';
 
 import type { SecondaryButtonProps } from './secondary-button.types';
 
 import { cn } from '@/utils';
 
-export const SecondaryButton: FC<SecondaryButtonProps> = ({
-  className,
-  size = 'm',
-  children,
-  onClick,
-}) => {
+export const SecondaryButton: FC<SecondaryButtonProps> = (props) => {
+  const { size, handleClick } = useSecondaryButton(props);
+
   return (
     <button
-      className={cn(className, styles.button, SIZE[size])}
-      onClick={() => onClick?.()}
+      className={cn(props.className, styles.button, SIZE[size])}
+      onClick={handleClick}
     >
-      {children}
+      {props.children}
     </button>
   );
 };

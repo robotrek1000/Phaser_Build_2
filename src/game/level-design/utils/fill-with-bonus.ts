@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Math as PhaserMath } from 'phaser';
 
 import { pickUnfilledIntervals } from './pick-unfilled-intervals';
 
@@ -18,8 +18,8 @@ export const fillWithBonus = (
   }).map(([start, end]) => {
     return {
       type,
-      xRatio: Phaser.Math.FloatBetween(0.2, 0.8),
-      spawnDistance: Phaser.Math.FloatBetween(start, end),
+      xRatio: PhaserMath.FloatBetween(0.2, 0.8),
+      spawnDistance: PhaserMath.FloatBetween(start, end),
     };
   });
 };

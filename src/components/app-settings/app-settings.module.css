@@ -1,0 +1,44 @@
+.title {
+  font-family: "Jaro Cyrillic", sans-serif;
+  color: #FFFFFF;
+  font-size: 2rem;
+  text-align: center;
+}
+
+.controls {
+  margin: 3.25rem 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: stretch;
+  gap: 0.5rem;
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border-radius: 6.1875rem;
+  background: rgba(255, 255, 255, 0.10);
+
+  padding: 1rem 1rem 1rem 1.5rem;
+}
+
+.control-label {
+  font-family: "Jaro Cyrillic", sans-serif;
+  font-size: 1rem;
+  color: #FFFFFF;
+
+  display: flex;
+  align-items: center;
+  gap: 0.5625rem;
+}
+
+.control-icon {
+  width: 1.5rem;
+}
+
+.rate-btn {
+  margin-top: 2.4375rem;
+  width: 100%;
+}

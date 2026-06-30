@@ -1,35 +1,43 @@
-import { memo, lazy, Suspense } from 'react';
+import { lazy, memo, Suspense } from 'react';
 
 import { useAppContent } from './use-app-content';
 
 import type { AppContentProps } from './app-content.types';
 
-import { AppError } from '@/components/app-error';
 import { AppLoading } from '@/components/app-loading';
-import { BonusWheel } from '@/components/bonus-wheel';
-import { GameBar } from '@/components/game-bar';
-import { GameResults } from '@/components/game-results';
 
 const MainScreen = lazy(() => import('@/components/main-screen'));
+const GameBar = lazy(() => import('@/components/game-bar'));
+const BonusWheel = lazy(() => import('@/components/bonus-wheel'));
+const GameResults = lazy(() => import('@/components/game-results'));
+const GameOnboarding = lazy(() => import('@/components/game-onboarding'));
+const GameStartAnimation = lazy(
+  () => import('@/shared/components/game-start-animation')
+);
+const ScreenIllumination = lazy(
+  () => import('@/shared/components/screen-illumination')
+);
 
 export const AppContent = memo<AppContentProps>(({ onContentReady }) => {
   const {
     state,
     isGamePending,
+    isGameOnboardingVisible,
     loadProgress,
     gameProgress,
     gameResults,
-    error,
+    isGameStartAnimationVisible,
+    isGameStartAnimationPaused,
+    screenIllumination,
     startGame,
     goToMain,
     playAgain,
     leaveGame,
     collectBonus,
+    closeGameOnboarding,
+    hideGameStartAnimation,
+    hideScreenIllumination,
   } = useAppContent();
-
-  if (error) {
-    return <AppError />;
-  }
 
   switch (state) {
     case 'main':
@@ -64,6 +72,25 @@ export const AppContent = memo<AppContentProps>(({ onContentReady }) => {
             onGoToMain={goToMain}
             onPlayAgain={playAgain}
           />
+
+          <GameOnboarding
+            isVisible={isGameOnboardingVisible}
+            onClose={closeGameOnboarding}
+          />
+
+          {isGameStartAnimationVisible && (
+            <GameStartAnimation
+              isPaused={isGameStartAnimationPaused}
+              onAnimationEnd={hideGameStartAnimation}
+            />
+          )}
+
+          {screenIllumination && (
+            <ScreenIllumination
+              illumination={screenIllumination}
+              onAnimationEnd={hideScreenIllumination}
+            />
+          )}
         </>
       );
   }

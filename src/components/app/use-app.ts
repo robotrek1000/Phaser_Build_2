@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import type { AppErrorContextProps } from '@/contexts/app-error-context';
 import type { ExitConfirmationContextProps } from '@/contexts/exit-confirmation-context';
 
 import { Game } from '@/game';
+
+const defaultAppErrorRefreshHandler = () => {
+  window.location.reload();
+};
 
 export const useApp = () => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -12,12 +17,18 @@ export const useApp = () => {
   const [isExitConfirmationVisible, setIsExitConfirmationVisible] =
     useState(false);
 
+  const [isAppErrorVisible, setIsAppErrorVisible] = useState(false);
+
+  const [appErrorRefreshHandler, setAppErrorRefreshHandler] = useState<
+    () => void
+  >(() => defaultAppErrorRefreshHandler);
+
   const handleExitConfirmationShow = useCallback(() => {
-    setIsExitConfirmationVisible(true);
+    setIsExitConfirmationVisible(() => true);
   }, []);
 
   const handleExitConfirmationHide = useCallback(() => {
-    setIsExitConfirmationVisible(false);
+    setIsExitConfirmationVisible(() => false);
   }, []);
 
   const exitConfirmationContextValue =
@@ -32,6 +43,32 @@ export const useApp = () => {
       handleExitConfirmationShow,
       isExitConfirmationVisible,
     ]);
+
+  const handleAppErrorShow = useCallback(
+    (callback = defaultAppErrorRefreshHandler) => {
+      setIsAppErrorVisible(() => true);
+      setAppErrorRefreshHandler(() => callback);
+    },
+    []
+  );
+
+  const handleAppErrorHide = useCallback(() => {
+    setIsAppErrorVisible(() => false);
+  }, []);
+
+  const appErrorContextValue = useMemo<AppErrorContextProps>(() => {
+    return {
+      isVisible: isAppErrorVisible,
+      refresh: appErrorRefreshHandler,
+      show: handleAppErrorShow,
+      hide: handleAppErrorHide,
+    };
+  }, [
+    appErrorRefreshHandler,
+    handleAppErrorHide,
+    handleAppErrorShow,
+    isAppErrorVisible,
+  ]);
 
   const hideSplashScreen = useCallback(() => {
     const gameCanvas = containerRef.current?.querySelector('canvas');
@@ -58,6 +95,7 @@ export const useApp = () => {
     window.addEventListener('orientationchange', refreshGameView);
     window.visualViewport?.addEventListener('resize', refreshGameView);
     window.visualViewport?.addEventListener('scroll', refreshGameView);
+    window.addEventListener('error', () => handleAppErrorShow());
 
     setGame(game);
 
@@ -71,11 +109,12 @@ export const useApp = () => {
       window.visualViewport?.removeEventListener('resize', refreshGameView);
       window.visualViewport?.removeEventListener('scroll', refreshGameView);
     };
-  }, []);
+  }, [handleAppErrorShow]);
 
   return {
     containerRef,
     game,
+    appErrorContextValue,
     exitConfirmationContextValue,
     hideSplashScreen,
   };

@@ -4,7 +4,7 @@ export const CLIENT_PROFILE_RESPONSE: ClientProfile = {
   settings: {
     soundEnabled: true,
     musicEnabled: true,
-    tutorialComplete: true,
+    tutorialComplete: false,
   },
   yachts: [
     {

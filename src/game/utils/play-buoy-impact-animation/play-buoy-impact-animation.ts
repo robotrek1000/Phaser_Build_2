@@ -1,12 +1,10 @@
-import * as Phaser from 'phaser';
+import { Physics } from 'phaser';
 
 import { tweenToPromise } from '../tween-to-promise';
 
 import { PLAY_BUOY_IMPACT_ANIMATION_CONFIG } from './play-buoy-impact-animation.config';
 
-export const playBuoyImpactAnimation = async (
-  buoy: Phaser.Physics.Arcade.Sprite
-) => {
+export const playBuoyImpactAnimation = async (buoy: Physics.Arcade.Sprite) => {
   const startScaleX = buoy.scaleX;
   const startScaleY = buoy.scaleY;
 

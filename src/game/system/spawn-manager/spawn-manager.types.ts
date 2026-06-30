@@ -1,3 +1,5 @@
+import { Scene, Textures } from 'phaser';
+
 import type { SpawnObjectType } from '@/game/game.types';
 
 import { BaseSpawnedObject } from '@/game/entities/base-spawned-object';
@@ -5,10 +7,10 @@ import { BaseSpawnedObject } from '@/game/entities/base-spawned-object';
 export type BaseSpawnedObjectChild<
   T extends BaseSpawnedObject = BaseSpawnedObject,
 > = new (
-  scene: Phaser.Scene,
+  scene: Scene,
   x: number,
   y: number,
-  texture: string | Phaser.Textures.Texture,
+  texture: string | Textures.Texture,
   frame?: string | number
 ) => T;
 

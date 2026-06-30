@@ -8,7 +8,7 @@ export const ENERGY_CONFIG = {
 
 export const ASSETS_CONFIG = {
   profitPerAsset: 0.05,
-  lossPerAsset: 0.2,
+  lossPerAsset: 0.25,
 } as const;
 
 export const INVULNERABILITY_TIMER_MILLISECONDS = 1800;

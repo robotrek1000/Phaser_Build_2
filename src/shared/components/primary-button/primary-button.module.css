@@ -2,6 +2,8 @@
   pointer-events: auto;
 
   box-sizing: border-box;
+  min-height: 3.6rem;
+  padding: 1rem 1.5rem;
 
   border-radius: 62rem;
   border-top: 0.125rem solid #FFFAC7;
@@ -25,8 +27,6 @@
           rgba(255, 255, 255, 0) 100%
   ),
   linear-gradient(90deg, #FFE817 0%, #F3FF17 100%);
-
-  padding: 1rem 1.5rem;
 
   color: #016AC6;
   text-transform: uppercase;

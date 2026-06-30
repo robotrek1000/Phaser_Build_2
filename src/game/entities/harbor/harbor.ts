@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { Math as PhaserMath, Physics } from 'phaser';
 
 import { BaseSpawnedObject } from '../base-spawned-object';
 
@@ -19,7 +19,7 @@ export class Harbor extends BaseSpawnedObject {
   spawn(config: SpawnObjectConfig, gameState?: GameState) {
     super.spawn(config, gameState);
 
-    const body = this.body as Phaser.Physics.Arcade.Body;
+    const body = this.body as Physics.Arcade.Body;
 
     body.setSize(this.scene.scale.width * 2, 1, false);
     body.setOffset(-this.x, this.height + scaled(HARBOR_BODY_Y_OFFSET_PX));
@@ -29,7 +29,7 @@ export class Harbor extends BaseSpawnedObject {
     const playArea = this.playArea;
     const spawnX = super.resolveSpawnX(config);
 
-    return Phaser.Math.Clamp(
+    return PhaserMath.Clamp(
       spawnX,
       playArea.left - HARBOR_PARTIAL_SPAWN_MAX_OFFSET_PX,
       playArea.right + HARBOR_PARTIAL_SPAWN_MAX_OFFSET_PX

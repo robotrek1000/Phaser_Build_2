@@ -6,10 +6,10 @@ import type { BoostersProps } from './boosters.types';
 
 import { BOOSTERS_CONFIG } from '@/components/main-screen/components/boosters/boosters.constants';
 import { useBoosters } from '@/components/main-screen/components/boosters/use-boosters';
+import { Hr } from '@/shared/components/hr';
 import { CheckmarkIcon, LockIcon } from '@/shared/components/icons';
 import { ModalWindow } from '@/shared/components/modal-window';
 import { PrimaryButton } from '@/shared/components/primary-button';
-import { Separator } from '@/shared/components/separator';
 import { TextArt } from '@/shared/components/text-art';
 import { cn } from '@/utils';
 
@@ -37,7 +37,7 @@ export const Boosters: FC<BoostersProps> = ({ className }) => {
             <div className={styles.boostersListItemImgContainer}>
               <img
                 className={styles.boostersListItemImg}
-                src={BOOSTERS_CONFIG[type].img}
+                src={BOOSTERS_CONFIG[type].previewImg}
                 alt=""
               />
 
@@ -73,7 +73,7 @@ export const Boosters: FC<BoostersProps> = ({ className }) => {
             <div className={styles.boosterDetailsImgContainer}>
               <img
                 className={styles.boosterDetailsImg}
-                src={BOOSTERS_CONFIG[selectedBooster.type].img}
+                src={BOOSTERS_CONFIG[selectedBooster.type].fullImg}
                 alt=""
               />
             </div>
@@ -87,7 +87,7 @@ export const Boosters: FC<BoostersProps> = ({ className }) => {
               {selectedBooster.description}
             </div>
 
-            <Separator className={styles.boosterDetailsSeparator} />
+            <Hr className={styles.boosterDetailsSeparator} />
 
             <div className={styles.boosterDetailsExtraText}>
               {selectedBooster.isReceived && (

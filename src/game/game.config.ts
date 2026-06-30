@@ -1,4 +1,4 @@
-import * as Phaser from 'phaser';
+import { AUTO, Scale, type Types } from 'phaser';
 
 import type { GameEvent } from './game.types';
 import type { SkillWheelFixedBonuses } from '@/game/system/game-state';
@@ -8,8 +8,8 @@ import { GameScene } from '@/game/scenes/game-scene';
 import { scaled } from '@/game/utils';
 import { DESIGN_HEIGHT, DESIGN_WIDTH } from '@/shared/constants';
 
-export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
-  type: Phaser.AUTO,
+export const GAME_CONFIG: Types.Core.GameConfig = {
+  type: AUTO,
   width: scaled(DESIGN_WIDTH),
   height: scaled(DESIGN_HEIGHT),
   backgroundColor: '#0a4261',
@@ -23,8 +23,8 @@ export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
   },
 
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    mode: Scale.FIT,
+    autoCenter: Scale.CENTER_BOTH,
     width: scaled(DESIGN_WIDTH),
     height: scaled(DESIGN_HEIGHT),
     autoRound: true,
@@ -51,6 +51,8 @@ export const GAME_EVENT_UPDATE_SETTINGS: GameEvent = 'updateSettings';
 export const GAME_EVENT_REACH_ISLAND: GameEvent = 'reachIsland';
 
 export const GAME_EVENT_GAME_STATE_UPDATE: GameEvent = 'gameStateUpdate';
+
+export const GAME_EVENT_GAMEPLAY_EVENT: GameEvent = 'gameplayEvent';
 
 export const GAME_EVENT_FINISH: GameEvent = 'finish';
 
