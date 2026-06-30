@@ -36,7 +36,7 @@ export const CLIENT_PROFILE_RESPONSE: ClientProfile = {
       description: 'Улучшает управляемость\nяхтой',
       taskDescription:
         'Чтобы активировать - зайдите\nв раздел "Задания" и выполните задание "Покупка акции голубая фишка"',
-      isReceived: true,
+      isReceived: false,
     },
     {
       id: '3fa85f64-5717-4562-b3fc-219876501234',
