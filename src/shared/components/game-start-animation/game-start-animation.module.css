@@ -11,7 +11,11 @@
 .content {
   position: relative;
   top: -4rem;
-  animation: apperance 1.8s ease-in-out forwards;
+  transform-origin: center;
+  opacity: 0;
+
+  animation: appearance var(--game-start-duration, 2.2s) var(--game-start-easing, ease-in-out) forwards;
+  will-change: opacity, transform;
 }
 
 .text-art {
@@ -24,19 +28,19 @@
 
 @keyframes appearance {
   0% {
-    transform: scale(2);
+    transform: scale(var(--game-start-content-start-scale, 1.35));
     opacity: 0;
   }
   32% {
-    transform: scale(1);
+    transform: scale(var(--game-start-content-visible-scale, 1.05));
     opacity: 1;
   }
   68% {
-    transform: scale(1);
+    transform: scale(var(--game-start-content-fade-out-scale, 0.9));
     opacity: 1;
   }
   100% {
-    transform: scale(0);
+    transform: scale(var(--game-start-content-end-scale, 0.68));
     opacity: 0;
   }
 }

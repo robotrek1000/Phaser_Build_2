@@ -19,6 +19,7 @@ export const ScreenIllumination: FC<ScreenIlluminationProps> = (props) => {
         props.isPaused && styles.paused,
         ILLUMINATION_CONFIG[props.illumination]
       )}
+      style={props.style}
       onAnimationEnd={handleAnimationEnd}
     />
   );
