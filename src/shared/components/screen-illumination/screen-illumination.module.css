@@ -11,10 +11,8 @@
     0 -1.25rem 1.25rem -0.375rem rgba(255, 255, 255, 0.40) inset,
     0 -2.5rem 3rem 2rem rgba(0, 142, 255, 0.50) inset,
     0 -5rem 3.75rem -1.875rem #008EFF inset;
-  transform-origin: center;
 
-  animation: game-start-pulse var(--game-start-duration, 2.2s) var(--game-start-easing, ease-in-out) forwards;
-  will-change: opacity, transform;
+  animation: fade-in 1.8s ease-in-out forwards;
 }
 
 .damage {
@@ -43,25 +41,6 @@
     opacity: 1;
   }
   100% {
-    opacity: 0;
-  }
-}
-
-@keyframes game-start-pulse {
-  0% {
-    transform: scale(var(--game-start-illumination-start-scale, 1.08));
-    opacity: 0;
-  }
-  32% {
-    transform: scale(var(--game-start-illumination-visible-scale, 1));
-    opacity: 1;
-  }
-  68% {
-    transform: scale(var(--game-start-illumination-fade-out-scale, 0.94));
-    opacity: 1;
-  }
-  100% {
-    transform: scale(var(--game-start-illumination-end-scale, 0.82));
     opacity: 0;
   }
 }
