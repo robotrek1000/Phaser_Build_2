@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
     build: {
       assetsInlineLimit: 0,
       chunkSizeWarningLimit: 800,
-      sourcemap: 'false',
+      sourcemap: 'hidden',
       rollupOptions: {
         treeshake: true,
         output: {
