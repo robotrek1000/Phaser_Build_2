@@ -213,6 +213,8 @@ export const useAppContent = () => {
       !clientProfileData ||
       !isGameLoaded
     ) {
+      return;
+    }
 
     game.setSettings(getInitialGameSettings(clientProfileData));
     game.soundManager.applySettings({
@@ -221,7 +223,7 @@ export const useAppContent = () => {
     });
 
     initializedRef.current = true;
-  }, [clientProfileData, game]);
+  }, [clientProfileData, game, isGameLoaded]);
 
   useEffect(() => {
     if (!game) {
