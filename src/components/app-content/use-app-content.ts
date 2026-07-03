@@ -207,9 +207,12 @@ export const useAppContent = () => {
   }, [game?.soundManager, isClientProfileLoaded, isGameLoadedDebounced]);
 
   useEffect(() => {
-    if (!game || initializedRef.current || !clientProfileData) {
-      return;
-    }
+    if (
+      !game ||
+      initializedRef.current ||
+      !clientProfileData ||
+      !isGameLoaded
+    ) {
 
     game.setSettings(getInitialGameSettings(clientProfileData));
     game.soundManager.applySettings({
